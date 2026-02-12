@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-GERÇEK ÇALIŞAN SİSTEM - Purple Team Automation
-MacBook M3 Pro için optimize edildi
-Wi-Fi Pineapple + Flipper Zero + SharkTap entegrasyonu
+REAL WORKING SYSTEM - Purple Team Automation
+Optimized for MacBook M3 Pro
+Wi-Fi Pineapple + Flipper Zero + SharkTap integration
 
-KULLANIM:
+USAGE:
     python3 REAL_WORKING_SYSTEM.py --client "Acme Corp"
 """
 
@@ -15,9 +15,10 @@ from pathlib import Path
 from datetime import datetime
 import argparse
 
-# GERÇEK dosya yolları - Automation klasörü nerede?
+# REAL file paths
 SCRIPT_DIR = Path(__file__).parent
-THREAT_INTEL_FILE = SCRIPT_DIR / "Resources/Threat-Intelligence/indicators_of_compromise.json"
+# Resources is in the root directory, one level up from this script
+THREAT_INTEL_FILE = SCRIPT_DIR.parent / "Resources/Threat-Intelligence/indicators_of_compromise.json"
 OUTPUT_BASE = Path.home() / "Desktop" / "PurpleTeam_Output"
 
 class RealPurpleTeamSystem:
@@ -32,7 +33,7 @@ class RealPurpleTeamSystem:
         print()
 
     def load_real_threat_intel(self):
-        """GERÇEK IOC'leri yükle - senin dosyandan"""
+        """Load REAL IOCs - from your file"""
         print("[1/5] Loading REAL threat intelligence...")
 
         if not THREAT_INTEL_FILE.exists():
@@ -44,7 +45,7 @@ class RealPurpleTeamSystem:
         with open(THREAT_INTEL_FILE) as f:
             data = json.load(f)
 
-        # GERÇEK IP'leri çıkar
+        # Extract REAL IPs
         real_ips = []
         for threat in data["indicators_by_threat"]:
             if "network" in threat["indicators"]:
@@ -64,10 +65,10 @@ class RealPurpleTeamSystem:
         return real_ips
 
     def generate_firewall_blocklist(self, ips):
-        """Müşterinin firewall'ına import edebileceği GERÇEK dosya"""
+        """REAL file that the client can import into their firewall"""
         print("\n[2/5] Generating firewall blocklist...")
 
-        # Format 1: Cloudflare WAF (çoğu Seattle startup'ı kullanıyor)
+        # Format 1: Cloudflare WAF (used by most Seattle startups)
         cloudflare_rules = []
         for ip_data in ips:
             cloudflare_rules.append({
@@ -81,7 +82,7 @@ class RealPurpleTeamSystem:
         with open(cloudflare_file, 'w') as f:
             json.dump(cloudflare_rules, f, indent=2)
 
-        # Format 2: pfSense (on-prem kullanan şirketler için)
+        # Format 2: pfSense (for companies using on-prem)
         pfsense_rules = []
         for ip_data in ips:
             pfsense_rules.append(
@@ -92,7 +93,7 @@ class RealPurpleTeamSystem:
         with open(pfsense_file, 'w') as f:
             f.write("\n".join(pfsense_rules))
 
-        # Format 3: AWS Security Group (AWS kullanan herkes)
+        # Format 3: AWS Security Group (Everyone using AWS)
         aws_rules = {
             "IpPermissions": [
                 {
@@ -124,7 +125,7 @@ class RealPurpleTeamSystem:
         }
 
     def create_client_briefing(self, ips, firewall_files):
-        """Müşteriye verilecek GERÇEK rapor"""
+        """REAL report to be given to the client"""
         print("\n[3/5] Creating client briefing...")
 
         briefing = f"""# Threat Intelligence Briefing - {self.client_name}
@@ -137,7 +138,7 @@ Your organization is currently exposed to {len(ips)} known malicious IP addresse
 ### Threat Actors Targeting Your Infrastructure:
 """
 
-        # Threat actor'ları grupla
+        # Group threat actors
         actors = {}
         for ip_data in ips:
             actor = ip_data['attribution']
@@ -208,7 +209,7 @@ Questions? Contact your Purple Team analyst.
         return briefing_file
 
     def check_physical_tools(self):
-        """Fiziksel araçların hazır olup olmadığını kontrol et"""
+        """Check if physical tools are ready"""
         print("\n[4/5] Checking physical pentest tools...")
 
         tools_status = {
@@ -277,7 +278,7 @@ This will parse your tool outputs and add findings to the client report.
         return tools_file
 
     def generate_pricing_quote(self):
-        """GERÇEK fiyatlandırma - Seattle pazar araştırmasına göre"""
+        """REAL pricing - based on Seattle market research"""
         print("\n[5/5] Generating pricing quote...")
 
         quote = f"""# Purple Team Services - Pricing Quote
@@ -371,27 +372,27 @@ Questions? Call or email.
         return quote_file
 
     def run_full_workflow(self):
-        """Tüm iş akışını çalıştır"""
+        """Run the full workflow"""
         print("="*70)
         print("PURPLE TEAM AUTOMATION - REAL WORKING SYSTEM")
         print("="*70)
 
-        # Adım 1: GERÇEK threat intel yükle
+        # Step 1: Load REAL threat intel
         ips = self.load_real_threat_intel()
 
-        # Adım 2: Firewall dosyaları oluştur
+        # Step 2: Create firewall files
         firewall_files = self.generate_firewall_blocklist(ips)
 
-        # Adım 3: Müşteri raporu
+        # Step 3: Client report
         briefing = self.create_client_briefing(ips, firewall_files)
 
-        # Adım 4: Fiziksel araç rehberi
+        # Step 4: Physical tools guide
         tools_guide = self.check_physical_tools()
 
-        # Adım 5: Fiyat teklifi
+        # Step 5: Pricing quote
         quote = self.generate_pricing_quote()
 
-        # Özet
+        # Summary
         print("\n" + "="*70)
         print("✅ COMPLETED - All files ready for client")
         print("="*70)
@@ -404,7 +405,7 @@ Questions? Call or email.
         print(f"  5. {tools_guide.name} (for your pentest team)")
         print(f"  6. {quote.name} (upsell to $85K)")
 
-        # Dosyaları Finder'da aç
+        # Open files in Finder
         try:
             subprocess.run(["open", str(self.output_dir)])
             print(f"\n📂 Opening folder in Finder...")
