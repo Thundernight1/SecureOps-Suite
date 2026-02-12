@@ -1,0 +1,490 @@
+{
+  "name": "CyberSentinel Automated Threat Response - December 2025",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": 3600
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        -220,
+        300
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "response": {
+                "fullResponse": true
+              }
+            }
+          }
+        }
+      },
+      "name": "Fetch CISA KEV",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        0,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "url": "https://nvd.nist.gov/vuln/search/results?results_type=recent&search_type=all&startIndex=0&startIndex=0",
+        "options": {
+          "response": {
+            "fullResponse": true
+          }
+        }
+      },
+      "name": "Fetch NVD CVEs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.threatfox.apiwrap.it/v1/iocs",
+        "options": {
+          "response": {
+            "fullResponse": true
+          }
+        }
+      },
+      "name": "Fetch ThreatFox IOCs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// CyberSentinel Threat Analysis Engine\n// Analyzes incoming threat data and classifies by type, severity, and affected systems\n\nconst threats = items[0].json;\nconst processedThreats = [];\n\n// Critical vulnerability patterns\nconst criticalCVEs = [\n  'CVE-2025-55182', // React2Shell\n  'CVE-2025-62554', // Microsoft Office RCE\n  'CVE-2025-62557', // Microsoft Office RCE\n  'CVE-2025-14847', // MongoBleed\n];\n\n// High severity patterns\nconst highCVEs = [\n  'CVE-2025-6218', // WinRAR\n  'CVE-2025-59374', // ASUS\n  'CVE-2025-66644', // Array Networks\n  'CVE-2025-40602', // SonicWall\n];\n\n// Ransomware groups\nconst ransomwareGroups = ['qilin', 'akira', 'rhysida', 'cl0p', 'volklocker', 'lynx', 'inc'];\n\n// APT groups\nconst aptGroups = ['prince of persia', 'infy', 'blind eagle', 'apt-c-36', 'sidewinder', 'brickstorm', 'muddywater'];\n\nfunction classifyThreat(threat) {\n  const threatData = threat.data || threat;\n  const title = (threatData.title || threatData.cve || threatData.name || '').toLowerCase();\n  const description = (threatData.description || '').toLowerCase();\n  const text = `${title} ${description}`;\n  \n  let threatType = 'UNKNOWN';\n  let severity = 'MEDIUM';\n  let tags = [];\n  \n  // Classify threat type\n  if (/cve-\\d{4}-\\d+/.test(text)) {\n    threatType = 'VULNERABILITY';\n    \n    // Check severity\n    if (criticalCVEs.some(cve => text.includes(cve.toLowerCase()))) {\n      severity = 'CRITICAL';\n      tags.push('cisa-kev', 'active-exploitation');\n    } else if (highCVEs.some(cve => text.includes(cve.toLowerCase()))) {\n      severity = 'HIGH';\n      tags.push('cisa-kev');\n    }\n    \n    // Check CVSS score if available\n    if (threatData.cvss || threatData.cvss_score) {\n      const score = parseFloat(threatData.cvss || threatData.cvss_score);\n      if (score >= 9.0) {\n        severity = 'CRITICAL';\n      } else if (score >= 7.0) {\n        severity = 'HIGH';\n      } else if (score >= 4.0) {\n        severity = 'MEDIUM';\n      }\n    }\n  } \n  else if (ransomwareGroups.some(g => text.includes(g))) {\n    threatType = 'RANSOMWARE';\n    severity = 'CRITICAL';\n    tags.push('double-extortion', 'raas');\n  }\n  else if (aptGroups.some(g => text.includes(g))) {\n    threatType = 'APT';\n    severity = 'HIGH';\n    tags.push('nation-state', 'espionage');\n  }\n  else if (text.includes('phish') || text.includes('credential') || text.includes('social engineering')) {\n    threatType = 'PHISHING';\n    severity = 'HIGH';\n    tags.push('email', 'credential-harvesting');\n  }\n  else if (text.includes('breach') || text.includes('data leak') || text.includes('exposed')) {\n    threatType = 'IOC';\n    severity = 'MEDIUM';\n    tags.push('data-exposure', 'pii');\n  }\n  else if (text.includes('malware') || text.includes('trojan') || text.includes('backdoor')) {\n    threatType = 'MALWARE';\n    severity = 'HIGH';\n    tags.push('persistence', 'c2');\n  }\n  \n  return {\n    ...threatData,\n    threatType,\n    severity,\n    tags,\n    analyzedAt: new Date().toISOString(),\n    confidenceScore: calculateConfidence(threatData, threatType)\n  };\n}\n\nfunction calculateConfidence(data, type) {\n  let score = 70; // Base confidence\n  \n  if (data.source && data.source.length > 1) score += 15;\n  if (data.cve) score += 10;\n  if (data.cvss && parseFloat(data.cvss) >= 9.0) score += 5;\n  if (data.exploited) score += 10;\n  \n  return Math.min(score, 98);\n}\n\n// Process all incoming items\nfor (const item of items) {\n  const analyzed = classifyThreat(item);\n  processedThreats.push({ json: analyzed });\n}\n\nreturn processedThreats;"
+      },
+      "name": "Threat Analysis Engine",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        600,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.severity }}",
+              "operation": "equal",
+              "value2": "CRITICAL"
+            }
+          ]
+        }
+      },
+      "name": "Filter Critical",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        800,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.severity }}",
+              "operation": "equal",
+              "value2": "HIGH"
+            }
+          ]
+        }
+      },
+      "name": "Filter High",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.severity }}",
+              "operation": "equal",
+              "value2": "MEDIUM"
+            }
+          ]
+        }
+      },
+      "name": "Filter Medium",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        800,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "={{ $env.SLACK_ALERT_CHANNEL_ID }}",
+        "text": "={{ JSON.stringify($json, null, 2) }}",
+        "blocks": "={{ [{\"type\": \"header\", \"text\": {\"type\": \"plain_text\", \"text\": \"🚨 CRITICAL THREAT ALERT\"}}, {\"type\": \"section\", \"fields\": [{\"type\": \"mrkdwn\", \"text\": \"*Threat:* \" + $json.title}, {\"type\": \"mrkdwn\", \"text\": \"*Severity:* \" + $json.severity}, {\"type\": \"mrkdwn\", \"text\": \"*Type:* \" + $json.threatType}, {\"type\": \"mrkdwn\", \"text\": \"*Confidence:* \" + $json.confidenceScore + \"%\"}]}, {\"type\": \"section\", \"text\": {\"type\": \"mrkdwn\", \"text\": $json.description || 'No description available'}}, {\"type\": \"actions\", \"elements\": [{\"type\": \"button\", \"text\": {\"type\": \"plain_text\", \"text\": \"Acknowledge\"}, \"style\": \"primary\"}, {\"type\": \"button\", \"text\": {\"type\": \"plain_text\", \"text\": \"View Details\"}, \"url\": \"{{ $env.THREAT_INTEL_DASHBOARD_URL }}/threat/\" + $json.id}]}] }}"
+      },
+      "name": "Slack Critical Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "={{ $env.PAGERDUTY_INCIDENT_CHANNEL }}",
+        "title": "={{ '[CyberSentinel] ' + $json.severity + ': ' + $json.title }}",
+        "urgency": "={{ $json.severity === 'CRITICAL' ? 'high' : 'low' }}",
+        "body": "={{ JSON.stringify($json, null, 2) }}"
+      },
+      "name": "PagerDuty Critical",
+      "type": "n8n-nodes-base.pagerDuty",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "={{ $env.SLACK_ALERT_CHANNEL_ID }}",
+        "text": "={{ JSON.stringify($json, null, 2) }}",
+        "blocks": "={{ [{\"type\": \"header\", \"text\": {\"type\": \"plain_text\", \"text\": \"⚠️ HIGH THREAT ALERT\"}}, {\"type\": \"section\", \"fields\": [{\"type\": \"mrkdwn\", \"text\": \"*Threat:* \" + $json.title}, {\"type\": \"mrkdwn\", \"text\": \"*Severity:* \" + $json.severity}, {\"type\": \"mrkdwn\", \"text\": \"*Type:* \" + $json.threatType}, {\"type\": \"mrkdwn\", \"text\": \"*Confidence:* \" + $json.confidenceScore + \"%\"}]}, {\"type\": \"section\", \"text\": {\"type\": \"mrkdwn\", \"text\": $json.description || 'No description available'}}] }}"
+      },
+      "name": "Slack High Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "={{ $env.SLACK_ALERT_CHANNEL_ID }}",
+        "text": "={{ JSON.stringify($json, null, 2) }}",
+        "blocks": "={{ [{\"type\": \"header\", \"text\": {\"type\": \"plain_text\", \"text\": \"📊 MEDIUM THREAT DETECTED\"}}, {\"type\": \"section\", \"fields\": [{\"type\": \"mrkdwn\", \"text\": \"*Threat:* \" + $json.title}, {\"type\": \"mrkdwn\", \"text\": \"*Severity:* \" + $json.severity}, {\"type\": \"mrkdwn\", \"text\": \"*Type:* \" + $json.threatType}]}] }}"
+      },
+      "name": "Slack Medium Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate automated response playbooks based on threat type\n\nconst threat = items[0].json;\nconst playbooks = [];\n\n// Playbook templates for different threat types\nconst playbookTemplates = {\n  'VULNERABILITY': {\n    steps: [\n      '1. Identify affected systems and software versions',\n      '2. Check CISA KEV status and due dates',\n      '3. Deploy vendor patches or apply mitigations',\n      '4. Verify patch deployment across environment',\n      '5. Update vulnerability management dashboards',\n      '6. Conduct post-incident review'\n    ],\n    escalation: 'PATCH_MANAGEMENT_TEAM',\n    sla_hours: threat.severity === 'CRITICAL' ? 24 : 72\n  },\n  'RANSOMWARE': {\n    steps: [\n      '1. Isolate affected systems immediately',\n      '2. Activate incident response team',\n      '3. Check for indicators of lateral movement',\n      '4. Review backup integrity',\n      '5. Identify ransomware variant and check decryptors',\n      '6. Engage legal and PR teams if needed',\n      '7. Preserve evidence for forensics',\n      '8. Document all actions taken'\n    ],\n    escalation: 'INCIDENT_RESPONSE_TEAM',\n    sla_hours: 1\n  },\n  'APT': {\n    steps: [\n      '1. Contain affected systems',\n      '2. Preserve forensic evidence',\n      '3. Identify campaign scope and timeline',\n      '4. Block IOCs at perimeter',\n      '5. Engage threat intelligence team',\n      '6. Coordinate with law enforcement if appropriate',\n      '7. Conduct full threat hunt',\n      '8. Implement enhanced monitoring'\n    ],\n    escalation: 'SENIOR_SECURITY_LEADERSHIP',\n    sla_hours: 4\n  },\n  'PHISHING': {\n    steps: [\n      '1. Block sender/domain at email gateway',\n      '2. Search for other recipients of same campaign',\n      '3. Quarantine malicious emails',\n      '4. Reset credentials if clicked',\n      '5. Scan endpoint for malware',\n      '6. Update email security rules',\n      '7. Send organization-wide awareness notification',\n      '8. Report to threat intel platforms'\n    ],\n    escalation: 'SECURITY_OPERATIONS',\n    sla_hours: threat.severity === 'CRITICAL' ? 4 : 24\n  },\n  'IOC': {\n    steps: [\n      '1. Verify IOC legitimacy',\n      '2. Search environment for IOC matches',\n      '3. Correlate with other security events',\n      '4. Determine scope of potential compromise',\n      '5. Initiate investigation if warranted',\n      '6. Update detection rules',\n      '7. Share with threat intel community if appropriate'\n    ],\n    escalation: 'THREAT_INTEL_TEAM',\n    sla_hours: 48\n  },\n  'MALWARE': {\n    steps: [\n      '1. Isolate infected systems',\n      '2. Identify malware family and behavior',\n      '3. Search for additional infected systems',\n      '4. Block C2 communications',\n      '5. Remove malware from affected systems',\n      '6. Investigate initial infection vector',\n      '7. Update EDR signatures',\n      '8. Conduct post-incident analysis'\n    ],\n    escalation: 'SECURITY_OPERATIONS',\n    sla_hours: threat.severity === 'CRITICAL' ? 2 : 24\n  }\n};\n\nconst template = playbookTemplates[threat.threatType] || playbookTemplates['IOC'];\n\nconst playbook = {\n  threatId: threat.id || threat.threat_id,\n  threatType: threat.threatType,\n  severity: threat.severity,\n  playbookType: threat.threatType,\n  generatedAt: new Date().toISOString(),\n  responseSteps: template.steps,\n  escalationPath: template.escalation,\n  slaHours: template.sla_hours,\n  affectedSystems: threat.affectedSystems || [],\n  recommendedActions: threat.recommendedActions || [],\n  iocs: threat.indicatorsOfCompromise || [],\n  references: threat.references || []\n};\n\nplaybooks.push({ json: playbook });\n\nreturn playbooks;"
+      },
+      "name": "Generate Playbook",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1200,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "table": "threats",
+        "schema": "public",
+        "columns": "id,data,severity,threat_type,created_at,updated_at",
+        "values": "={{ $json.id || 'threat_' + $json.threat_id }},{{ JSON.stringify($json) }},{{ $json.severity }},{{ $json.threatType }},NOW(),NOW()",
+        "relationId": "id"
+      },
+      "name": "Store in Database",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        1400,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "playbooks",
+        "schema": "public",
+        "columns": "threat_id,data,created_at",
+        "values": "={{ $json.threatId || $json.threat_id }},{{ JSON.stringify($json) }},NOW()"
+      },
+      "name": "Store Playbook",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        1400,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.severity }}",
+              "operation": "equal",
+              "value2": "CRITICAL"
+            }
+          ]
+        }
+      },
+      "name": "Escalate Critical",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1600,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "={{ $env.EXECUTIVE_SLACK_CHANNEL }}",
+        "text": "={{ JSON.stringify($json, null, 2) }}",
+        "blocks": "={{ [{\"type\": \"header\", \"text\": {\"type\": \"plain_text\", \"text\": \"🚨 EXECUTIVE BRIEFING: CRITICAL SECURITY THREAT\"}}, {\"type\": \"section\", \"text\": {\"type\": \"mrkdwn\", \"text\": \"A *CRITICAL* security threat requires executive attention.\\n\\n*Threat:* \" + $json.title + \"\\n*Type:* \" + $json.threatType + \"\\n*Affected Systems:* \" + ($json.affectedSystems || []).join(', ') + \"\\n\\nPlease coordinate with the security team for immediate response.\"}}] }}"
+      },
+      "name": "Executive Briefing",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1800,
+        150
+      ]
+    },
+    {
+      "parameters": {
+        "reportName": "CyberSentinel Daily Threat Summary",
+        "dateRange": "={{ JSON.stringify({ from: new Date(Date.now() - 86400000).toISOString(), to: new Date().toISOString() }) }}",
+        "options": {
+          "format": "pdf",
+          "includeCharts": true
+        }
+      },
+      "name": "Generate Daily Report",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [
+        1800,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "={{ $env.EXECUTIVE_SLACK_CHANNEL }}",
+        "text": "={{ JSON.stringify($json, null, 2) }}",
+        "blocks": "={{ [{\"type\": \"header\", \"text\": {\"type\": \"plain_text\", \"text\": \"📊 Daily Threat Intelligence Report\"}}, {\"type\": \"section\", \"text\": {\"type\": \"mrkdwn\", \"text\": \"*Period:* \" + $json.period + \"\\n*Total Threats:* \" + $json.totalThreats + \"\\n*Critical:* \" + $json.criticalCount + \"\\n*High:* \" + $json.highCount + \"\\n*Medium:* \" + $json.mediumCount + \"\\n\\n*Top Threats:*\\n\" + $json.topThreats.map(t => '• ' + t).join('\\n')}}] }}"
+      },
+      "name": "Send Daily Report",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch CISA KEV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch CISA KEV": {
+      "main": [
+        [
+          {
+            "node": "Fetch NVD CVEs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch NVD CVEs": {
+      "main": [
+        [
+          {
+            "node": "Fetch ThreatFox IOCs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch ThreatFox IOCs": {
+      "main": [
+        [
+          {
+            "node": "Threat Analysis Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Threat Analysis Engine": {
+      "main": [
+        [
+          {
+            "node": "Filter Critical",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter High",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter Medium",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Critical": {
+      "main": [
+        [
+          {
+            "node": "Slack Critical Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "PagerDuty Critical",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate Playbook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter High": {
+      "main": [
+        [
+          {
+            "node": "Slack High Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate Playbook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Medium": {
+      "main": [
+        [
+          {
+            "node": "Slack Medium Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate Playbook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Playbook": {
+      "main": [
+        [
+          {
+            "node": "Store in Database",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Store Playbook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store in Database": {
+      "main": [
+        [
+          {
+            "node": "Escalate Critical",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Escalate Critical": {
+      "main": [
+        [
+          {
+            "node": "Executive Briefing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

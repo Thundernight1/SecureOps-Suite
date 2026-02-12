@@ -1,0 +1,213 @@
+{
+  "name": "Ransomware Detection & Response",
+  "nodes": [
+    {
+      "name": "Ransomware Feed Monitor",
+      "type": "n8n-nodes-base.rssRead",
+      "position": [
+        100,
+        200
+      ],
+      "parameters": {
+        "url": "https://ransomware.live/feed",
+        "limit": 50
+      }
+    },
+    {
+      "name": "Dark Web Monitor",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        100,
+        300
+      ],
+      "parameters": {
+        "url": "https://darkwebinformer.com/api/threats",
+        "method": "get",
+        "options": {}
+      }
+    },
+    {
+      "name": "Ransomware Group Analysis",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        300,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const items = $input.all();\n\n// Known ransomware groups and their characteristics\nconst ransomwareDatabase = {\n  'Qilin': {\n    alias: 'Storm-0211',\n    status: 'Active',\n    origin: 'Russia',\n    firstSeen: '2022-08',\n    targeting: ['Healthcare', 'Manufacturing', 'Finance', 'Critical Infrastructure'],\n    countries: ['US', 'UK', 'Germany', 'Australia', 'Canada'],\n    ransomwareVariant: 'Qilin',\n    doubleExtortion: true,\n    dataExfiltration: true,\n    leakSite: 'qilin-reports.com',\n    recentActivity: {\n      decemberClaims: 107,\n      dataExfiltration: '31,200 TB claimed',\n      notableVictims: ['Eurofiber', 'FFF', 'Prova', 'France Terre d\\'Asile']\n    },\n    detectionRate: 0.82,\n    falsePositiveRate: 0.15,\n    encryptionSpeed: 'Fast',\n    negotiation: true,\n    encryptionExtensions: ['.qilin', '.encrypted']\n  },\n  'Akira': {\n    alias: 'Storm-0857',\n    status: 'Active',\n    origin: 'Russia',\n    firstSeen: '2023-03',\n    targeting: ['Technology', 'Finance', 'Healthcare', 'Education'],\n    countries: ['US', 'UK', 'EU'],\n    ransomwareVariant: 'Akira',\n    doubleExtortion: true,\n    dataExfiltration: true,\n    leakSite: 'akira-team.com',\n    recentActivity: {\n      q3MarketShare: '34%',\n      encryptionMethod: 'RSA-4096 + AES-256',\n      notableVictims: ['Multiple enterprise targets']\n    },\n    detectionRate: 0.78,\n    falsePositiveRate: 0.18,\n    encryptionSpeed: 'Medium',\n    negotiation: true,\n    encryptionExtensions: ['.akira', '.LOCKED']\n  },\n  'Lynx': {\n    status: 'Active',\n    origin: 'Unknown',\n    firstSeen: '2025',\n    targeting: ['Technology', 'Finance'],\n    doubleExtortion: true,\n    leakSite: 'lynx-leak.site',\n    detectionRate: 0.70,\n    falsePositiveRate: 0.22\n  },\n  'Medusa': {\n    alias: 'Medusa ransomware',\n    status: 'Active',\n    origin: 'Unknown',\n    firstSeen: '2023',\n    targeting: ['Healthcare', 'Education', 'Government'],\n    doubleExtortion: true,\n    leakSite: 'medusa4secsite.com',\n    detectionRate: 0.75,\n    falsePositiveRate: 0.20\n  },\n  'RansomHub': {\n    alias: 'Spoiled Scorpius',\n    status: 'Active',\n    origin: 'Unknown',\n    firstSeen: '2024',\n    targeting: ['Government', 'Healthcare', 'Critical Infrastructure'],\n    doubleExtortion: true,\n    notableAttacks: ['Municipal government - 500GB data exfiltrated in 7 hours'],\n    detectionRate: 0.73,\n    falsePositiveRate: 0.18\n  },\n  'Scattered Spider': {\n    alias: 'UNC5267',\n    status: 'Active',\n    origin: 'US/UK',\n    firstSeen: '2023',\n    targeting: ['Retail', 'Technology', 'Finance'],\n    tactics: ['Social engineering', 'Credential theft', 'MFA bombing'],\n    detectionRate: 0.65,\n    falsePositiveRate: 0.25\n  }\n};\n\nreturn items.map(item => {\n  const groupName = item.json.groupName || identifyGroup(item.json);\n  const ransomware = ransomwareDatabase[groupName] || {\n    status: 'Investigating',\n    detectionRate: 0.5,\n    falsePositiveRate: 0.35\n  };\n  \n  return {\n    json: {\n      ...item.json,\n      groupName: groupName,\n      threatType: 'RANSOMWARE',\n      classification: 'RANSOMWARE',\n      severity: calculateRansomwareSeverity(ransomware),\n      detectionConfidence: ransomware.detectionRate || 0.5,\n      falsePositiveProbability: ransomware.falsePositiveRate || 0.35,\n      affectedSystems: ransomware.targeting || ['Unknown'],\n      geographicTarget: ransomware.countries || ['Global'],\n      indicatorsOfCompromise: generateRansomwareIOCs(ransomware),\n      ransomwareCharacteristics: {\n        doubleExtortion: ransomware.doubleExtortion,\n        dataExfiltration: ransomware.dataExfiltration,\n        encryptionSpeed: ransomware.encryptionSpeed,\n        negotiation: ransomware.negotiation,\n        encryptionExtensions: ransomware.encryptionExtensions\n      },\n      recentActivity: ransomware.recentActivity,\n      leakSite: ransomware.leakSite,\n      recommendedActions: generateRansomwareRecommendations(ransomware),\n      incidentResponse: {\n        isolationRequired: true,\n        communicationProtocol: 'Initiate incident response plan',\n        legalNotification: 'Notify legal and compliance teams',\n        recoveryStrategy: 'Restore from known-good backups'\n      }\n    }\n  };\n});\n\nfunction identifyGroup(item) {\n  const text = JSON.stringify(item).toLowerCase();\n  if (text.includes('qilin')) return 'Qilin';\n  if (text.includes('akira')) return 'Akira';\n  if (text.includes('medusa')) return 'Medusa';\n  if (text.includes('ransomhub') || text.includes('spoiled scorpio')) return 'RansomHub';\n  if (text.includes('scattered spider')) return 'Scattered Spider';\n  if (text.includes('lynx')) return 'Lynx';\n  return 'Unknown';\n}\n\nfunction calculateRansomwareSeverity(ransomware) {\n  // Ransomware targeting critical infrastructure is CRITICAL\n  if (ransomware.targeting?.includes('Critical Infrastructure')) return 'CRITICAL';\n  if (ransomware.targeting?.includes('Healthcare')) return 'HIGH';\n  if (ransomware.doubleExtortion) return 'HIGH';\n  if (ransomware.dataExfiltration) return 'HIGH';\n  return 'MEDIUM';\n}\n\nfunction generateRansomwareIOCs(ransomware) {\n  return {\n    fileExtensions: ransomware.encryptionExtensions || ['.encrypted', '.locked'],\n    ransomwareNotes: [\n      `Ransom note file: README_${(ransomware.ransomwareVariant || 'RANSOM').toUpperCase()}.txt`,\n      'Contact email in ransom note',\n      'Payment deadline demands'\n    ],\n    networkIOCs: [\n      `C2 communication to ${ransomware.leakSite || 'ransomware leak site'}`,\n      'Encrypted traffic to external IPs'\n    ],\n    behavioralIOCs: [\n      'Mass file encryption activity',\n      'Suspicious PowerShell commands',\n      'Service termination for backup software',\n      'Shadow copy deletion (vssadmin.exe)'\n    ]\n  };\n}\n\nfunction generateRansomwareRecommendations(ransomware) {\n  return [\n    'IMMEDIATE: Isolate affected systems from network',\n    'IMMEDIATE: Preserve evidence and logs',\n    'Do NOT pay ransom without executive approval and legal consultation',\n    'Engage incident response team immediately',\n    'Notify law enforcement (FBI CISA, local authorities)',\n    'Review and restore from offline backups',\n    'Scan all systems for persistence mechanisms',\n    'Reset all credentials and access tokens',\n    'Implement network segmentation',\n    'Enhanced monitoring for lateral movement'\n  ];\n}"
+      }
+    },
+    {
+      "name": "Ransomware Statistics",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        500,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const items = $input.all();\n\n// December 2025 ransomware statistics\nconst ransomwareStats = {\n  december2025: {\n    totalAttacks: 659,\n    changeFromNovember: '-5%',\n    yearOverYearGrowth: '126%',\n    averageBreachCost: '$10.22M (US)',\n    topTargetedSectors: {\n      manufacturing: { attacks: 166, change: '+35%' },\n      technology: { attacks: 893, change: 'N/A' },\n      healthcare: { attacks: 20, change: '+43%' },\n      education: { attacks: 21, change: '+24%' }\n    },\n    geographicDistribution: {\n      'United States': '49% of all victims',\n      'Europe': '25%',\n      'Asia': '15%',\n      'Other': '11%'\n    },\n    attackVectors: {\n      'Exploited vulnerabilities': '32%',\n      'Compromised credentials': '23%',\n      'Malicious email': '19%',\n      'Phishing': '18%'\n    },\n    dataExfiltration: {\n      'Qilin claimed exfiltration': '31,200 TB',\n      'Average ransom demand': '$2.5M',\n      'Payment rate': '35-45%'\n    }\n  },\n  notableIncidents: [\n    {\n      date: '2025-12-26',\n      target: \"Romania's Water Authority\",\n      impact: '1,000+ IT systems affected',\n      sector: 'Critical Infrastructure'\n    },\n    {\n      date: '2025-12',\n      target: 'Sweden\\'s Miljödata',\n      impact: '1.5M victims',\n      sector: 'Government'\n    },\n    {\n      date: '2025-12',\n      target: 'Italy\\'s Almaviva',\n      impact: 'Data breach',\n      sector: 'Technology'\n    }\n  ]\n};\n\nreturn items.map(item => ({\n  json: {\n    ...item.json,\n    ransomwareStatistics: ransomwareStats,\n    contextForAssessment: {\n      sectorRiskLevel: getSectorRisk(item.json.affectedSystems),\n      geographicRiskLevel: getGeographicRisk(item.json.geographicTarget),\n      seasonalFactors: 'Holiday season increases risk (reduced staffing, increased online activity)'\n    }\n  }\n}));\n\nfunction getSectorRisk(sectors) {\n  const highRisk = ['Healthcare', 'Critical Infrastructure', 'Government', 'Finance'];\n  const mediumRisk = ['Technology', 'Manufacturing', 'Education'];\n  \n  if (sectors?.some(s => highRisk.includes(s))) return 'HIGH';\n  if (sectors?.some(s => mediumRisk.includes(s))) return 'MEDIUM';\n  return 'MODERATE';\n}\n\nfunction getGeographicRisk(countries) {\n  if (countries?.includes('US')) return 'HIGHEST';\n  if (countries?.includes('UK') || countries?.includes('Germany')) return 'HIGH';\n  return 'MODERATE';\n}"
+      }
+    },
+    {
+      "name": "Victim Assessment",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        700,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const items = $input.all();\n\nreturn items.map(item => {\n  const isVictim = item.json.isConfirmedVictim || false;\n  const hasIOCs = item.json.indicatorsOfCompromise?.fileExtensions?.length > 0;\n  \n  // Assessment score\n  let assessmentScore = 0;\n  if (hasIOCs) assessmentScore += 40;\n  if (item.json.severity === 'CRITICAL') assessmentScore += 30;\n  if (item.json.detectionConfidence > 0.8) assessmentScore += 20;\n  if (item.json.recentActivity) assessmentScore += 10;\n  \n  return {\n    json: {\n      ...item.json,\n      assessmentScore: assessmentScore,\n      victimStatus: {\n        isVictim: isVictim,\n        potentialVictim: assessmentScore >= 50 && !isVictim,\n        indicatorMatch: hasIOCs,\n        confidenceLevel: assessmentScore > 70 ? 'HIGH' : assessmentScore > 40 ? 'MEDIUM' : 'LOW'\n      },\n      immediateActions: isVictim ? [\n        '1. DISCONNECT affected systems from network immediately',\n        '2. PRESERVE all logs and forensic evidence',\n        '3. DO NOT power off systems (volatile memory)',\n        '4. NOTIFY incident response team',\n        '5. ENGAGE legal and compliance',\n        '6. CONTACT law enforcement',\n        '7. ASSESS backup integrity',\n        '8. COMMUNICATE to stakeholders'\n      ] : [],\n      preventionPriority: {\n        patchManagement: 'URGENT - 32% of attacks via vulnerabilities',\n        credentialSecurity: 'HIGH - 23% via compromised credentials',\n        emailSecurity: 'HIGH - 19% via malicious email',\n        phishingTraining: 'HIGH - 18% via phishing',\n        backupVerification: 'CRITICAL - Ensure offline backups'\n      }\n    }\n  };\n});"
+      }
+    },
+    {
+      "name": "Ransomware Alert",
+      "type": "n8n-nodes-base.slack",
+      "position": [
+        900,
+        100
+      ],
+      "parameters": {
+        "channel": "#ransomware-alerts",
+        "text": "={{'🔴 RANSOMWARE ALERT 🔴\\n\\n**Group:** ' + $json.groupName + '\\n**Severity:** ' + $json.severity + '\\n**Target:** ' + ($json.affectedSystems || []).join(', ') + '\\n**Double Extortion:** ' + ($json.ransomwareCharacteristics?.doubleExtortion ? 'YES' : 'NO') + '\\n\\n⚠️ **Immediate Actions Required:**\\n1. Isolate any affected systems\\n2. Preserve evidence and logs\\n3. Do NOT pay ransom without authorization\\n4. Notify incident response team\\n\\n📊 **Current Statistics:**\\n• December 2025 attacks: 659\\n• YoY growth: 126%\\n• Average breach cost: $10.22M'}}",
+        "options": {}
+      }
+    },
+    {
+      "name": "PagerDuty Escalation",
+      "type": "n8n-nodes-base.pagerDuty",
+      "position": [
+        900,
+        200
+      ],
+      "parameters": {
+        "incidentTitle": "={{'[RANSOMWARE ALERT] ' + $json.groupName + ' - ' + $json.severity}}",
+        "incidentBody": "={{'Ransomware threat detected requiring immediate attention.\\n\\n**Group:** ' + $json.groupName + '\\n**Severity:** ' + $json.severity + '\\n**Confidence:** ' + ($json.detectionConfidence * 100).toFixed(0) + '%\\n**Target Sectors:** ' + ($json.affectedSystems || []).join(', ') + '\\n\\n**Recommended Actions:**\\n' + $json.recommendedActions.join('\\n')}}",
+        "urgency": "={{$json.severity === 'CRITICAL' ? 'high' : 'standard'}}",
+        "options": {}
+      }
+    },
+    {
+      "name": "Law Enforcement Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        900,
+        300
+      ],
+      "parameters": {
+        "url": "https://api.ic3.gov/complaint",
+        "method": "post",
+        "options": {}
+      }
+    },
+    {
+      "name": "Ransomware Dashboard",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        1100,
+        200
+      ],
+      "parameters": {
+        "operation": "append",
+        "sheetId": "your-ransomware-tracker-sheet-id",
+        "range": "A:Z",
+        "options": {}
+      }
+    },
+    {
+      "name": "Threat Hunting Queries",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        1100,
+        300
+      ],
+      "parameters": {
+        "functionCode": "const items = $input.all();\n\nreturn items.map(item => ({\n  json: {\n    ...item.json,\n    huntingQueries: {\n      splunk: [\n        `index=endpoint | search process_name=vssadmin.exe AND command_line=\"*delete*\"`,\n        `index=endpoint | search process_name=bcdedit.exe AND command_line=\"*recovery*\"`,\n        `index=network | search url=\"*${item.json.leakSite || 'ransomware'}*\"`,\n        `index=endpoint | search file_extension IN (\"${(item.json.indicatorsOfCompromise?.fileExtensions || []).join('\", \"')}\")`,\n        `index=endpoint | search process_name=powershell AND command_line=\"*encoded*\"`\n      ],\n      elastic: [\n        {\n          query: {\n            bool: {\n              must: [\n                { match: { 'process.command_line': '*vssadmin*delete*' } }\n              ]\n            }\n          }\n        }\n      ],\n      yara: generateYaraRules(item.json)\n    }\n  }\n}));\n\nfunction generateYaraRules(item) {\n  const group = item.groupName || 'ransomware';\n  return [\n    {\n      rule: `${group}_ransomware_detection`,\n      strings: [\n        `$s1 = \"${group}\" nocase`,\n        `$s2 = \"Your files have been encrypted\"`,\n        `$s3 = \"Ransom note\"`\n      ],\n      condition: `2 of them`\n    }\n  ];\n}"
+      }
+    }
+  ],
+  "connections": {
+    "Ransomware Feed Monitor": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Group Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dark Web Monitor": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Group Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ransomware Group Analysis": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Statistics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ransomware Statistics": {
+      "main": [
+        [
+          {
+            "node": "Victim Assessment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Victim Assessment": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "PagerDuty Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Law Enforcement Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Ransomware Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Threat Hunting Queries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

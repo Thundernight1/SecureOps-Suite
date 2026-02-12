@@ -1,0 +1,482 @@
+{
+  "name": "CyberSentinel - APT Detection and Response Workflow",
+  "onError": "stopWorkflow",
+  "settings": {
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": 3600,
+    "errorWorkflow": "error-handler-workflow"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "pollTime": "300000",
+        "pollUnit": "milliseconds",
+        "options": {}
+      },
+      "id": "apt-monitor-trigger",
+      "name": "APT Monitor Trigger",
+      "type": "n8n-nodes-base.interval",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "url": "https://api.feedly.com/v3/search/feeds?query=APT%20threat%20actor",
+        "options": {}
+      },
+      "id": "apt-news-feed",
+      "name": "Monitor APT Intelligence Feeds",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ],
+      "disabled": false,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "apt_indicators",
+        "columns": {
+          "apt_group": "={{ $json.group_name }}",
+          "campaign_name": "={{ $json.campaign_name }}",
+          "first_seen": "={{ $json.first_seen }}",
+          "target_sectors": "={{ JSON.stringify($json.target_sectors) }}",
+          "ttps": "={{ JSON.stringify($json.ttps) }}",
+          "ioc_hash": "={{ $json.ioc_hash }}",
+          "ioc_network": "={{ $json.ioc_network }}",
+          "severity": "={{ $json.severity }}",
+          "created_at": "={{ new Date().toISOString() }}"
+        },
+        "additionalFields": {}
+      },
+      "id": "store-apt-indicators",
+      "name": "Store APT Indicators",
+      "type": "n8n-nodes-base.n8nSql",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "apt_indicators",
+        "columns": {},
+        "options": {
+          "columns": "*"
+        }
+      },
+      "id": "query-apt-indicators",
+      "name": "Query APT Indicators",
+      "type": "n8n-nodes-base.n8nSql",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "url": "",
+        "options": {}
+      },
+      "id": "github-apt-feed",
+      "name": "Monitor GitHub APT Feeds",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ],
+      "disabled": false,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "resource": "ioc",
+        "operation": "check",
+        "iocValue": "={{ $json.suspicious_ip }}",
+        "iocType": "ip"
+      },
+      "id": "check-ioc-virustotal",
+      "name": "Check IOCs on VirusTotal",
+      "type": "n8n-nodes-base.virustotal",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ],
+      "disabled": false,
+      "credentials": {
+        "virustotalApi": {
+          "name": "VirusTotal API",
+          "id": "virustotal-key",
+          "type": "virustotalApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "execute",
+        "command": "grep -f /etc/n8n/apt_indicator_ips.log /var/log/suricata/fast.log || echo \"No matches\"",
+        "shell": "bash"
+      },
+      "id": "check-suricata-logs",
+      "name": "Check Suricata Logs",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "resource": "siem",
+        "operation": "query",
+        "query": "sourcetype=syslog src_ip={{ $json.suspicious_ip }} OR dst_ip={{ $json.suspicious_ip }} | head 100",
+        "timeRange": "-24h"
+      },
+      "id": "query-splunk",
+      "name": "Query SIEM for IOC Matches",
+      "type": "n8n-nodes-base.splunk",
+      "typeVersion": 1,
+      "position": [
+        700,
+        400
+      ],
+      "disabled": false,
+      "credentials": {
+        "splunkApi": {
+          "name": "Splunk Instance",
+          "id": "splunk-instance",
+          "type": "splunkApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.threat_score }}",
+              "operation": "greaterEqual",
+              "value2": 80
+            }
+          ]
+        }
+      },
+      "id": "high-threat-condition",
+      "name": "High Threat Score Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        900,
+        250
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "message": "=🚨 APT ALERT: {{ $json.apt_group }} Detected\n\nCampaign: {{ $json.campaign_name }}\nSeverity: {{ $json.severity }}\nTarget Sectors: {{ $json.target_sectors }}\n\nKnown IOCs:\n- {{ $json.ioc_network }}\n- {{ $json.ioc_hash }}\n\nRecommended Actions:\n{{ $json.recommended_actions }}",
+        "additionalFields": {}
+      },
+      "id": "apt-slack-alert",
+      "name": "Send APT Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ],
+      "disabled": false,
+      "credentials": {
+        "slackApi": {
+          "name": "Slack Alert Channel",
+          "id": "slack-alerts",
+          "type": "slackApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "incident",
+        "operation": "create",
+        "title": "={{ $json.apt_group }} - {{ $json.campaign_name }} Detected",
+        "description": "={{ $json.description }}",
+        "labels": [
+          "apt",
+          "={{ $json.severity }}",
+          "={{ $json.apt_group }}"
+        ],
+        "priority": "={{ $json.severity === 'CRITICAL' ? 1 : $json.severity === 'HIGH' ? 2 : 3 }}",
+        "additionalFields": {}
+      },
+      "id": "create-apt-incident",
+      "name": "Create APT Incident",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        350
+      ],
+      "disabled": false,
+      "credentials": {
+        "jiraApi": {
+          "name": "Jira Instance",
+          "id": "jira-instance",
+          "type": "jiraApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "security_incidents",
+        "columns": {
+          "incident_type": "APT Detection",
+          "threat_actor": "={{ $json.apt_group }}",
+          "campaign": "={{ $json.campaign_name }}",
+          "severity": "={{ $json.severity }}",
+          "status": "OPEN",
+          "created_at": "={{ new Date().toISOString() }}",
+          "description": "={{ $json.description }}"
+        },
+        "additionalFields": {}
+      },
+      "id": "log-incident",
+      "name": "Log Security Incident",
+      "type": "n8n-nodes-base.n8nSql",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        250
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "network_blocks",
+        "columns": {
+          "ip_address": "={{ $json.suspicious_ip }}",
+          "block_reason": "APT IOC - {{ $json.apt_group }}",
+          "blocked_at": "={{ new Date().toISOString() }}",
+          "expires_at": "={{ new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() }}",
+          "status": "ACTIVE"
+        },
+        "additionalFields": {}
+      },
+      "id": "block-ioc",
+      "name": "Block IOC at Firewall",
+      "type": "n8n-nodes-base.n8nSql",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        400
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "message": "=🚨 CRITICAL SECURITY ALERT - APT DETECTED\n\nThreat Actor: {{ $json.apt_group }}\nCampaign: {{ $json.campaign_name }}\nSeverity: {{ $json.severity }}\n\nIMMEDIATE ACTIONS REQUIRED:\n1. Review affected systems for compromise indicators\n2. Check for suspicious scheduled tasks and services\n3. Review PowerShell execution logs\n4. Audit Active Directory for suspicious activity\n5. Enable enhanced logging on critical systems\n\nIndicators:\n- {{ $json.ioc_network }}\n- {{ $json.ioc_hash }}\n\nReference: {{ $json.reference_url }}",
+        "subject": "🚨 CRITICAL: {{ $json.apt_group }} APT Activity Detected",
+        "emailFormat": "html",
+        "body": "= "
+      },
+      "id": "apt-email-alert",
+      "name": "Send APT Email Alert",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1.3,
+      "position": [
+        1100,
+        500
+      ],
+      "disabled": false,
+      "credentials": {
+        "smtp": {
+          "name": "SMTP Server",
+          "id": "smtp-server",
+          "type": "smtp"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "APT Monitor Trigger": {
+      "main": [
+        [
+          {
+            "node": "Monitor APT Intelligence Feeds",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Monitor GitHub APT Feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Monitor APT Intelligence Feeds": {
+      "main": [
+        [
+          {
+            "node": "Store APT Indicators",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Monitor GitHub APT Feeds": {
+      "main": [
+        [
+          {
+            "node": "Store APT Indicators",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store APT Indicators": {
+      "main": [
+        [
+          {
+            "node": "Query APT Indicators",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query APT Indicators": {
+      "main": [
+        [
+          {
+            "node": "Check IOCs on VirusTotal",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Suricata Logs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query SIEM for IOC Matches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check IOCs on VirusTotal": {
+      "main": [
+        [
+          {
+            "node": "High Threat Score Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Suricata Logs": {
+      "main": [
+        [
+          {
+            "node": "High Threat Score Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query SIEM for IOC Matches": {
+      "main": [
+        [
+          {
+            "node": "High Threat Score Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High Threat Score Check": {
+      "main": [
+        [
+          {
+            "node": "Send APT Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create APT Incident",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send APT Email Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create APT Incident": {
+      "main": [
+        [
+          {
+            "node": "Log Security Incident",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Block IOC at Firewall",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send APT Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Log Security Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "createdAt": "2025-12-27T14:20:11.968570+00:00",
+  "updatedAt": "2025-12-27T14:20:11.968570+00:00",
+  "meta": {
+    "agent_id": "a401e896-d617-4e97-8bbf-29f47e133c21",
+    "trigger_id": "a1a6b29f-1834-4666-82d7-1163ce25f64c",
+    "workflow_type": "automated_threat_response",
+    "threat_category": "apt",
+    "priority": "CRITICAL"
+  }
+}

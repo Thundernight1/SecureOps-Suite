@@ -1,0 +1,363 @@
+{
+  "name": "CyberSentinel_Ransomware_Response_Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook/ransomware-alert",
+        "options": {}
+      },
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "id": "webhook-trigger"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "Qilin",
+              "operation": "contains"
+            }
+          ]
+        }
+      },
+      "name": "Filter Qilin",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        300,
+        100
+      ],
+      "id": "filter-qilin"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "Rhysida",
+              "operation": "contains"
+            }
+          ]
+        }
+      },
+      "name": "Filter Rhysida",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        300,
+        250
+      ],
+      "id": "filter-rhysida"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "VolkLocker",
+              "operation": "contains"
+            }
+          ]
+        }
+      },
+      "name": "Filter VolkLocker",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        300,
+        400
+      ],
+      "id": "filter-volklocker"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://raw.githubusercontent.com/Yara-Rules/rules/master/ransomware.yar",
+        "options": {}
+      },
+      "name": "Fetch Yara Rules",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        500,
+        100
+      ],
+      "id": "fetch-yara-rules"
+    },
+    {
+      "parameters": {
+        "command": "=python3 /opt/cybersentinel/scripts/analyze_ransomware.py --family {{ $json.ransomware_family }} --ioc '{{ $json.iocs }}'"
+      },
+      "name": "Analyze Ransomware",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        500,
+        250
+      ],
+      "id": "analyze-ransomware"
+    },
+    {
+      "parameters": {
+        "channel": "={{ $env.SLACK_SECURITY_CHANNEL }}",
+        "text": "=🔴 RANSOMWARE ALERT\n\n**Ransomware Family:** {{ $json.ransomware_family }}\n**Severity:** CRITICAL\n**Target Industry:** {{ $json.target_industry }}\n**Target Region:** {{ $json.target_region }}\n\n**Attack Vector:**\n{{ $json.attack_vector }}\n\n**Encryption Methods:**\n{{ $json.encryption_methods }}\n\n**Ransom Note:**\n```\n{{ $json.ransom_note }}\n```\n\n**IOCs:**\n{{ $json.iocs }}\n\n**Recommended Actions:**\n1. ISOLATE affected systems immediately\n2. DISABLE network shares\n3. PRESERVE all forensic evidence\n4. DO NOT pay ransom without consulting IR team\n5. RESTORE from verified backups\n\n_Source: CyberSentinel Threat Intelligence_",
+        "options": {}
+      },
+      "name": "Slack Alert - Critical",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ],
+      "id": "slack-alert-critical"
+    },
+    {
+      "parameters": {
+        "to": "={{ $env.SECURITY_TEAM_EMAIL }}",
+        "subject": "🔴 CRITICAL: {{ $json.ransomware_family }} Ransomware Alert",
+        "emailFormat": "html",
+        "html": "=<\n<h2 style=\"color: #cc0000;\">🔴 Critical Ransomware Alert</h2>\n\n<table style=\"border-collapse: collapse; width: 100%; margin: 20px 0;\">\n<tr style=\"background-color: #cc0000; color: white;\">\n<th style=\"padding: 12px; text-align: left;\">Field</th>\n<th style=\"padding: 12px; text-align: left;\">Value</th>\n</tr>\n<tr>\n<td style=\"padding: 10px; border: 1px solid #ddd;\"><strong>Ransomware Family</strong></td>\n<td style=\"padding: 10px; border: 1px solid #ddd;\">{{ $json.ransomware_family }}</td>\n</tr>\n<tr>\n<td style=\"padding: 10px; border: 1px solid #ddd;\"><strong>Severity</strong></td>\n<td style=\"padding: 10px; border: 1px solid #ddd;\">CRITICAL</td>\n</tr>\n<tr>\n<td style=\"padding: 10px; border: 1px solid #ddd;\"><strong>Target Industry</strong></td>\n<td style=\"padding: 10px; border: 1px solid #ddd;\">{{ $json.target_industry }}</td>\n</tr>\n<tr>\n<td style=\"padding: 10px; border: 1px solid #ddd;\"><strong>Target Region</strong></td>\n<td style=\"padding: 10px; border: 1px solid #ddd;\">{{ $json.target_region }}</td>\n</tr>\n<tr>\n<td style=\"padding: 10px; border: 1px solid #ddd;\"><strong>Attack Vector</strong></td>\n<td style=\"padding: 10px; border: 1px solid #ddd;\">{{ $json.attack_vector }}</td>\n</tr>\n<tr>\n<td style=\"padding: 10px; border: 1px solid #ddd;\"><strong>Encryption Methods</strong></td>\n<td style=\"padding: 10px; border: 1px solid #ddd;\">{{ $json.encryption_methods }}</td>\n</tr>\n</table>\n\n<h3>Ransom Note</h3>\n<pre style=\"background-color: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto;\">{{ $json.ransom_note }}</pre>\n\n<h3>🚨 Immediate Response Required</h3>\n<ol>\n<li><strong>ISOLATE</strong> all affected systems from the network immediately</li>\n<li><strong>DISABLE</strong> all network shares and collaboration tools</li>\n<li><strong>PRESERVE</strong> all logs, memory dumps, and forensic evidence</li>\n<li><strong>DO NOT</strong> attempt to decrypt files without verified decryption keys</li>\n<li><strong>NOTIFY</strong> incident response team and legal counsel</li>\n<li><strong>ASSESS</strong> backup integrity before restoration attempts</li>\n<li><strong>REPORT</strong> to law enforcement (FBI IC3, local authorities)</li>\n</ol>\n\n<h3>Indicators of Compromise (IOCs)</h3>\n<pre style=\"background-color: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto;\">{{ $json.iocs }}</pre>\n\n<hr>\n<p style=\"color: #666; font-size: 12px;\">This alert was generated by CyberSentinel Threat Intelligence System.\nTrigger ID: {{ $trigger_id }} | Agent ID: {{ $agent_id }}</p>\n"
+      },
+      "name": "Email Alert - Critical",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        700,
+        250
+      ],
+      "id": "email-alert-critical"
+    },
+    {
+      "parameters": {
+        "command": "=python3 /opt/cybersentinel/scripts/block_ransomware_iocs.py --family {{ $json.ransomware_family }} --iocs '{{ $json.iocs }}'"
+      },
+      "name": "Block Ransomware IOCs",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        700,
+        400
+      ],
+      "id": "block-ransomware-iocs"
+    },
+    {
+      "parameters": {
+        "command": "=python3 /opt/cybersentinel/scripts/snapshot_systems.py --priority critical --reason \"Ransomware alert: {{ $json.ransomware_family }}\""
+      },
+      "name": "Snapshot Systems",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        900,
+        400
+      ],
+      "id": "snapshot-systems"
+    },
+    {
+      "parameters": {
+        "jiraProject": "SEC",
+        "issueType": "Task",
+        "summary": "🚨 INCIDENT: {{ $json.ransomware_family }} Ransomware Detected",
+        "description": "=**Ransomware Family:** {{ $json.ransomware_family }}\n**Severity:** Critical - Active Attack\n**Priority:** P1 - Critical\n\n**Incident Details:**\n- Target Industry: {{ $json.target_industry }}\n- Target Region: {{ $json.target_region }}\n- Attack Vector: {{ $json.attack_vector }}\n\n**Immediate Actions Required:**\n1. 🚨 ISOLATE all potentially affected systems\n2. 🔍 PRESERVE forensic evidence (logs, memory, disk images)\n3. 📊 ASSESS scope of infection across network\n4. 💾 VERIFY backup integrity for restoration planning\n5. 📞 NOTIFY executive team and legal counsel\n6. 🏛️ REPORT to law enforcement (FBI IC3)\n7. 🔒 DISABLE network shares and collaboration tools\n\n**Technical Details:**\n- Encryption Methods: {{ $json.encryption_methods }}\n- Ransom Note: {{ $json.ransom_note }}\n- IOCs: {{ $json.iocs }}\n\nGenerated by CyberSentinel",
+        "priority": "Highest",
+        "options": {}
+      },
+      "name": "Create Jira Incident",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        900,
+        500
+      ],
+      "id": "create-jira-incident"
+    },
+    {
+      "parameters": {
+        "command": "=python3 /opt/cybersentinel/scripts/notify_executives.py --incident \"{{ $json.ransomware_family }} ransomware\" --severity critical"
+      },
+      "name": "Notify Executives",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        500
+      ],
+      "id": "notify-executives"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "=active_incident"
+            }
+          ]
+        }
+      },
+      "name": "Update SIEM Incident",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        500
+      ],
+      "id": "update-siem-incident"
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Filter Qilin",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter Rhysida",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter VolkLocker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Qilin": {
+      "main": [
+        [
+          {
+            "node": "Fetch Yara Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Rhysida": {
+      "main": [
+        [
+          {
+            "node": "Analyze Ransomware",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter VolkLocker": {
+      "main": [
+        [
+          {
+            "node": "Analyze Ransomware",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Yara Rules": {
+      "main": [
+        [
+          {
+            "node": "Slack Alert - Critical",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email Alert - Critical",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Block Ransomware IOCs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Ransomware": {
+      "main": [
+        [
+          {
+            "node": "Slack Alert - Critical",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email Alert - Critical",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Block Ransomware IOCs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block Ransomware IOCs": {
+      "main": [
+        [
+          {
+            "node": "Snapshot Systems",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Jira Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Jira Incident": {
+      "main": [
+        [
+          {
+            "node": "Notify Executives",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Executives": {
+      "main": [
+        [
+          {
+            "node": "Update SIEM Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "meta": {
+    "instanceId": "cybersentinel-001"
+  },
+  "trigger": "webhook",
+  "workflow_id": "ransomware-response-2025-12"
+}

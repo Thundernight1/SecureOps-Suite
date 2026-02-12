@@ -1,0 +1,484 @@
+{
+  "name": "CyberSentinel - Ransomware Response",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "scheduled",
+        "triggerTimes": {
+          "item": {
+            "mode": "everyX",
+            "everyX": 1,
+            "unit": "hours"
+          }
+        }
+      },
+      "id": "ransomware-scheduler",
+      "name": "Schedule: Every Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.ransomwarewatch.com/api/v1/threats",
+        "options": {}
+      },
+      "id": "ransomware-feed",
+      "name": "Fetch Ransomware Threat Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.crowdstrike.com/intel/combined/indicators/v1",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "crowdStrikeApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cs-intel",
+      "name": "Fetch CrowdStrike Ransomware Intel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        300,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json['name'].toLowerCase()}}",
+              "operation": "contains",
+              "value2": "qilin"
+            }
+          ]
+        }
+      },
+      "id": "qilin-detect",
+      "name": "Detect Qilin Activity",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json['name'].toLowerCase()}}",
+              "operation": "contains",
+              "value2": "rhysida"
+            }
+          ]
+        }
+      },
+      "id": "rhysida-detect",
+      "name": "Detect Rhysida Activity",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 1,
+      "position": [
+        500,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json['name'].toLowerCase()}}",
+              "operation": "contains",
+              "value2": "akira"
+            }
+          ]
+        }
+      },
+      "id": "akira-detect",
+      "name": "Detect Akira Activity",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 1,
+      "position": [
+        500,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "resource": "issue",
+        "projectKey": "SEC",
+        "issueTypeId": "10001",
+        "fields": {
+          "summary": "=🚨 RANSOMWARE THREAT ALERT: {{$json.name}}",
+          "description": "={{'Ransomware group detected: ' + $json.name + '\\n\\nCampaign Status: ' + $json.status + '\\n\\nDetails:\\n' + JSON.stringify($json, null, 2)}}",
+          "priority": {
+            "name": "Highest"
+          }
+        }
+      },
+      "id": "ransomware-ticket",
+      "name": "Create Ransomware Alert Ticket",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ],
+      "credentials": {
+        "jiraApi": {
+          "id": "jira-credential",
+          "name": "JIRA API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "text": "=🚨 **RANSOMWARE ALERT** 🚨\n\n**Group:** {{$json.name}}\n**Status:** {{$json.status}}\n**Targeted Industries:** {{$json.targets?.join(', ') || 'Various'}}\n\n**Preventive Actions Required:**\n1. Review backup status\n2. Enable enhanced monitoring\n3. Block known IOCs\n4. Review access controls"
+      },
+      "id": "slack-ransomware",
+      "name": "Send Ransomware Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credential",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.veeam.com/v1/backups",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "veeamApi",
+        "options": {}
+      },
+      "id": "backup-status",
+      "name": "Check Backup Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        700,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json['status']}}",
+              "operation": "equal",
+              "value2": "healthy"
+            }
+          ]
+        }
+      },
+      "id": "backup-check",
+      "name": "Verify Backup Health",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 1,
+      "position": [
+        900,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.crowdstrike.com/ioc/entities/indicators/v1",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "crowdStrikeApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "indicators",
+              "value": "={{[{ 'type': 'sha256', 'value': $json['file_hash'], 'policy': 'block', 'description': 'Ransomware IOC - ' + $json['name'] }]}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "block-ioc",
+      "name": "Block Known Ransomware IOCs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        700,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.crowdstrike.com/devices/entities/devices/v1",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "crowdStrikeApi",
+        "options": {}
+      },
+      "id": "get-host-groups",
+      "name": "Get Critical Host Groups",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        900,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "text": "=🚨 **RANSOMWARE PREVENTION ALERT** 🚨\n\n**Group:** {{$json.name}}\n\n**Backup Status:** ⚠️ Verification Required\n**Action Required:**\n1. Verify backup integrity\n2. Test restore procedures\n3. Enable air-gapped backups\n\nPlease check backup status immediately."
+      },
+      "id": "backup-alert",
+      "name": "Alert for Backup Verification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        350
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credential",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.microsoft.com/dlp/v3/policies",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "microsoft365Api",
+        "options": {}
+      },
+      "id": "deploy-dlp",
+      "name": "Deploy DLP Rules",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        700,
+        650
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.crowdstrike.com/policy/entities/prevention/v1",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "crowdStrikeApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "name",
+              "value": "={{'Block ' + $json.name + ' IOCs'}}"
+            },
+            {
+              "name": "description",
+              "value": "={{'Auto-generated policy to block ' + $json.name + ' indicators'}}"
+            },
+            {
+              "name": "rules",
+              "value": "={{[{ 'enabled': true, 'name': 'Block ' + $json.name, 'pattern': 'file_hash = ' + $json['file_hash'] }]}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cs-policy",
+      "name": "Create CrowdStrike Prevention Policy",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        900,
+        650
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule: Every Hour": {
+      "main": [
+        [
+          {
+            "node": "Fetch Ransomware Threat Feed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch CrowdStrike Ransomware Intel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Ransomware Threat Feed": {
+      "main": [
+        [
+          {
+            "node": "Detect Qilin Activity",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Detect Rhysida Activity",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Detect Akira Activity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Qilin Activity": {
+      "main": [
+        [
+          {
+            "node": "Create Ransomware Alert Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Rhysida Activity": {
+      "main": [
+        [
+          {
+            "node": "Create Ransomware Alert Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Akira Activity": {
+      "main": [
+        [
+          {
+            "node": "Create Ransomware Alert Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Ransomware Alert Ticket": {
+      "main": [
+        [
+          {
+            "node": "Send Ransomware Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Backup Status",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Block Known Ransomware IOCs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Backup Status": {
+      "main": [
+        [
+          {
+            "node": "Verify Backup Health",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Backup Health": {
+      "main": [
+        [
+          {
+            "node": "Alert for Backup Verification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block Known Ransomware IOCs": {
+      "main": [
+        [
+          {
+            "node": "Create CrowdStrike Prevention Policy",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Deploy DLP Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-ransomware-response-001",
+  "meta": {
+    "instanceId": "cyber-sentinel-001",
+    "trigger_id": "a1a6b29f-1834-4666-82d7-1163ce25f64c",
+    "agent_id": "a401e896-d617-4e97-8bbf-29f47e133c21",
+    "created_at": "2025-12-27T14:20:11.968570+00:00",
+    "threat_coverage": [
+      "Qilin Ransomware",
+      "Rhysida Ransomware",
+      "Akira Ransomware",
+      "All RaaS operations"
+    ],
+    "automation_features": [
+      "Hourly threat feed monitoring",
+      "Automatic ticket creation",
+      "Backup status verification",
+      "IOC blocking across platforms",
+      "DLP rule deployment",
+      "Multi-channel alerting"
+    ],
+    "response_actions": [
+      "Create threat alert tickets",
+      "Verify backup integrity",
+      "Block known ransomware IOCs",
+      "Deploy prevention policies",
+      "Alert security team"
+    ]
+  }
+}

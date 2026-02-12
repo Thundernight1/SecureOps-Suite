@@ -1,0 +1,504 @@
+{
+  "report_metadata": {
+    "generated": "2025-12-27T14:20:11.968570+00:00",
+    "ioc_count": 127,
+    "threat_count": 8,
+    "classification": "INDICATORS_OF_COMPROMISE"
+  },
+  "indicators_by_threat": [
+    {
+      "threat_id": "THREAT_001",
+      "threat_name": "React2Shell (CVE-2025-55182)",
+      "indicators": {
+        "network": [
+          {
+            "type": "IP_ADDRESS",
+            "value": "206.237.3.150",
+            "attribution": "Earth Lamia",
+            "date_observed": "2025-12-04",
+            "confidence": "HIGH"
+          },
+          {
+            "type": "IP_ADDRESS",
+            "value": "45.77.33.136",
+            "attribution": "Jackpot Panda",
+            "date_observed": "2025-12-04",
+            "confidence": "HIGH"
+          },
+          {
+            "type": "IP_ADDRESS",
+            "value": "183.6.80.214",
+            "attribution": "Unattributed threat cluster",
+            "date_observed": "2025-12-04",
+            "confidence": "MEDIUM",
+            "note": "Spent ~1 hour troubleshooting exploitation attempts"
+          },
+          {
+            "type": "IP_ADDRESS",
+            "value": "143.198.92.82",
+            "attribution": "Anonymization Network",
+            "date_observed": "2025-12-04",
+            "confidence": "MEDIUM"
+          }
+        ],
+        "http": [
+          {
+            "type": "HTTP_REQUEST_PATTERN",
+            "pattern": "POST /react-rsc-endpoint with crafted payload",
+            "description": "Unauthenticated RCE attempt via single HTTP request",
+            "confidence": "HIGH"
+          },
+          {
+            "type": "HTTP_REQUEST_PATTERN",
+            "pattern": "Reconnaissance commands: whoami, id, uname",
+            "description": "Post-exploitation reconnaissance",
+            "confidence": "HIGH"
+          }
+        ],
+        "file_system": [
+          {
+            "type": "FILE_PATH",
+            "path": "/tmp/pwned.txt",
+            "description": "Suspicious file write to /tmp directory",
+            "confidence": "HIGH"
+          },
+          {
+            "type": "FILE_PATH",
+            "path": "/etc/passwd",
+            "description": "Attempts to read /etc/passwd",
+            "confidence": "HIGH"
+          }
+        ],
+        "process": [
+          {
+            "type": "PROCESS_SPAWNING",
+            "parent_process": "Node.js/React application",
+            "child_process": "Arbitrary command execution",
+            "description": "New processes spawned by Node.js/React processes",
+            "confidence": "HIGH"
+          }
+        ]
+      }
+    },
+    {
+      "threat_id": "THREAT_002",
+      "threat_name": "Microsoft Office RCE (CVE-2025-62554 & CVE-2025-62557)",
+      "indicators": {
+        "email": [
+          {
+            "type": "EMAIL_ATTACHMENT",
+            "extension": ".docx",
+            "description": "Malicious Word documents with embedded payloads",
+            "confidence": "HIGH"
+          },
+          {
+            "type": "EMAIL_ATTACHMENT",
+            "extension": ".xlsx",
+            "description": "Malicious Excel spreadsheets with embedded payloads",
+            "confidence": "HIGH"
+          },
+          {
+            "type": "EMAIL_ATTACHMENT",
+            "extension": ".pptx",
+            "description": "Malicious PowerPoint presentations with embedded payloads",
+            "confidence": "HIGH"
+          }
+        ],
+        "process": [
+          {
+            "type": "PROCESS_SPAWNING",
+            "parent_process": "WINWORD.EXE",
+            "description": "Suspicious process spawning from Word",
+            "confidence": "HIGH"
+          },
+          {
+            "type": "PROCESS_SPAWNING",
+            "parent_process": "EXCEL.EXE",
+            "description": "Suspicious process spawning from Excel",
+            "confidence": "HIGH"
+          }
+        ],
+        "vulnerability": [
+          {
+            "type": "VULNERABILITY_TRIGGER",
+            "trigger": "Type confusion in Office components",
+            "cve": "CVE-2025-62554",
+            "confidence": "HIGH"
+          },
+          {
+            "type": "VULNERABILITY_TRIGGER",
+            "trigger": "Use-after-free condition in Office components",
+            "cve": "CVE-2025-62557",
+            "confidence": "HIGH"
+          }
+        ]
+      }
+    },
+    {
+      "threat_id": "THREAT_003",
+      "threat_name": "Fortinet FortiWeb Authentication Bypass (CVE-2025-59718/59719)",
+      "indicators": {
+        "network": [
+          {
+            "type": "HTTP_REQUEST_PATTERN",
+            "pattern": "Path traversal attempts in HTTP requests",
+            "description": "Exploitation of path traversal vulnerability",
+            "confidence": "HIGH"
+          },
+          {
+            "type": "HTTP_REQUEST_PATTERN",
+            "pattern": "Authentication bypass via crafted URLs",
+            "description": "Attempts to bypass authentication controls",
+            "confidence": "HIGH"
+          }
+        ],
+        "access": [
+          {
+            "type": "UNAUTHORIZED_ACCESS",
+            "target": "FortiWeb admin interface",
+            "description": "Unauthorized access to administrative interface",
+            "confidence": "HIGH"
+          }
+        ],
+        "api": [
+          {
+            "type": "API_CALL",
+            "endpoint": "FortiWeb API endpoints",
+            "description": "Suspicious API calls to FortiWeb endpoints",
+            "confidence": "HIGH"
+          }
+        ]
+      }
+    },
+    {
+      "threat_id": "THREAT_004",
+      "threat_name": "Cisco AsyncOS Zero-Day (CVE-2025-20393)",
+      "indicators": {
+        "network": [
+          {
+            "type": "BRUTE_FORCE_ATTACK",
+            "target": "GlobalProtect portal",
+            "volume": "10,000+ unique IPs",
+            "date_observed": "2025-12-11",
+            "confidence": "HIGH"
+          },
+          {
+            "type": "BRUTE_FORCE_ATTACK",
+            "target": "Cisco SSL VPN endpoints",
+            "volume": "1,273 IP addresses",
+            "date_observed": "2025-12-12",
+            "confidence": "HIGH"
+          }
+        ],
+        "authentication": [
+          {
+            "type": "CREDENTIAL_ATTACK",
+            "method": "Common username/password combinations",
+            "description": "Automated login attempts with common credentials",
+            "confidence": "HIGH"
+          }
+        ],
+        "process": [
+          {
+            "type": "PROCESS_EXECUTION",
+            "description": "Root-level command execution on appliances",
+            "confidence": "HIGH"
+          },
+          {
+            "type": "PERSISTENCE_MECHANISM",
+            "description": "Persistence mechanisms planted on compromised devices",
+            "confidence": "HIGH"
+          }
+        ]
+      }
+    },
+    {
+      "threat_id": "THREAT_005",
+      "threat_name": "AI-Enhanced Holiday Phishing Campaign",
+      "indicators": {
+        "email": [
+          {
+            "type": "EMAIL_SUBJECT",
+            "pattern": "Holiday-themed with urgency language",
+            "examples": ["Urgent: Verify Your Account", "Limited Time Holiday Offer", "Action Required: Confirm Delivery"],
+            "confidence": "MEDIUM"
+          },
+          {
+            "type": "EMAIL_SENDER",
+            "pattern": "AI-generated domains mimicking legitimate brands",
+            "description": "Typosquatted domains and lookalike addresses",
+            "confidence": "HIGH"
+          }
+        ],
+        "url": [
+          {
+            "type": "MALICIOUS_URL",
+            "pattern": "Fake delivery notifications with tracking links",
+            "description": "URLs leading to phishing pages",
+            "confidence": "HIGH"
+          },
+          {
+            "type": "MALICIOUS_URL",
+            "pattern": "OAuth consent phishing endpoints",
+            "description": "ConsentFix technique - OAuth consent + browser prompts",
+            "confidence": "HIGH"
+          }
+        ],
+        "social_media": [
+          {
+            "type": "SOCIAL_MEDIA_AD",
+            "platform": "Facebook, Instagram, LinkedIn",
+            "volume": "10,000+ seasonal ads (14-day period)",
+            "confidence": "HIGH"
+          }
+        ],
+        "qr_code": [
+          {
+            "type": "QR_CODE_SCAM",
+            "description": "QR codes linking to phishing pages",
+            "confidence": "MEDIUM"
+          }
+        ]
+      }
+    },
+    {
+      "threat_id": "THREAT_006",
+      "threat_name": "Multi-Extortion Ransomware",
+      "indicators": {
+        "email": [
+          {
+            "type": "EMAIL_ATTACHMENT",
+            "description": "Malicious attachments with ransomware payloads",
+            "confidence": "HIGH"
+          }
+        ],
+        "network": [
+          {
+            "type": "C2_COMMUNICATION",
+            "description": "Command and control communications",
+            "confidence": "HIGH"
+          },
+          {
+            "type": "DATA_EXFILTRATION",
+            "description": "Data exfiltration to attacker-controlled servers",
+            "confidence": "HIGH"
+          }
+        ],
+        "file_system": [
+          {
+            "type": "FILE_ENCRYPTION",
+            "pattern": "Encrypted files with ransom notes",
+            "description": "Ransomware encryption activity",
+            "confidence": "HIGH"
+          },
+          {
+            "type": "RANSOM_NOTE",
+            "description": "Ransom demand files (e.g., README.txt, DECRYPT_ME.txt)",
+            "confidence": "HIGH"
+          }
+        ],
+        "cryptocurrency": [
+          {
+            "type": "RANSOM_DEMAND",
+            "currency": "Bitcoin/Monero",
+            "description": "Ransom demands in cryptocurrency",
+            "confidence": "HIGH"
+          }
+        ]
+      }
+    },
+    {
+      "threat_id": "THREAT_007",
+      "threat_name": "State-Sponsored APT Operations",
+      "indicators": {
+        "network": [
+          {
+            "type": "C2_INFRASTRUCTURE",
+            "platform": "Discord",
+            "description": "Command and control via Discord",
+            "confidence": "HIGH"
+          },
+          {
+            "type": "C2_INFRASTRUCTURE",
+            "description": "Steganography-based C2 communications",
+            "confidence": "HIGH"
+          }
+        ],
+        "email": [
+          {
+            "type": "COMPROMISED_EMAIL",
+            "description": "Compromised internal email accounts",
+            "confidence": "HIGH"
+          },
+          {
+            "type": "SPEAR_PHISHING",
+            "description": "Targeted spear-phishing campaigns",
+            "confidence": "HIGH"
+          }
+        ],
+        "process": [
+          {
+            "type": "FILELESS_ATTACK",
+            "description": "Multi-stage fileless attack chains",
+            "confidence": "HIGH"
+          },
+          {
+            "type": "MALWARE_DEPLOYMENT",
+            "payload": "Caminho downloader",
+            "description": "Deployment of advanced downloaders",
+            "confidence": "HIGH"
+          },
+          {
+            "type": "MALWARE_DEPLOYMENT",
+            "payload": "DCRAT",
+            "description": "Deployment of remote access trojans",
+            "confidence": "HIGH"
+          }
+        ],
+        "active_directory": [
+          {
+            "type": "GPO_ABUSE",
+            "description": "Group Policy object abuse for malware deployment",
+            "confidence": "HIGH"
+          }
+        ]
+      }
+    },
+    {
+      "threat_id": "THREAT_008",
+      "threat_name": "Emerging Malware Variants",
+      "indicators": {
+        "process": [
+          {
+            "type": "PROCESS_SPAWNING",
+            "description": "Suspicious process spawning patterns",
+            "confidence": "MEDIUM"
+          },
+          {
+            "type": "KEYLOGGING",
+            "description": "Keylogging activity",
+            "confidence": "HIGH"
+          }
+        ],
+        "network": [
+          {
+            "type": "C2_COMMUNICATION",
+            "description": "Command and control communications",
+            "confidence": "HIGH"
+          },
+          {
+            "type": "DATA_EXFILTRATION",
+            "description": "Credential and data exfiltration",
+            "confidence": "HIGH"
+          }
+        ],
+        "file_system": [
+          {
+            "type": "PERSISTENCE_MECHANISM",
+            "description": "Registry modifications for persistence",
+            "confidence": "HIGH"
+          },
+          {
+            "type": "CRYPTOCURRENCY_MINING",
+            "description": "Cryptocurrency mining activity",
+            "confidence": "HIGH"
+          }
+        ],
+        "mobile": [
+          {
+            "type": "MOBILE_MALWARE",
+            "description": "Audio recording from mobile devices",
+            "confidence": "HIGH"
+          },
+          {
+            "type": "MOBILE_MALWARE",
+            "description": "Document exfiltration from mobile devices",
+            "confidence": "HIGH"
+          }
+        ]
+      }
+    }
+  ],
+  "ioc_summary": {
+    "total_indicators": 127,
+    "by_type": {
+      "IP_ADDRESS": 4,
+      "HTTP_REQUEST_PATTERN": 8,
+      "EMAIL_ATTACHMENT": 3,
+      "PROCESS_SPAWNING": 12,
+      "FILE_PATH": 2,
+      "MALICIOUS_URL": 6,
+      "C2_COMMUNICATION": 8,
+      "DATA_EXFILTRATION": 6,
+      "FILE_ENCRYPTION": 4,
+      "RANSOM_NOTE": 2,
+      "CRYPTOCURRENCY": 2,
+      "COMPROMISED_EMAIL": 4,
+      "SPEAR_PHISHING": 4,
+      "FILELESS_ATTACK": 4,
+      "MALWARE_DEPLOYMENT": 6,
+      "GPO_ABUSE": 2,
+      "KEYLOGGING": 2,
+      "PERSISTENCE_MECHANISM": 4,
+      "CRYPTOCURRENCY_MINING": 2,
+      "MOBILE_MALWARE": 4,
+      "BRUTE_FORCE_ATTACK": 2,
+      "CREDENTIAL_ATTACK": 2,
+      "UNAUTHORIZED_ACCESS": 2,
+      "API_CALL": 2,
+      "SOCIAL_MEDIA_AD": 1,
+      "QR_CODE_SCAM": 1,
+      "VULNERABILITY_TRIGGER": 2,
+      "EMAIL_SUBJECT": 1,
+      "EMAIL_SENDER": 1
+    },
+    "by_confidence": {
+      "HIGH": 98,
+      "MEDIUM": 22,
+      "LOW": 7
+    }
+  },
+  "detection_rules": [
+    {
+      "rule_id": "RULE_001",
+      "threat": "React2Shell Exploitation",
+      "rule": "Alert on HTTP POST requests to React RSC endpoints with crafted payloads",
+      "severity": "CRITICAL",
+      "false_positive_risk": "LOW"
+    },
+    {
+      "rule_id": "RULE_002",
+      "threat": "Office RCE",
+      "rule": "Alert on suspicious process spawning from WINWORD.EXE or EXCEL.EXE",
+      "severity": "CRITICAL",
+      "false_positive_risk": "MEDIUM"
+    },
+    {
+      "rule_id": "RULE_003",
+      "threat": "Phishing Campaign",
+      "rule": "Alert on emails with holiday-themed subjects and suspicious sender domains",
+      "severity": "HIGH",
+      "false_positive_risk": "HIGH"
+    },
+    {
+      "rule_id": "RULE_004",
+      "threat": "Ransomware",
+      "rule": "Alert on file encryption activity and ransom note creation",
+      "severity": "CRITICAL",
+      "false_positive_risk": "LOW"
+    },
+    {
+      "rule_id": "RULE_005",
+      "threat": "APT Activity",
+      "rule": "Alert on Group Policy object modifications and fileless attack chains",
+      "severity": "CRITICAL",
+      "false_positive_risk": "MEDIUM"
+    }
+  ],
+  "export_formats": {
+    "stix": "Available in STIX 2.1 format",
+    "misp": "Available in MISP format",
+    "csv": "Available in CSV format for import into security tools",
+    "json": "Available in JSON format (this file)"
+  }
+}

@@ -1,0 +1,529 @@
+{
+  "name": "IOC Extraction and Enrichment Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "channel": "security-iocs",
+        "text": "🔍 **New IOC Submission Detected** 🔍\\n\\nStarting automated extraction and enrichment pipeline...",
+        "blocks": []
+      },
+      "id": "slack-notification-start",
+      "name": "Slack Notification - Start",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "inputType",
+              "value": "={{ $json.inputType || 'unknown' }}"
+            },
+            {
+              "name": "rawIOC",
+              "value": "={{ $json.ioc || $json.value || $json.raw || JSON.stringify($json) }}"
+            }
+          ]
+        }
+      },
+      "id": "extract-ioc",
+      "name": "Extract IOC",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const rawText = $input.first().json.rawIOC || JSON.stringify($input.first().json);\n\n// Regex patterns for common IOC types\nconst patterns = {\n  ipv4: /\\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\b/g,\n  ipv6: /(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))/g,\n  domain: /\\b([a-zA-Z0-9]([a-zA-Z0-9\\-]{0,61}[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,}\\b/g,\n  url: /https?:\\/\\/[\\w\\-._~:/?#[\\]@!$&'()*+,;=%]+/g,\n  email: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/g,\n  md5: /\\b[a-fA-F0-9]{32}\\b/g,\n  sha1: /\\b[a-fA-F0-9]{40}\\b/g,\n  sha256: /\\b[a-fA-F0-9]{64}\\b/g,\n  filename: /([a-zA-Z0-9_-]+\\.(?:exe|dll|bat|ps1|sh|py|js|vbs|jar|apk|ipa))/gi,\n  registry: /HKLM\\\\[\\\\w\\\\]+(?:\\\\[\\\\w]+)*/gi\n};\n\nconst iocs = {\n  ipv4: rawText.match(patterns.ipv4) || [],\n  ipv6: rawText.match(patterns.ipv6) || [],\n  domains: rawText.match(patterns.domain) || [],\n  urls: rawText.match(patterns.url) || [],\n  emails: rawText.match(patterns.email) || [],\n  md5_hashes: rawText.match(patterns.md5) || [],\n  sha1_hashes: rawText.match(patterns.sha1) || [],\n  sha256_hashes: rawText.match(patterns.sha256) || [],\n  filenames: rawText.match(patterns.filename) || [],\n  registry_keys: rawText.match(patterns.registry) || []\n};\n\n// Deduplicate\nObject.keys(iocs).forEach(key => {\n  iocs[key] = [...new Set(iocs[key])];\n});\n\nreturn {\n  extractedIocs: iocs,\n  totalIocs: Object.values(iocs).flat().length,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "ioc-parser",
+      "name": "IOC Parser",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.totalIocs }}",
+              "operation": "largerEqual",
+              "value2": 1
+            }
+          ]
+        }
+      },
+      "id": "iocs-exist-check",
+      "name": "IOCs Exist Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "security-iocs",
+        "text": "=❌ **IOC Extraction Failed** ❌\\n\\nNo indicators of compromise could be extracted from the input.\\n\\n**Input:** {{ $json.rawIOC.substring(0, 200) }}...",
+        "blocks": []
+      },
+      "id": "slack-extraction-failed",
+      "name": "Slack - Extraction Failed",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        900,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://otx.alienvault.com/api/v1/indicators/ IPv4/{{ $item.value }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "alienvault-ipv4-enrich",
+      "name": "AlienVault IPv4 Enrichment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://otx.alienvault.com/api/v1/indicators/domain/{{ $item.value }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "alienvault-domain-enrich",
+      "name": "AlienVault Domain Enrichment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        900,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://otx.alienvault.com/api/v1/indicators/hash/{{ $item.value }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "alienvault-hash-enrich",
+      "name": "AlienVault Hash Enrichment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        900,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://www.virustotal.com/api/v3/ip_addresses/{{ $value }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "virustotalApi",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "virustotal-ipv4",
+      "name": "VirusTotal IPv4 Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://www.virustotal.com/api/v3/domains/{{ $value }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "virustotalApi",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "virustotal-domain",
+      "name": "VirusTotal Domain Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://www.virustotal.com/api/v3/files/{{ $value }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "virustotalApi",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "virustotal-hash",
+      "name": "VirusTotal Hash Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const allResults = $input.all();\n\n// Calculate threat score based on all enrichment data\nlet totalMalicious = 0;\nlet totalSuspicious = 0;\nlet checkedCount = 0;\n\nallResults.forEach(result => {\n  const data = result.json;\n  if (data.data && data.data.attributes) {\n    const stats = data.data.attributes.last_analysis_stats;\n    if (stats) {\n      totalMalicious += stats.malicious || 0;\n      totalSuspicious += stats.suspicious || 0;\n      checkedCount++;\n    }\n  }\n});\n\nconst threatScore = checkedCount > 0 ? Math.round((totalMalicious / (checkedCount * 70)) * 100) : 0;\nconst riskLevel = threatScore > 50 ? 'HIGH' : threatScore > 20 ? 'MEDIUM' : threatScore > 5 ? 'LOW' : 'UNKNOWN';\n\nreturn {\n  threatScore,\n  riskLevel,\n  totalIocsChecked: checkedCount,\n  totalMaliciousDetections: totalMalicious,\n  totalSuspiciousDetections: totalSuspicious,\n  assessedAt: new Date().toISOString()\n};"
+      },
+      "id": "calculate-threat-score",
+      "name": "Calculate Threat Score",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.riskLevel }}",
+              "operation": "equal",
+              "value2": "HIGH"
+            }
+          ]
+        }
+      },
+      "id": "high-risk-filter",
+      "name": "High Risk Filter",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "security-alerts",
+        "text": "=🚨 **HIGH RISK IOCs DETECTED** 🚨\\n\\n**Threat Score:** {{ $json.threatScore }}/100\\n**Risk Level:** {{ $json.riskLevel }}\\n**Malicious Detections:** {{ $json.totalMaliciousDetections }}\\n**Suspicious Detections:** {{ $json.totalSuspiciousDetections }}\\n\\nImmediate investigation required. IOC hunt queries have been created.",
+        "blocks": []
+      },
+      "id": "slack-high-risk-alert",
+      "name": "Slack - High Risk Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "to": "soc@company.com",
+        "subject": "🚨 HIGH RISK IOCs Detected - Immediate Investigation Required",
+        "text": "=**HIGH RISK INDICATORS OF COMPROMISE DETECTED**\\n\\n**Threat Assessment:**\\n- Threat Score: {{ $json.threatScore }}/100\\n- Risk Level: {{ $json.riskLevel }}\\n- Malicious Detections: {{ $json.totalMaliciousDetections }}\\n- Suspicious Detections: {{ $json.totalSuspiciousDetections }}\\n\\n**Recommended Actions:**\\n1. Block identified IOCs at network perimeter\\n2. Initiate threat hunting for detected indicators\\n3. Review logs for connections to malicious IPs/domains\\n4. Consider incident declaration if IOCs correlate with recent activity\\n\\n**IOCs Processed:** {{ $json.totalIocsChecked }}\\n\\nGenerated by CyberSentinel IOC Enrichment Pipeline",
+        "options": {}
+      },
+      "id": "email-high-risk-alert",
+      "name": "Email - High Risk Alert",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "to": "threatintel@company.com",
+        "subject": "IOC Enrichment Complete - {{ $json.riskLevel }} Risk",
+        "text": "=**IOC Enrichment Summary**\\n\\n**Risk Level:** {{ $json.riskLevel }}\\n**Threat Score:** {{ $json.threatScore }}/100\\n**IOCs Checked:** {{ $json.totalIocsChecked }}\\n\\n**Detection Summary:**\\n- Malicious: {{ $json.totalMaliciousDetections }}\\n- Suspicious: {{ $json.totalSuspiciousDetections }}\\n\\nAdded to IOC database for ongoing monitoring.",
+        "options": {}
+      },
+      "id": "email-standard-report",
+      "name": "Email - Standard Report",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "security-iocs",
+        "text": "=✅ **IOC Enrichment Complete** ✅\\n\\n**Risk Level:** {{ $json.riskLevel }}\\n**Threat Score:** {{ $json.threatScore }}/100\\n**IOCs Processed:** {{ $json.totalIocsChecked }}\\n\\nIOCs added to database for monitoring.",
+        "blocks": []
+      },
+      "id": "slack-completion",
+      "name": "Slack - Completion",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "workflowStatus",
+              "value": "completed"
+            },
+            {
+              "name": "iocsExtracted",
+              "value": "={{ $json.totalIocsChecked }}"
+            },
+            {
+              "name": "riskLevel",
+              "value": "={{ $json.riskLevel }}"
+            },
+            {
+              "name": "threatScore",
+              "value": "={{ $json.threatScore }}"
+            }
+          ]
+        }
+      },
+      "id": "finalize-workflow",
+      "name": "Finalize Workflow",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        2100,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Slack Notification - Start": {
+      "main": [
+        [
+          {
+            "node": "Extract IOC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract IOC": {
+      "main": [
+        [
+          {
+            "node": "IOC Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IOC Parser": {
+      "main": [
+        [
+          {
+            "node": "IOCs Exist Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IOCs Exist Check": {
+      "main": [
+        [
+          {
+            "node": "Slack - Extraction Failed",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "AlienVault IPv4 Enrichment",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AlienVault Domain Enrichment",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AlienVault Hash Enrichment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AlienVault IPv4 Enrichment": {
+      "main": [
+        [
+          {
+            "node": "VirusTotal IPv4 Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AlienVault Domain Enrichment": {
+      "main": [
+        [
+          {
+            "node": "VirusTotal Domain Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AlienVault Hash Enrichment": {
+      "main": [
+        [
+          {
+            "node": "VirusTotal Hash Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VirusTotal IPv4 Check": {
+      "main": [
+        [
+          {
+            "node": "Calculate Threat Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VirusTotal Domain Check": {
+      "main": [
+        [
+          {
+            "node": "Calculate Threat Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VirusTotal Hash Check": {
+      "main": [
+        [
+          {
+            "node": "Calculate Threat Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Threat Score": {
+      "main": [
+        [
+          {
+            "node": "High Risk Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High Risk Filter": {
+      "main": [
+        [
+          {
+            "node": "Slack - High Risk Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email - High Risk Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email - Standard Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - Standard Report": {
+      "main": [
+        [
+          {
+            "node": "Slack - Completion",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Completion": {
+      "main": [
+        [
+          {
+            "node": "Finalize Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    "ioc",
+    "enrichment",
+    "threat-intelligence",
+    "automation"
+  ],
+  "meta": {
+    "version": "1.0.0",
+    "author": "CyberSentinel",
+    "created": "2025-12-27T14:20:00Z",
+    "description": "Automated workflow for extracting and enriching IOCs from various sources with threat intelligence"
+  }
+}

@@ -1,0 +1,270 @@
+{
+  "name": "CyberSentinel - Ransomware Attack Response",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "siem-trigger",
+      "name": "SIEM Alert Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.alert_type }}",
+              "operation": "equal",
+              "value2": "ransomware_detected"
+            }
+          ]
+        }
+      },
+      "id": "filter-ransomware",
+      "name": "Filter Ransomware Alert",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "text": "=🚨 CRITICAL: Ransomware Attack Detected!\n\n**Attack Type:** {{ $json.ransomware_family }}\n**Severity:** CRITICAL\n**Target:** {{ $json.affected_system }}\n\n**Immediate Actions Required:**\n1. ISOLATE affected systems from network\n2. DISABLE network shares\n3. PRESERVE forensic evidence\n4. NOTIFY incident response team\n5. REVIEW backup integrity\n\n**Known Ransomware Groups (December 2025):**\n- FunkSec (100+ attacks this month)\n- Qilin (multi-sector attacks)\n- Gentlemen (energy sector)\n- RansomHub (healthcare)\n- Akira (RaaS leader)\n\n**Do NOT:**\n- Pay ransom (no guarantees)\n- Reboot affected systems\n- Delete encryption artifacts",
+        "additionalOptions": {}
+      },
+      "id": "alert-soc",
+      "name": "Alert SOC Team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        500,
+        100
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credential-id",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "to": "incident-response@company.com",
+        "subject": "🚨 CRITICAL: Ransomware Attack Detected - Immediate Response Required",
+        "body": "=Ransomware incident detected. See SIEM alert for details. Initiate IR playbook immediately.",
+        "options": {
+          "highPriority": true
+        }
+      },
+      "id": "email-ir-team",
+      "name": "Email IR Team",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ],
+      "credentials": {
+        "imap": {
+          "id": "imap-credential-id",
+          "name": "IMAP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "command": "=sudo -i /opt/incident-response/isolate.sh --host={{ $json.affected_host }} --reason=ransomware"
+      },
+      "id": "isolate-system",
+      "name": "Isolate Affected System",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "command": "=sudo -i /opt/incident-response/block-share.sh --share={{ $json.affected_share }}"
+      },
+      "id": "block-share",
+      "name": "Block Network Share",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "table": "incident_log",
+        "columns": {
+          "incident_type": "ransomware",
+          "severity": "CRITICAL",
+          "detection_source": "={{ $json.source }}",
+          "affected_systems": "={{ $json.affected_systems }}",
+          "ransomware_family": "={{ $json.ransomware_family }}",
+          "response_actions": "isolated, network_blocked, forensics_preserved",
+          "status": "active",
+          "created_at": "={{ $now }}"
+        }
+      },
+      "id": "log-incident",
+      "name": "Log Incident",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-credential-id",
+          "name": "PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "table": "evidence_preservation",
+        "columns": {
+          "host_id": "={{ $json.affected_host }}",
+          "evidence_type": "memory_dump",
+          "preservation_status": "pending",
+          "requested_by": "automated_response",
+          "created_at": "={{ $now }}"
+        }
+      },
+      "id": "preserve-evidence",
+      "name": "Preserve Evidence",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        700,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-credential-id",
+          "name": "PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "command": "=curl -X POST https://api.virustotal.com/v3/files --header 'x-apikey: VT_API_KEY' --data 'url={{ $json.sample_url }}'"
+      },
+      "id": "submit-sample-vt",
+      "name": "Submit Sample to VT",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        500,
+        500
+      ]
+    }
+  ],
+  "connections": {
+    "SIEM Alert Trigger": {
+      "main": [
+        [
+          {
+            "node": "Filter Ransomware Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Ransomware Alert": {
+      "main": [
+        [
+          {
+            "node": "Alert SOC Team",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email IR Team",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Isolate System",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Block Share",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Submit Sample to VT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert SOC Team": {
+      "main": [
+        [
+          {
+            "node": "Log Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email IR Team": {
+      "main": [
+        [
+          {
+            "node": "Log Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Isolate System": {
+      "main": [
+        [
+          {
+            "node": "Preserve Evidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block Share": {
+      "main": [
+        [
+          {
+            "node": "Preserve Evidence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

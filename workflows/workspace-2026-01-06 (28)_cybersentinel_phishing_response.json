@@ -1,0 +1,381 @@
+{
+  "name": "CyberSentinel - Phishing Campaign Response",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": {
+            "mode": "everyX",
+            "value": "15",
+            "unit": "minutes"
+          }
+        }
+      },
+      "id": "phishing-schedule",
+      "name": "Phishing Monitor Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "disabled": false,
+      "notesInFlow": true,
+      "notes": "Runs every 15 minutes to check for phishing campaigns"
+    },
+    {
+      "parameters": {
+        "url": "https://api.phishstats.info/v1/phishing",
+        "method": "GET",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "phishstats-feed",
+      "name": "PhishStats Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        300,
+        200
+      ],
+      "disabled": false,
+      "notesInFlow": true,
+      "notes": "Check PhishStats for new phishing campaigns"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openphish.com/intel feed",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"feed_type\": \"compromised_credentials\",\n  \"timeframe\": \"24h\"\n}",
+        "options": {}
+      },
+      "id": "openphish-feed",
+      "name": "OpenPhish Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        500,
+        200
+      ],
+      "disabled": false,
+      "notesInFlow": true,
+      "notes": "Check OpenPhish threat intelligence"
+    },
+    {
+      "parameters": {
+        "url": "https://urlscan.io/api/v1/search/",
+        "method": "GET",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "API-Key",
+              "value": "{{ $node[\"Urlscan Credentials\"].json[\"api_key\"] }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "urlscan-search",
+      "name": "Urlscan Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        700,
+        200
+      ],
+      "disabled": false,
+      "notesInFlow": true,
+      "notes": "Search urlscan.io for malicious URLs"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://safebrowsing.googleapis.com/v4/threatMatches:find",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"client\": {\n    \"clientId\": \"cybersentinel\",\n    \"clientVersion\": \"1.0.0\"\n  },\n  \"threatInfo\": {\n    \"threatTypes\": [\n      \"MALWARE\",\n      \"SOCIAL_ENGINEERING\",\n      \"UNWANTED_SOFTWARE\"\n    ],\n    \"platformTypes\": [\"ANY_PLATFORM\"],\n    \"threatEntryTypes\": [\"URL\"],\n    \"threatEntries\": {{ $node[\"PhishStats Feed\"].json[\"urls\"] }}\n  }\n}",
+        "options": {}
+      },
+      "id": "google-sb-check",
+      "name": "Google Safe Browsing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        900,
+        200
+      ],
+      "disabled": false,
+      "notesInFlow": true,
+      "notes": "Check URLs against Google Safe Browsing"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $node[\"Google Safe Browsing\"].json[\"matches\"].length }}",
+              "operation": "greaterThan",
+              "value2": "0"
+            }
+          ]
+        }
+      },
+      "id": "phishing-detected",
+      "name": "Phishing Detected",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ],
+      "disabled": false,
+      "notesInFlow": true,
+      "notes": "Check if phishing URLs detected"
+    },
+    {
+      "parameters": {
+        "channel": "phishing-alerts",
+        "text": "=🎣 **PHISHING CAMPAIGN DETECTED** 🎣\n\n**Detection Summary:**\n- **URLs Detected:** {{ $node[\"Google Safe Browsing\"].json[\"matches\"].length }}\n- **Type:** {{ $node[\"Google Safe Browsing\"].json[\"matches\"][0][\"threatType\"] }}\n- **Platform:** {{ $node[\"Google Safe Browsing\"].json[\"matches\"][0][\"platformType\"] }}\n\n**Malicious URLs:**\n{{ $node[\"Google Safe Browsing\"].json[\"matches\"].map(m => \"- \" + m.threatEntry.url).join(\"\\n\") }}\n\n**Recommended Actions:**\n1. 🛡️ Block identified URLs in firewall/proxy\n2. 🔍 Scan email logs for these URLs\n3. 📧 Check for email containing these URLs\n4. 👥 Notify users who may have clicked\n5. 📊 Document campaign for threat intel\n\n**MITRE ATT&CK:**\n- T1566 - Phishing\n- T1204 - User Execution\n- T1566.001 - Spearphishing Attachment\n- T1566.002 - Spearphishing Link",
+        "attachments": [],
+        "blocks": []
+      },
+      "id": "slack-phishing-alert",
+      "name": "Slack Phishing Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        100
+      ],
+      "disabled": false,
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credential-id",
+          "name": "Slack Security Alerts"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.proofpoint.com/v2/threat/feed",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Basic {{ $node[\"Proofpoint Credentials\"].json[\"auth_token\"] }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"threatIndicator\": {\n    \"type\": \"url\",\n    \"value\": {{ $node[\"Google Safe Browsing\"].json[\"matches\"].map(m => m.threatEntry.url) }}\n  },\n  \"classification\": \"phishing\",\n  \"severity\": \"high\",\n  \"source\": \"CyberSentinel\"\n}",
+        "options": {}
+      },
+      "id": "proofpoint-block",
+      "name": "Block in Proofpoint",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1300,
+        200
+      ],
+      "disabled": false,
+      "notesInFlow": true,
+      "notes": "Block phishing URLs in Proofpoint"
+    },
+    {
+      "parameters": {
+        "command": "=python3 /opt/cyber-sentinel/scripts/block_urls.py \\\n  --urls '{{ $node[\"Google Safe Browsing\"].json[\"matches\"].map(m => m.threatEntry.url).join(\",\") }}' \\\n  --proxy block \\\n  --log-level high",
+        "timeout": 60
+      },
+      "id": "proxy-block",
+      "name": "Block in Proxy",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        300
+      ],
+      "disabled": false,
+      "notesInFlow": true,
+      "notes": "Block URLs in web proxy"
+    },
+    {
+      "parameters": {
+        "from": "security@company.com",
+        "to": "security-team@company.com",
+        "subject": "🎣 ALERT: Phishing Campaign Detected - {{ $node[\"Google Safe Browsing\"].json[\"matches\"].length }} Malicious URLs Blocked",
+        "body": "=**PHISHING CAMPAIGN ALERT**\n\n**Detection Summary:**\n- **Detection Time:** {{ $now }}\n- **URLs Detected:** {{ $node[\"Google Safe Browsing\"].json[\"matches\"].length }}\n- **Threat Type:** {{ $node[\"Google Safe Browsing\"].json[\"matches\"][0][\"threatType\"] }}\n- **Severity:** HIGH\n\n**Malicious URLs Identified:**\n{{ $node[\"Google Safe Browsing\"].json[\"matches\"].map(m => \"- \" + m.threatEntry.url).join(\"\\n\") }}\n\n**Immediate Actions Required:**\n\n**1. Network Protection:**\n- [ ] URLs blocked in web proxy\n- [ ] URLs blocked in firewall\n- [ ] Verify blocking is effective\n\n**2. Email Security:**\n- [ ] Check email logs for phishing emails\n- [ ] Identify recipients of phishing emails\n- [ ] Search for similar emails in quarantine\n- [ ] Quarantine any additional instances\n\n**3. User Protection:**\n- [ ] Notify potentially affected users\n- [ ] Reset credentials if clicked\n- [ ] Run security awareness reminder\n- [ ] Monitor for credential theft indicators\n\n**4. Threat Intelligence:**\n- [ ] Document campaign IOCs\n- [ ] Update email filtering rules\n- [ ] Update web filtering rules\n- [ ] Share with external threat intel\n\n**MITRE ATT&CK Mapping:**\n- T1566 - Phishing\n- T1566.001 - Spearphishing Attachment\n- T1566.002 - Spearphishing Link\n- T1204 - User Execution\n\n**Campaign Analysis:**\nThis appears to be a {{ $node[\"Google Safe Browsing\"].json[\"matches\"][0][\"threatType\"] }} campaign targeting organization users. Immediate action is required to prevent credential theft and potential compromise.\n\n---\n*Automated alert by CyberSentinel*",
+        "options": {}
+      },
+      "id": "email-phishing-alert",
+      "name": "Email Security Team",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        100
+      ],
+      "disabled": false,
+      "credentials": {
+        "smtp": {
+          "id": "smtp-credential-id",
+          "name": "Company SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.your-siem.com/v2/threats",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $node[\"SIEM Credentials\"].json[\"api_key\"] }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"threat_type\": \"PHISHING\",\n  \"severity\": \"HIGH\",\n  \"threat_name\": \"Phishing Campaign Detected\",\n  \"description\": \"Phishing campaign detected via Google Safe Browsing\",\n  \"indicators_of_compromise\": {\n    \"urls\": {{ $node[\"Google Safe Browsing\"].json[\"matches\"].map(m => m.threatEntry.url) }},\n    \"threat_types\": {{ $node[\"Google Safe Browsing\"].json[\"matches\"].map(m => m.threatType) }}\n  },\n  \"attack_patterns\": [\n    \"T1566 - Phishing\",\n    \"T1566.001 - Spearphishing Attachment\",\n    \"T1566.002 - Spearphishing Link\",\n    \"T1204 - User Execution\"\n  ],\n  \"recommended_actions\": [\n    \"Block identified URLs in proxy and firewall\",\n    \"Check email logs for phishing emails\",\n    \"Identify and notify affected users\",\n    \"Reset credentials if links were clicked\",\n    \"Update email filtering rules\"\n  ],\n  \"workflow_id\": \"cybersentinel-phishing-001\",\n  \"timestamp\": \"{{ $now }}\"\n}",
+        "options": {}
+      },
+      "id": "siem-phishing-ingest",
+      "name": "Ingest to SIEM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1500,
+        200
+      ],
+      "disabled": false,
+      "notesInFlow": true,
+      "notes": "Ingest phishing threat to SIEM"
+    },
+    {
+      "parameters": {
+        "jiraProject": "SOC",
+        "jiraIssueType": "Task",
+        "title": "=🎣 Phishing Campaign: {{ $node[\"Google Safe Browsing\"].json[\"matches\"].length }} Malicious URLs Detected",
+        "body": "=**PHISHING CAMPAIGN - INVESTIGATION REQUIRED**\n\n**Detection Details:**\n- **Detected By:** CyberSentinel Automated Monitor\n- **Time:** {{ $now }}\n- **Severity:** HIGH\n- **URLs Identified:** {{ $node[\"Google Safe Browsing\"].json[\"matches\"].length }}\n\n**Malicious URLs:**\n{{ $node[\"Google Safe Browsing\"].json[\"matches\"].map(m => \"- \" + m.threatEntry.url).join(\"\\n\") }}\n\n**MITRE ATT&CK Mapping:**\n- T1566 - Phishing\n- T1566.001 - Spearphishing Attachment\n- T1566.002 - Spearphishing Link\n- T1204 - User Execution\n\n**Investigation Tasks:**\n\n**Immediate (0-1 hour):**\n- [ ] Verify URLs are blocked in proxy/firewall\n- [ ] Search email logs for phishing emails\n- [ ] Identify recipients of phishing emails\n- [ ] Check email quarantine for similar emails\n\n**Short-term (1-4 hours):**\n- [ ] Notify potentially affected users\n- [ ] Review user activity for clicks\n- [ ] Check for credential submission\n- [ ] Reset credentials if necessary\n\n**Long-term (4-24 hours):**\n- [ ] Document campaign IOCs\n- [ ] Update email filtering rules\n- [ ] Update web filtering rules\n- [ ] Create detection rules\n- [ ] Brief security awareness team\n\n**Email Analysis:**\nIf phishing emails are found, analyze:\n- Sender address and domain\n- Email subject lines\n- Email body content\n- Any attachments or links\n- Timing of campaign\n\n**User Notification Template:**\nIf users clicked links:\n- Reset their credentials immediately\n- Run antivirus scan on their systems\n- Monitor for suspicious activity\n- Provide security awareness refresher\n\n---\n*Automated ticket created by CyberSentinel*",
+        "labels": [
+          "phishing",
+          "investigation",
+          "high-priority",
+          "automated-detection"
+        ]
+      },
+      "id": "jira-phishing-ticket",
+      "name": "Create Investigation Ticket",
+      "type": "n8n-nodes-base.jiraSoftware",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        300
+      ],
+      "disabled": false,
+      "credentials": {
+        "jiraSoftwareApi": {
+          "id": "jira-credential-id",
+          "name": "Jira Security"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Phishing Monitor Schedule": {
+      "main": [
+        [
+          {
+            "node": "PhishStats Feed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "OpenPhish Feed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Urlscan Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Safe Browsing": {
+      "main": [
+        [
+          {
+            "node": "Phishing Detected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Phishing Detected": {
+      "main": [
+        [
+          {
+            "node": "Slack Phishing Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Block in Proofpoint",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Block in Proxy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block in Proxy": {
+      "main": [
+        [
+          {
+            "node": "Email Security Team",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Ingest to SIEM",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Investigation Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "workflow_id": "cybersentinel-phishing-001",
+    "description": "Automated phishing campaign detection and response workflow",
+    "version": "1.0.0",
+    "created_by": "CyberSentinel",
+    "created_at": "2025-12-30T14:20:11Z"
+  }
+}

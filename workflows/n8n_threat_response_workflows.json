@@ -1,0 +1,587 @@
+{
+  "n8n_workflows": {
+    "workflow_version": "1.0",
+    "generated_date": "2025-12-27T14:20:11.968570+00:00",
+    "description": "Automated threat response workflows for CyberSentinel threat intelligence",
+    "workflows": [
+      {
+        "id": "react2shell_response_001",
+        "name": "React2Shell Exploitation Response",
+        "description": "Automated response to CVE-2025-55182 exploitation attempts",
+        "trigger": {
+          "type": "webhook",
+          "event": "react2shell_detection",
+          "source": "SIEM"
+        },
+        "nodes": [
+          {
+            "id": "node_1",
+            "type": "notification",
+            "name": "Alert Security Team",
+            "config": {
+              "service": "slack",
+              "channel": "#security-incidents",
+              "message": "🚨 CRITICAL: React2Shell exploitation detected (CVE-2025-55182)\nAffected System: {{$node.trigger.data.system}}\nIP Address: {{$node.trigger.data.source_ip}}\nAction: Immediate isolation and forensics initiated",
+              "mention_users": ["@security-lead", "@incident-commander"]
+            }
+          },
+          {
+            "id": "node_2",
+            "type": "http_request",
+            "name": "Block Attacker IP",
+            "config": {
+              "method": "POST",
+              "url": "https://firewall-api.internal/api/v1/rules",
+              "headers": {
+                "Authorization": "Bearer {{env.FIREWALL_API_KEY}}",
+                "Content-Type": "application/json"
+              },
+              "body": {
+                "action": "DROP",
+                "source_ip": "{{$node.trigger.data.source_ip}}",
+                "protocol": "ALL",
+                "duration": "PERMANENT",
+                "reason": "React2Shell exploitation attempt"
+              }
+            }
+          },
+          {
+            "id": "node_3",
+            "type": "ssh_command",
+            "name": "Isolate Affected System",
+            "config": {
+              "host": "{{$node.trigger.data.system_ip}}",
+              "username": "{{env.SSH_USER}}",
+              "private_key": "{{env.SSH_KEY}}",
+              "commands": [
+                "sudo iptables -I INPUT -j DROP",
+                "sudo systemctl stop networking",
+                "echo 'System isolated for forensics' > /tmp/isolation_notice.txt"
+              ]
+            }
+          },
+          {
+            "id": "node_4",
+            "type": "http_request",
+            "name": "Collect Forensic Evidence",
+            "config": {
+              "method": "POST",
+              "url": "https://forensics-api.internal/api/v1/collect",
+              "body": {
+                "system_id": "{{$node.trigger.data.system}}",
+                "evidence_types": ["process_memory", "network_logs", "file_system"],
+                "priority": "CRITICAL",
+                "destination": "forensic_storage"
+              }
+            }
+          },
+          {
+            "id": "node_5",
+            "type": "http_request",
+            "name": "Trigger Patch Management",
+            "config": {
+              "method": "POST",
+              "url": "https://patch-mgmt.internal/api/v1/deploy",
+              "body": {
+                "target": "React 19.x, Next.js 15.x/16.x",
+                "priority": "CRITICAL",
+                "scope": "ALL_AFFECTED_SYSTEMS"
+              }
+            }
+          },
+          {
+            "id": "node_6",
+            "type": "http_request",
+            "name": "Threat Hunt Query",
+            "config": {
+              "method": "POST",
+              "url": "https://siem-api.internal/api/v1/hunt",
+              "body": {
+                "query": "source_ip IN (206.237.3.150, 45.77.33.136, 143.198.92.82) OR process_name CONTAINS 'node' AND command_line CONTAINS ('whoami', 'id', 'uname')",
+                "time_range": "LAST_30_DAYS",
+                "scope": "ALL_SYSTEMS"
+              }
+            }
+          },
+          {
+            "id": "node_7",
+            "type": "email",
+            "name": "Send Incident Report",
+            "config": {
+              "to": "{{env.INCIDENT_REPORT_EMAIL}}",
+              "subject": "React2Shell Exploitation - Incident Report",
+              "body": "Incident Summary:\n\nThreat: CVE-2025-55182 (React2Shell)\nSeverity: CRITICAL\nAffected System: {{$node.trigger.data.system}}\nSource IP: {{$node.trigger.data.source_ip}}\n\nActions Taken:\n1. Security team alerted\n2. Attacker IP blocked\n3. System isolated\n4. Forensic evidence collected\n5. Patches deployed\n6. Threat hunt initiated\n\nNext Steps:\n- Monitor for lateral movement\n- Conduct root cause analysis\n- Review access logs\n- Implement additional monitoring"
+            }
+          }
+        ]
+      },
+      {
+        "id": "office_rce_response_002",
+        "name": "Microsoft Office RCE Response",
+        "description": "Automated response to CVE-2025-62554/62557 exploitation",
+        "trigger": {
+          "type": "webhook",
+          "event": "office_rce_detection",
+          "source": "Email Security Gateway"
+        },
+        "nodes": [
+          {
+            "id": "node_1",
+            "type": "notification",
+            "name": "Alert Email Security Team",
+            "config": {
+              "service": "slack",
+              "channel": "#email-security",
+              "message": "🚨 CRITICAL: Microsoft Office RCE detected\nCVE: {{$node.trigger.data.cve_id}}\nSender: {{$node.trigger.data.sender}}\nRecipient: {{$node.trigger.data.recipient}}\nAction: Email quarantined and blocked"
+            }
+          },
+          {
+            "id": "node_2",
+            "type": "http_request",
+            "name": "Quarantine Email",
+            "config": {
+              "method": "POST",
+              "url": "https://email-gateway.internal/api/v1/quarantine",
+              "body": {
+                "message_id": "{{$node.trigger.data.message_id}}",
+                "reason": "Office RCE exploitation attempt",
+                "action": "QUARANTINE"
+              }
+            }
+          },
+          {
+            "id": "node_3",
+            "type": "http_request",
+            "name": "Block Sender Domain",
+            "config": {
+              "method": "POST",
+              "url": "https://email-gateway.internal/api/v1/block_domain",
+              "body": {
+                "domain": "{{$node.trigger.data.sender_domain}}",
+                "reason": "Office RCE phishing campaign",
+                "duration": "30_DAYS"
+              }
+            }
+          },
+          {
+            "id": "node_4",
+            "type": "http_request",
+            "name": "Scan Email Archive",
+            "config": {
+              "method": "POST",
+              "url": "https://email-gateway.internal/api/v1/archive_scan",
+              "body": {
+                "criteria": "Office RCE IOCs",
+                "time_range": "LAST_30_DAYS",
+                "action": "QUARANTINE_MATCHES"
+              }
+            }
+          },
+          {
+            "id": "node_5",
+            "type": "http_request",
+            "name": "Notify Recipient",
+            "config": {
+              "method": "POST",
+              "url": "https://email-gateway.internal/api/v1/notify_user",
+              "body": {
+                "recipient": "{{$node.trigger.data.recipient}}",
+                "message": "A malicious email was blocked and quarantined. Do not open Office documents from untrusted sources."
+              }
+            }
+          },
+          {
+            "id": "node_6",
+            "type": "http_request",
+            "name": "Deploy Patches",
+            "config": {
+              "method": "POST",
+              "url": "https://patch-mgmt.internal/api/v1/deploy",
+              "body": {
+                "target": "Microsoft Office 2019+, Microsoft 365",
+                "priority": "CRITICAL",
+                "scope": "ALL_SYSTEMS"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "cisco_asyncos_response_003",
+        "name": "Cisco AsyncOS Zero-Day Response",
+        "description": "Automated response to CVE-2025-20393 exploitation",
+        "trigger": {
+          "type": "webhook",
+          "event": "cisco_asyncos_detection",
+          "source": "Cisco Appliance Monitoring"
+        },
+        "nodes": [
+          {
+            "id": "node_1",
+            "type": "notification",
+            "name": "Alert Infrastructure Team",
+            "config": {
+              "service": "pagerduty",
+              "severity": "CRITICAL",
+              "title": "Cisco AsyncOS Zero-Day Exploitation Detected",
+              "description": "CVE-2025-20393 exploitation attempt on {{$node.trigger.data.appliance}}"
+            }
+          },
+          {
+            "id": "node_2",
+            "type": "http_request",
+            "name": "Restrict Appliance Access",
+            "config": {
+              "method": "POST",
+              "url": "https://network-api.internal/api/v1/access_control",
+              "body": {
+                "appliance": "{{$node.trigger.data.appliance}}",
+                "action": "RESTRICT_TO_INTERNAL_ONLY",
+                "allowed_networks": ["10.0.0.0/8", "172.16.0.0/12"]
+              }
+            }
+          },
+          {
+            "id": "node_3",
+            "type": "http_request",
+            "name": "Review Authentication Logs",
+            "config": {
+              "method": "POST",
+              "url": "https://siem-api.internal/api/v1/search",
+              "body": {
+                "source": "cisco_asyncos_logs",
+                "query": "failed_login OR unauthorized_access OR persistence_mechanism",
+                "time_range": "LAST_7_DAYS"
+              }
+            }
+          },
+          {
+            "id": "node_4",
+            "type": "http_request",
+            "name": "Apply Security Patches",
+            "config": {
+              "method": "POST",
+              "url": "https://patch-mgmt.internal/api/v1/deploy",
+              "body": {
+                "target": "Cisco AsyncOS",
+                "cve": "CVE-2025-20393",
+                "priority": "CRITICAL",
+                "deadline": "2025-12-24"
+              }
+            }
+          },
+          {
+            "id": "node_5",
+            "type": "http_request",
+            "name": "Enable MFA",
+            "config": {
+              "method": "POST",
+              "url": "https://access-control.internal/api/v1/mfa",
+              "body": {
+                "target": "Cisco appliance management",
+                "requirement": "MFA_MANDATORY"
+              }
+            }
+          },
+          {
+            "id": "node_6",
+            "type": "http_request",
+            "name": "Collect Forensic Evidence",
+            "config": {
+              "method": "POST",
+              "url": "https://forensics-api.internal/api/v1/collect",
+              "body": {
+                "appliance": "{{$node.trigger.data.appliance}}",
+                "evidence_types": ["configuration_changes", "access_logs", "persistence_indicators"]
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "akira_ransomware_response_004",
+        "name": "Akira Ransomware Incident Response",
+        "description": "Automated response to Akira ransomware detection",
+        "trigger": {
+          "type": "webhook",
+          "event": "ransomware_detection",
+          "source": "EDR/SIEM"
+        },
+        "nodes": [
+          {
+            "id": "node_1",
+            "type": "notification",
+            "name": "Activate Incident Response",
+            "config": {
+              "service": "pagerduty",
+              "severity": "CRITICAL",
+              "escalation_policy": "executive_escalation",
+              "notify": ["ciso", "cto", "legal", "pr"]
+            }
+          },
+          {
+            "id": "node_2",
+            "type": "http_request",
+            "name": "Isolate Infected Systems",
+            "config": {
+              "method": "POST",
+              "url": "https://network-api.internal/api/v1/isolate",
+              "body": {
+                "criteria": "ransomware_indicators",
+                "action": "IMMEDIATE_ISOLATION",
+                "scope": "AFFECTED_SYSTEMS_ONLY"
+              }
+            }
+          },
+          {
+            "id": "node_3",
+            "type": "http_request",
+            "name": "Preserve Forensic Evidence",
+            "config": {
+              "method": "POST",
+              "url": "https://forensics-api.internal/api/v1/preserve",
+              "body": {
+                "systems": "{{$node.trigger.data.affected_systems}}",
+                "evidence": ["memory_dumps", "disk_images", "network_traffic"],
+                "chain_of_custody": true
+              }
+            }
+          },
+          {
+            "id": "node_4",
+            "type": "http_request",
+            "name": "Notify Law Enforcement",
+            "config": {
+              "method": "POST",
+              "url": "https://incident-reporting.internal/api/v1/notify_law_enforcement",
+              "body": {
+                "agencies": ["FBI", "CISA"],
+                "incident_type": "RANSOMWARE",
+                "include": ["timeline", "iocs", "ransom_note", "affected_data"]
+              }
+            }
+          },
+          {
+            "id": "node_5",
+            "type": "http_request",
+            "name": "Initiate Backup Recovery",
+            "config": {
+              "method": "POST",
+              "url": "https://backup-api.internal/api/v1/restore",
+              "body": {
+                "systems": "{{$node.trigger.data.affected_systems}}",
+                "source": "clean_backups",
+                "verify": "integrity_check"
+              }
+            }
+          },
+          {
+            "id": "node_6",
+            "type": "http_request",
+            "name": "Threat Hunt",
+            "config": {
+              "method": "POST",
+              "url": "https://siem-api.internal/api/v1/hunt",
+              "body": {
+                "query": "lateral_movement OR persistence_mechanism OR data_exfiltration",
+                "scope": "ALL_SYSTEMS",
+                "time_range": "LAST_30_DAYS"
+              }
+            }
+          },
+          {
+            "id": "node_7",
+            "type": "email",
+            "name": "Generate Incident Report",
+            "config": {
+              "to": "{{env.INCIDENT_REPORT_EMAIL}}",
+              "subject": "CRITICAL: Ransomware Incident Report - Akira",
+              "body": "Ransomware Incident Summary:\n\nThreat: Akira Ransomware\nSeverity: CRITICAL\nAffected Systems: {{$node.trigger.data.affected_systems}}\nDetection Time: {{$node.trigger.data.detection_time}}\n\nActions Taken:\n1. Incident response activated\n2. Systems isolated\n3. Forensic evidence preserved\n4. Law enforcement notified\n5. Backup recovery initiated\n6. Threat hunt in progress\n\nRecommendations:\n- DO NOT PAY RANSOM\n- Continue forensic analysis\n- Implement additional monitoring\n- Review and update security controls"
+            }
+          }
+        ]
+      },
+      {
+        "id": "holiday_phishing_response_007",
+        "name": "Holiday Phishing Campaign Response",
+        "description": "Automated response to holiday-themed phishing campaigns",
+        "trigger": {
+          "type": "webhook",
+          "event": "phishing_detection",
+          "source": "Email Security Gateway"
+        },
+        "nodes": [
+          {
+            "id": "node_1",
+            "type": "http_request",
+            "name": "Block Phishing Domains",
+            "config": {
+              "method": "POST",
+              "url": "https://dns-filtering.internal/api/v1/block",
+              "body": {
+                "domains": "{{$node.trigger.data.phishing_domains}}",
+                "action": "BLOCK_GLOBALLY",
+                "reason": "Holiday phishing campaign"
+              }
+            }
+          },
+          {
+            "id": "node_2",
+            "type": "http_request",
+            "name": "Quarantine Phishing Emails",
+            "config": {
+              "method": "POST",
+              "url": "https://email-gateway.internal/api/v1/quarantine",
+              "body": {
+                "criteria": "holiday_phishing_indicators",
+                "action": "QUARANTINE_AND_ALERT"
+              }
+            }
+          },
+          {
+            "id": "node_3",
+            "type": "http_request",
+            "name": "Send User Alert",
+            "config": {
+              "method": "POST",
+              "url": "https://user-communication.internal/api/v1/alert",
+              "body": {
+                "message": "🚨 Holiday Phishing Alert: Verify sender before clicking links or opening attachments",
+                "distribution": "ALL_USERS",
+                "frequency": "DAILY"
+              }
+            }
+          },
+          {
+            "id": "node_4",
+            "type": "http_request",
+            "name": "Monitor Account Takeovers",
+            "config": {
+              "method": "POST",
+              "url": "https://ueba-api.internal/api/v1/monitor",
+              "body": {
+                "monitor": "unusual_login_patterns, credential_usage",
+                "alert_threshold": "ANOMALY_DETECTED"
+              }
+            }
+          },
+          {
+            "id": "node_5",
+            "type": "http_request",
+            "name": "Enforce MFA",
+            "config": {
+              "method": "POST",
+              "url": "https://access-control.internal/api/v1/mfa",
+              "body": {
+                "target": "critical_accounts",
+                "requirement": "MFA_MANDATORY"
+              }
+            }
+          },
+          {
+            "id": "node_6",
+            "type": "email",
+            "name": "Generate Phishing Report",
+            "config": {
+              "to": "{{env.SECURITY_TEAM_EMAIL}}",
+              "subject": "Holiday Phishing Campaign Report",
+              "body": "Phishing Campaign Summary:\n\nCampaign Type: Holiday-themed phishing\nDetection Count: {{$node.trigger.data.detection_count}}\nPhishing URLs: {{$node.trigger.data.phishing_urls}}\nSender Domains: {{$node.trigger.data.sender_domains}}\nUser Clicks: {{$node.trigger.data.user_clicks}}\n\nActions Taken:\n1. Phishing domains blocked\n2. Emails quarantined\n3. Users alerted\n4. Account takeover monitoring enabled\n5. MFA enforced on critical accounts"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "integration_points": {
+    "siem": {
+      "type": "webhook",
+      "endpoint": "/api/v1/threat_detection",
+      "authentication": "API_KEY",
+      "supported_events": [
+        "vulnerability_detection",
+        "malware_detection",
+        "ransomware_detection",
+        "phishing_detection",
+        "apt_activity"
+      ]
+    },
+    "email_gateway": {
+      "type": "webhook",
+      "endpoint": "/api/v1/email_threat",
+      "authentication": "API_KEY",
+      "supported_events": [
+        "phishing_email",
+        "malicious_attachment",
+        "office_rce_attempt"
+      ]
+    },
+    "firewall": {
+      "type": "REST_API",
+      "endpoint": "https://firewall-api.internal/api/v1",
+      "authentication": "BEARER_TOKEN",
+      "operations": [
+        "block_ip",
+        "create_rule",
+        "update_acl"
+      ]
+    },
+    "patch_management": {
+      "type": "REST_API",
+      "endpoint": "https://patch-mgmt.internal/api/v1",
+      "authentication": "API_KEY",
+      "operations": [
+        "deploy_patch",
+        "schedule_deployment",
+        "verify_patch_status"
+      ]
+    },
+    "forensics": {
+      "type": "REST_API",
+      "endpoint": "https://forensics-api.internal/api/v1",
+      "authentication": "API_KEY",
+      "operations": [
+        "collect_evidence",
+        "preserve_data",
+        "generate_report"
+      ]
+    },
+    "notification": {
+      "slack": {
+        "webhook_url": "{{env.SLACK_WEBHOOK_URL}}",
+        "channels": ["#security-incidents", "#email-security", "#infrastructure"]
+      },
+      "pagerduty": {
+        "api_key": "{{env.PAGERDUTY_API_KEY}}",
+        "escalation_policies": ["executive_escalation", "security_escalation"]
+      },
+      "email": {
+        "smtp_server": "{{env.SMTP_SERVER}}",
+        "from_address": "security-alerts@company.com"
+      }
+    }
+  },
+  "deployment_instructions": {
+    "prerequisites": [
+      "n8n instance running (v1.0+)",
+      "API credentials for all integrated systems",
+      "Webhook endpoints configured",
+      "Notification channels set up"
+    ],
+    "steps": [
+      "1. Import workflow JSON into n8n",
+      "2. Configure environment variables (API keys, endpoints)",
+      "3. Test webhook connectivity",
+      "4. Enable workflow triggers",
+      "5. Set up notification channels",
+      "6. Configure escalation policies",
+      "7. Test end-to-end workflow execution"
+    ],
+    "testing": [
+      "Send test webhook events",
+      "Verify notification delivery",
+      "Confirm API calls execute correctly",
+      "Validate forensic evidence collection",
+      "Test incident isolation procedures"
+    ]
+  }
+}

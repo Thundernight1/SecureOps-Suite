@@ -1,0 +1,369 @@
+{
+  "name": "CyberSentinel - APT Detection and Response",
+  "nodes": [
+    {
+      "parameters": {
+        "triggerTimes": {
+          "item": {
+            "mode": "everyX",
+            "value": "60",
+            "unit": "minutes"
+          }
+        }
+      },
+      "id": "apt-schedule",
+      "name": "APT Monitor Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "disabled": false,
+      "notesInFlow": true,
+      "notes": "Runs every 60 minutes to check for APT activity"
+    },
+    {
+      "parameters": {
+        "url": "https://api.misp-project.org/api/v2/events/index",
+        "method": "GET",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $node[\"MISP Credentials\"].json[\"api_key\"] }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "misp-feed",
+      "name": "MISP Threat Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        300,
+        200
+      ],
+      "disabled": false,
+      "notesInFlow": true,
+      "notes": "Check MISP for APT indicators"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.threatfox.abuse.ch/api/v1/ioc/list",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"query\": \"get_iocs\",\n  \"filters\": {\n    \"threat_type\": \"apt\",\n    \"last_24h\": true\n  }\n}",
+        "options": {}
+      },
+      "id": "threatfox-apt",
+      "name": "ThreatFox APT IOCs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        500,
+        200
+      ],
+      "disabled": false,
+      "notesInFlow": true,
+      "notes": "Check ThreatFox for APT IOCs"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://otx.alienvault.com/api/v1/indicators/subscriptions",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"action\": \"get_subscriptions\",\n  \"types\": [\"APT\"]\n}",
+        "options": {}
+      },
+      "id": "otx-apt",
+      "name": "AlienVault OTX APT",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        700,
+        200
+      ],
+      "disabled": false,
+      "notesInFlow": true,
+      "notes": "Check AlienVault OTX for APT indicators"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cisa.gov/v2/actors",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"country\": [\"china\", \"russia\", \"iran\", \"north korea\"],\n  \"type\": \"apt\"\n}",
+        "options": {}
+      },
+      "id": "cisa-actors",
+      "name": "CISA Threat Actors",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        900,
+        200
+      ],
+      "disabled": false,
+      "notesInFlow": true,
+      "notes": "Check CISA for known APT groups"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"count\"] }}",
+              "operation": "greaterThan",
+              "value2": "0"
+            }
+          ]
+        }
+      },
+      "id": "apt-detection-check",
+      "name": "APT Activity Detected",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ],
+      "disabled": false,
+      "notesInFlow": true,
+      "notes": "Check if APT activity detected"
+    },
+    {
+      "parameters": {
+        "channel": "apt-intel",
+        "text": "=🕵️ **APT INTELLIGENCE ALERT** 🕵️\n\n**Detected Activity:**\n- **Group:** {{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"threat\"][\"name\"] }}\n- **Country:** {{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"threat\"][\"origin\"] }}\n- **Type:** {{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"threat\"][\"description\"] }}\n\n**Indicators of Compromise:**\n- **IOCs Found:** {{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"count\"] }}\n- **Severity:** ⚠️ HIGH\n- **Detection Time:** {{ $now }}\n\n**Known TTPs:**\n{{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"ttps\"] }}\n\n**Recommended Actions:**\n1. 🔍 Review logs for IOCs\n2. 🛡️ Enable enhanced monitoring\n3. 📊 Correlate with internal detections\n4. 📋 Update detection rules\n5. 👥 Notify threat intelligence team\n\n---\n*CyberSentinel APT Monitor*",
+        "attachments": [],
+        "blocks": []
+      },
+      "id": "slack-apt-alert",
+      "name": "Slack APT Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        100
+      ],
+      "disabled": false,
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credential-id",
+          "name": "Slack Security Alerts"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.your-siem.com/v2/threats",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $node[\"SIEM Credentials\"].json[\"api_key\"] }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"threat_type\": \"APT\",\n  \"severity\": \"HIGH\",\n  \"threat_name\": \"{{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"threat\"][\"name\"] }}\",\n  \"threat_actor\": {\n    \"name\": \"{{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"threat\"][\"name\"] }}\",\n    \"origin\": \"{{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"threat\"][\"origin\"] }}\",\n    \"description\": \"{{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"threat\"][\"description\"] }}\"\n  },\n  \"indicators_of_compromise\": {{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"iocs\"] }},\n  \"attack_patterns\": {{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"ttps\"] }},\n  \"recommended_actions\": [\n    \"Enable enhanced monitoring for affected systems\",\n    \"Review access logs for APT IOCs\",\n    \"Update detection rules\",\n    \"Correlate with internal detections\",\n    \"Notify threat intelligence team\"\n  ],\n  \"workflow_id\": \"cybersentinel-apt-001\",\n  \"timestamp\": \"{{ $now }}\"\n}",
+        "options": {}
+      },
+      "id": "siem-apt-ingest",
+      "name": "Ingest to SIEM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1300,
+        200
+      ],
+      "disabled": false,
+      "notesInFlow": true,
+      "notes": "Ingest APT threat to SIEM"
+    },
+    {
+      "parameters": {
+        "url": "https://api.your-siem.com/v2/detection-rules",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $node[\"SIEM Credentials\"].json[\"api_key\"] }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"rule_name\": \"APT {{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"threat\"][\"name\"] }} IOC Detection\",\n  \"rule_type\": \"threat_intel_match\",\n  \"enabled\": true,\n  \"severity\": \"high\",\n  \"threat_indicator\": {\n    \"type\": \"apt_group\",\n    \"name\": \"{{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"threat\"][\"name\"] }}\",\n    \"country\": \"{{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"threat\"][\"origin\"] }}\"\n  },\n  \"mitre_attack\": {{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"ttps\"] }},\n  \"actions\": [\n    \"alert\",\n    \"log\",\n    \"notify_analyst\"\n  ]\n}",
+        "options": {}
+      },
+      "id": "create-detection-rules",
+      "name": "Create Detection Rules",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1500,
+        200
+      ],
+      "disabled": false,
+      "notesInFlow": true,
+      "notes": "Create detection rules for APT IOCs"
+    },
+    {
+      "parameters": {
+        "jiraProject": "CTI",
+        "jiraIssueType": "Task",
+        "title": "=🕵️ APT Activity: {{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"threat\"][\"name\"] }} Detected",
+        "body": "=**APT THREAT INTELLIGENCE REPORT**\n\n**Threat Actor:** {{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"threat\"][\"name\"] }}\n**Origin:** {{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"threat\"][\"origin\"] }}\n**Classification:** Advanced Persistent Threat (APT)\n**Detected:** {{ $now }}\n**Severity:** HIGH\n\n**Threat Description:**\n{{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"threat\"][\"description\"] }}\n\n**MITRE ATT&CK TTPs:**\n{{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"ttps\"] }}\n\n**Indicators of Compromise (IOCs):**\n{{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"iocs\"] }}\n\n**Recommended Actions:**\n\n**Immediate (0-4 hours):**\n- [ ] Ingest IOCs into SIEM/EDR\n- [ ] Create detection rules\n- [ ] Enable enhanced monitoring\n- [ ] Notify SOC analysts\n\n**Short-term (4-24 hours):**\n- [ ] Correlate with internal detections\n- [ ] Review logs for IOC matches\n- [ ] Identify potential compromised systems\n- [ ] Assess scope of potential intrusion\n\n**Long-term (24-72 hours):**\n- [ ] Hunt for APT activity across environment\n- [ ] Update firewall/IDS rules\n- [ ] Brief leadership on findings\n- [ ] Document threat actor TTPs\n\n**Known Targeting Patterns:**\n- Government and public sector entities\n- Critical infrastructure organizations\n- Technology and defense contractors\n- Research and academic institutions\n\n**Intelligence Sources:**\n- ThreatFox Abuse.ch\n- AlienVault OTX\n- MISP Community\n- CISA Alerts\n\n---\n*Automated threat intelligence report by CyberSentinel*",
+        "labels": [
+          "apt",
+          "threat-intelligence",
+          "high-priority",
+          "{{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"threat\"][\"origin\"] }}"
+        ]
+      },
+      "id": "jira-cti-report",
+      "name": "Create CTI Report",
+      "type": "n8n-nodes-base.jiraSoftware",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        100
+      ],
+      "disabled": false,
+      "credentials": {
+        "jiraSoftwareApi": {
+          "id": "jira-credential-id",
+          "name": "Jira Security"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "from": "cti-team@company.com",
+        "to": "soc-leads@company.com",
+        "subject": "🕵️ APT Alert: {{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"threat\"][\"name\"] }} Activity Detected",
+        "body": "=**APT THREAT INTELLIGENCE ALERT**\n\n**Threat Actor:** {{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"threat\"][\"name\"] }}\n**Origin:** {{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"threat\"][\"origin\"] }}\n**Classification:** Advanced Persistent Threat (APT)\n**Detected:** {{ $now }}\n**IOCs Identified:** {{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"count\"] }}\n\n**Executive Summary:**\n\nCyberSentinel has detected activity from a known APT group. This threat actor is associated with {{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"threat\"][\"origin\"] }}-linked cyber operations and has a history of targeting government entities, critical infrastructure, and technology companies.\n\n**MITRE ATT&CK Techniques Observed:**\n{{ $node[\"ThreatFox APT IOCs\"].json[\"data\"][\"ttps\"] }}\n\n**Immediate Actions Required:**\n\n1. **IOC Integration**\n   - IOCs have been ingested into SIEM\n   - Detection rules have been created\n   - Enhanced monitoring enabled\n\n2. **SOC Actions**\n   - Review alerts for IOC matches\n   - Monitor for lateral movement indicators\n   - Check for credential theft signs\n\n3. **Investigation**\n   - Correlate with historical detections\n   - Hunt for persistence mechanisms\n   - Review access logs for C2 communication\n\n**Recommended Defensive Measures:**\n\n- Enable enhanced logging on critical systems\n- Review and restrict service accounts\n- Monitor for unusual PowerShell/WMI activity\n- Check for unauthorized schedule task creation\n- Review outbound network connections\n- Enable MFA for all privileged accounts\n\n**Intelligence Quality:**\n- **Confidence:** HIGH\n- **Source Reliability:** VERIFIED\n- **Freshness:** < 24 hours\n\nFor detailed IOCs and TTPs, see the associated Jira CTI report.\n\n---\n*Automated alert by CyberSentinel*",
+        "options": {}
+      },
+      "id": "email-apt-alert",
+      "name": "Email SOC Leads",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        300
+      ],
+      "disabled": false,
+      "credentials": {
+        "smtp": {
+          "id": "smtp-credential-id",
+          "name": "Company SMTP"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "APT Monitor Schedule": {
+      "main": [
+        [
+          {
+            "node": "MISP Threat Feed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "ThreatFox APT IOCs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AlienVault OTX APT",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "CISA Threat Actors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ThreatFox APT IOCs": {
+      "main": [
+        [
+          {
+            "node": "APT Activity Detected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "APT Activity Detected": {
+      "main": [
+        [
+          {
+            "node": "Slack APT Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Ingest to SIEM",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email SOC Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ingest to SIEM": {
+      "main": [
+        [
+          {
+            "node": "Create Detection Rules",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create CTI Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "workflow_id": "cybersentinel-apt-001",
+    "description": "Automated APT detection and intelligence response workflow",
+    "version": "1.0.0",
+    "created_by": "CyberSentinel",
+    "created_at": "2025-12-30T14:20:11Z"
+  }
+}

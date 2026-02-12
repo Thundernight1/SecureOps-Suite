@@ -1,0 +1,289 @@
+{
+  "name": "CyberSentinel - Ransomware Alert Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.ransomware.live/recent-activity"
+      },
+      "name": "Ransomware Live Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/DNS/dns-recon.txt"
+      },
+      "name": "Ransomware Site Monitor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        100,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "\nconst items = input.all();\nconst results = [];\n\n// Simulated ransomware gang monitoring\nconst knownGangs = [\n  'cl0p', 'lockbit', 'alphv', 'blackcat', 'qilin', 'rhysida', \n  'akira', 'ransomhub', 'medusa', 'dark Angels', 'bianlian',\n  'play', 'cuba', 'inc ransom', '8base', 'money msg', 'lost trust'\n];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  // Detect ransomware indicators\n  const content = JSON.stringify(data).toLowerCase();\n  \n  for (const gang of knownGangs) {\n    if (content.includes(gang.toLowerCase())) {\n      results.push({\n        json: {\n          threatType: 'RANSOMWARE',\n          threatId: `RANSOM-${gang.toUpperCase()}-${Date.now()}`,\n          title: `${gang.charAt(0).toUpperCase() + gang.slice(1)} Ransomware Activity Detected`,\n          description: `Activity detected from known ransomware group: ${gang}. Requires immediate investigation.`,\n          severity: determineSeverity(gang, data),\n          affectedSystems: detectAffectedSystems(data),\n          indicatorsOfCompromise: {\n            ransomwareGroup: gang,\n            fileExtensions: data.fileExtensions || ['.encrypted', '.locked'],\n            ransomNote: data.ransomNote || 'Unknown',\n            bitcoinAddress: data.bitcoinAddress || 'Unknown',\n            darkWebUrl: data.darkWebUrl || null,\n            encryptionMethod: data.encryptionMethod || 'AES-256 + RSA',\n            doubleExtortion: data.doubleExtortion || false,\n            dataLeakSite: data.dataLeakSite || null\n          },\n          recommendedActions: getRansomwareResponse(gang, data),\n          source: 'Dark Web Monitoring',\n          processedAt: new Date().toISOString(),\n          campaignId: data.campaignId || `CAMP-${Date.now()}`,\n          victimCount: data.victimCount || 1,\n          ransomDemand: data.ransomDemand || 'Unknown',\n          gangTTPs: getGangTTPs(gang)\n        }\n      });\n      break;\n    }\n  }\n}\n\nfunction determineSeverity(gang, data) {\n  const criticalGangs = ['cl0p', 'alphv', 'blackcat', 'lockbit'];\n  if (criticalGangs.includes(gang.toLowerCase())) return 'CRITICAL';\n  if (data.victimCount > 10) return 'HIGH';\n  return 'MEDIUM';\n}\n\nfunction detectAffectedSystems(data) {\n  const industries = [];\n  const technologies = [];\n  \n  const industryKeywords = {\n    'Healthcare': ['hospital', 'health', 'medical', 'pharma', 'clinic'],\n    'Finance': ['bank', 'financial', 'insurance', 'payment', 'trading'],\n    'Education': ['university', 'school', 'college', 'education'],\n    'Technology': ['tech', 'software', 'cloud', 'saas', 'data center'],\n    'Manufacturing': ['manufacturing', 'factory', 'production', 'industrial'],\n    'Government': ['government', 'municipal', 'federal', 'agency']\n  };\n  \n  const content = JSON.stringify(data).toLowerCase();\n  \n  for (const [industry, keywords] of Object.entries(industryKeywords)) {\n    if (keywords.some(k => content.includes(k))) {\n      industries.push(industry);\n    }\n  }\n  \n  // Detect operating systems and platforms\n  if (content.includes('windows')) technologies.push('Windows');\n  if (content.includes('linux')) technologies.push('Linux');\n  if (content.includes('esxi')) technologies.push('VMware ESXi');\n  if (content.includes('macos') || content.includes('mac os')) technologies.push('macOS');\n  \n  return {\n    industries: industries.length > 0 ? industries : ['Unknown'],\n    platforms: technologies.length > 0 ? technologies : ['Windows', 'Linux'],\n    geographicTargets: data.geographicTargets || ['Global']\n  };\n}\n\nfunction getGangTTPs(gang) {\n  const ttpMap = {\n    'cl0p': {\n      initialAccess: ['Zero-day exploits', 'Phishing', 'RDP brute force'],\n      evasion: ['Process hollowing', 'Fileless malware', 'Encryption obfuscation'],\n      dataExfiltration: ['Large file transfers', 'Cloud storage abuse']\n    },\n    'lockbit': {\n      initialAccess: ['Phishing', 'Exploits', 'Remote services'],\n      evasion: ['Anti-debugging', 'Process injection', 'Safe mode execution'],\n      dataExfiltration: ['Steganography', 'DNS tunneling']\n    },\n    'alphv': {\n      initialAccess: ['Phishing', 'Credential theft', 'VPN exploits'],\n      evasion: ['Living-off-the-land', 'Legitimate tool abuse'],\n      dataExfiltration: ['MegaSync', 'AnyDesk', 'Custom exfiltration tools']\n    }\n  };\n  \n  return ttpMap[gang.toLowerCase()] || {\n    initialAccess: ['Phishing', 'Exploits'],\n    evasion: ['Standard evasion techniques'],\n    dataExfiltration: ['Standard exfiltration']\n  };\n}\n\nfunction getRansomwareResponse(gang, data) {\n  return [\n    {\n      priority: 1,\n      action: 'ISOLATE',\n      description: 'Immediately isolate affected systems from network',\n      timeline: 'IMMEDIATE',\n      automated: true\n    },\n    {\n      priority: 2,\n      action: 'ASSESS',\n      description: 'Determine scope of encryption and data exfiltration',\n      timeline: '1 hour',\n      automated: false\n    },\n    {\n      priority: 3,\n      action: 'PRESERVE',\n      description: 'Preserve forensic evidence and memory dumps',\n      timeline: '2 hours',\n      automated: false\n    },\n    {\n      priority: 4,\n      action: 'NOTIFY',\n      description: 'Notify incident response team and legal counsel',\n      timeline: 'IMMEDIATE',\n      automated: true\n    },\n    {\n      priority: 5,\n      action: 'RESTORE',\n      description: 'Restore from clean backups and verify integrity',\n      timeline: '24-72 hours',\n      automated: false\n    },\n    {\n      priority: 6,\n      action: 'COMMUNICATE',\n      description: 'Prepare communication for stakeholders and regulators if required',\n      timeline: 'Per regulation',\n      automated: false\n    }\n  ];\n}\n\nreturn results;\n"
+      },
+      "name": "Analyze Ransomware Activity",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.severity }}",
+              "operation": "equal",
+              "value2": "CRITICAL"
+            }
+          ]
+        }
+      },
+      "name": "Critical Ransomware Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "security-alerts",
+        "blocks": [
+          {
+            "type": "header",
+            "text": {
+              "type": "plain_text",
+              "text": "🚨 RANSOMWARE ALERT - CRITICAL"
+            }
+          },
+          {
+            "type": "section",
+            "text": {
+              "type": "mrkdwn",
+              "text": "*Group:* {{ $json.indicatorsOfCompromise.ransomwareGroup }}\n*Victims:* {{ $json.victimCount }}+\n*Targeted Industries:* {{ $json.affectedSystems.industries.join(', ') }}\n\n*Initial Access Vectors:*\n{{ $json.gangTTPs.initialAccess.map(t => `• ${t}`).join('\\n') }}\n\n*Double Extortion:* {{ $json.indicatorsOfCompromise.doubleExtortion ? '✅ Yes' : 'No' }}"
+            }
+          },
+          {
+            "type": "section",
+            "text": {
+              "type": "mrkdwn",
+              "text": "*IMMEDIATE ACTIONS REQUIRED:*\n\n⚠️ *ISOLATE* all affected systems NOW\n📞 *CALL* incident response team\n🔒 *PRESERVE* forensic evidence\n📋 *DOCUMENT* all IOCs"
+            }
+          }
+        ],
+        "attachments": []
+      },
+      "name": "Critical Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-security-alerts",
+          "name": "Security Alerts Slack"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "security-alerts",
+        "blocks": [
+          {
+            "type": "section",
+            "text": {
+              "type": "mrkdwn",
+              "text": "⚠️ *Ransomware Activity Detected*\n\n*Group:* {{ $json.indicatorsOfCompromise.ransomwareGroup }}\n*Severity:* {{ $json.severity }}\n*Industries:* {{ $json.affectedSystems.industries.join(', ') }}\n\n_Review and determine response actions_"
+            }
+          }
+        ]
+      },
+      "name": "Standard Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "fields": {
+          "threatId": "={{ $json.threatId }}",
+          "threatType": "={{ $json.threatType }}",
+          "title": "={{ $json.title }}",
+          "description": "={{ $json.description }}",
+          "severity": "={{ $json.severity }}",
+          "affectedSystems": "={{ JSON.stringify($json.affectedSystems) }}",
+          "indicatorsOfCompromise": "={{ JSON.stringify($json.indicatorsOfCompromise) }}",
+          "recommendedActions": "={{ JSON.stringify($json.recommendedActions) }}",
+          "gangTTPs": "={{ JSON.stringify($json.gangTTPs) }}",
+          "campaignId": "={{ $json.campaignId }}",
+          "victimCount": "={{ $json.victimCount }}",
+          "ransomDemand": "={{ $json.ransomDemand }}",
+          "source": "={{ $json.source }}",
+          "processedAt": "={{ $json.processedAt }}",
+          "status": "OPEN",
+          "escalationLevel": "={{ $json.severity === 'CRITICAL' ? 4 : $json.severity === 'HIGH' ? 3 : 2 }}"
+        },
+        "tableId": "threat_intelligence"
+      },
+      "name": "Store Ransomware Intel",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.soarWebhookUrl }}",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "incidentType",
+              "value": "RANSOMWARE"
+            },
+            {
+              "name": "threatId",
+              "value": "={{ $json.threatId }}"
+            },
+            {
+              "name": "severity",
+              "value": "={{ $json.severity }}"
+            },
+            {
+              "name": "ransomwareGroup",
+              "value": "={{ $json.indicatorsOfCompromise.ransomwareGroup }}"
+            },
+            {
+              "name": "actions",
+              "value": "={{ JSON.stringify($json.recommendedActions) }}"
+            }
+          ]
+        }
+      },
+      "name": "Trigger IR Playbook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "emailGroup": "security-team@company.com"
+      },
+      "name": "Email Notification",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Ransomware Live Feed": {
+      "main": [
+        [
+          {
+            "node": "Analyze Ransomware Activity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ransomware Site Monitor": {
+      "main": [
+        []
+      ]
+    },
+    "Analyze Ransomware Activity": {
+      "main": [
+        [
+          {
+            "node": "Critical Ransomware Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Critical Ransomware Check": {
+      "main": [
+        [
+          {
+            "node": "Critical Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Standard Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Critical Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Store Ransomware Intel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Standard Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Store Ransomware Intel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Ransomware Intel": {
+      "main": [
+        [
+          {
+            "node": "Trigger IR Playbook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

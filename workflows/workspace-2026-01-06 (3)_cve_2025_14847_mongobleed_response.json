@@ -1,0 +1,395 @@
+{
+  "name": "CyberSentinel - MongoDB Memory Leak Response (CVE-2025-14847 MongoBleed)",
+  "meta": {
+    "cveId": "CVE-2025-14847",
+    "threatType": "VULNERABILITY",
+    "severity": "CRITICAL",
+    "cvssScore": 8.7,
+    "alias": "MongoBleed",
+    "affectedSystems": [
+      "MongoDB 4.0 through 8.2.3",
+      "MongoDB Atlas instances",
+      "Self-hosted MongoDB deployments",
+      "MongoDB Cloud Manager"
+    ],
+    "affectedIndustries": [
+      "Technology",
+      "Financial Services",
+      "Healthcare",
+      "E-commerce",
+      "All industries using MongoDB"
+    ],
+    "activeExploitation": true,
+    "dveScore": 9.71,
+    "n8nWorkflowId": "cve-2025-14847-mongobleed-response"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "pollTime": "*/5 * * * *"
+      },
+      "name": "Scheduled Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "id": "trigger-001"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.cveId }}",
+              "operation": "equal",
+              "value2": "CVE-2025-14847"
+            }
+          ]
+        }
+      },
+      "name": "CVE Filter",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ],
+      "id": "filter-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/scan_mongodb_versions.py --output json"
+      },
+      "name": "Scan MongoDB Versions",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        500,
+        100
+      ],
+      "id": "scan-mongo-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/check_mongodb_config.py --security"
+      },
+      "name": "Check MongoDB Security Config",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ],
+      "id": "config-check-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/scan_network_exposure.py --mongodb"
+      },
+      "name": "Check Network Exposure",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ],
+      "id": "network-check-001"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.vulnerableMongoDB }}",
+              "operation": "equal",
+              "value2": "true"
+            }
+          ]
+        }
+      },
+      "name": "MongoDB Vulnerable?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ],
+      "id": "mongo-vuln-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/block_mongodb_external.py"
+      },
+      "name": "Block External Access",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        900,
+        100
+      ],
+      "id": "block-external-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/enable_mongodb_auth.py"
+      },
+      "name": "Enforce Authentication",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ],
+      "id": "enforce-auth-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/deploy_mongodb_firewall.py"
+      },
+      "name": "Deploy Firewall Rules",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ],
+      "id": "firewall-rules-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/scan_mongodb_logs.py --exploit_indicators"
+      },
+      "name": "Scan Logs for Exploitation",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        900,
+        400
+      ],
+      "id": "log-scan-001"
+    },
+    {
+      "parameters": {
+        "channel": "#security-critical",
+        "text": "🚨 **CRITICAL: MongoDB MongoBleed Vulnerability** 🚨\n\n**CVE:** CVE-2025-14847 (MongoBleed)\n**CVSS:** 8.7 (CRITICAL)\n**Status:** ACTIVE EXPLOITATION\n\n**Vulnerability:** zlib compression flaw allows unauthenticated attackers to read sensitive data from MongoDB server memory.\n\n**Affected Systems:**\n{{ $json.vulnerableInstances }}\n\n**Immediate Actions:**\n1. BLOCK external access to MongoDB\n2. ENFORCE authentication\n3. APPLY patches immediately:\n   - MongoDB 4.0-5.0: Upgrade to 4.4.29+ or 5.0.23+\n   - MongoDB 6.0: Upgrade to 6.0.14+\n   - MongoDB 7.0: Upgrade to 7.0.14+\n   - MongoDB 8.0: Upgrade to 8.0.4+\n\n**Network Exposure:** {{ $json.networkExposure }}\n**Exploitation Detected:** {{ $json.exploitationDetected }}"
+      },
+      "name": "Critical Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ],
+      "id": "slack-critical-001"
+    },
+    {
+      "parameters": {
+        "from": "cybersentinel@company.com",
+        "to": "dba-team@company.com,security-ops@company.com,devops@company.com,ciso@company.com",
+        "subject": "🚨 CRITICAL: CVE-2025-14847 MongoBleed - Active Exploitation - Immediate Action Required",
+        "text": "CyberSentinel has detected MongoDB instances vulnerable to CVE-2025-14847 (MongoBleed), a critical memory-leak vulnerability with active exploitation.\n\n**VULNERABILITY DETAILS:**\n- CVE ID: CVE-2025-14847 (MongoBleed)\n- CVSS Score: 8.7 (CRITICAL)\n- BitSight DVE Score: 9.71\n- Impact: Unauthenticated memory read, potential data exfiltration\n- Exploitability: Network-based, no authentication required\n\n**AFFECTED INSTANCES:**\n{{ $json.vulnerableInstances }}\n\n**IMMEDIATE CONTAINMENT ACTIONS:**\n1. BLOCK all external access to MongoDB ports (27017)\n2. ENFORCE SCRAM authentication (if not already enabled)\n3. REVIEW logs for indicators of exploitation\n4. PLAN emergency patching window\n\n**REQUIRED PATCHES:**\n- MongoDB 4.x: Upgrade to 4.4.29+ or migrate to 5.0+\n- MongoDB 5.0: Upgrade to 5.0.23+\n- MongoDB 6.0: Upgrade to 6.0.14+\n- MongoDB 7.0: Upgrade to 7.0.14+\n- MongoDB 8.0: Upgrade to 8.0.4+\n\n**FORENSIC REQUIREMENT:**\nReview MongoDB logs for:\n- Malformed network packets\n- Unusual memory access patterns\n- Unexpected connections from external IPs\n- Data access outside normal application patterns\n\n**Total vulnerable instances:** {{ $json.vulnerableCount }}\n**Instances with external exposure:** {{ $json.externallyExposed }}"
+      },
+      "name": "Critical Email Alert",
+      "type": "n8n-nodes-base.email",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        300
+      ],
+      "id": "email-critical-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/create_jira_incident.py --priority critical --labels vulnerability,mongodb,cve-2025-14847"
+      },
+      "name": "Create Incident Ticket",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        400
+      ],
+      "id": "ticket-001"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "vulnerability_incidents",
+        "columns": "cve_id, severity, affected_systems, network_exposure, containment_actions, patch_status, created_at, status",
+        "values": "'CVE-2025-14847', 'CRITICAL', '{{ $json.vulnerableInstances }}', '{{ $json.networkExposure }}', 'external_access_blocked,auth_enforced,firewall_updated', 'pending', NOW(), 'in_progress'"
+      },
+      "name": "Log Incident",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        500
+      ],
+      "id": "db-log-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/verify_mongodb_patches.py"
+      },
+      "name": "Verify Patches",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        200
+      ],
+      "id": "verify-patches-001"
+    },
+    {
+      "parameters": {
+        "channel": "#security-critical",
+        "text": "✅ **MongoBleed Response Complete** ✅\n\n**CVE-2025-14847 Status:**\n- External Access: BLOCKED\n- Authentication: ENFORCED\n- Firewall Rules: DEPLOYED\n- Patches: {{ $json.patchesApplied }}\n\n**Remaining Actions:**\n1. Complete MongoDB version upgrades\n2. Verify no exploitation occurred\n3. Review access logs for data leakage\n4. Test failover procedures after patching"
+      },
+      "name": "Response Complete",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        300
+      ],
+      "id": "complete-001"
+    }
+  ],
+  "connections": {
+    "Scheduled Trigger": {
+      "main": [
+        [
+          {
+            "node": "CVE Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CVE Filter": {
+      "main": [
+        [
+          {
+            "node": "Scan MongoDB Versions",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check MongoDB Security Config",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Network Exposure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scan MongoDB Versions": {
+      "main": [
+        [
+          {
+            "node": "MongoDB Vulnerable?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check MongoDB Security Config": {
+      "main": [
+        [
+          {
+            "node": "MongoDB Vulnerable?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Network Exposure": {
+      "main": [
+        [
+          {
+            "node": "MongoDB Vulnerable?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MongoDB Vulnerable?": {
+      "main": [
+        [
+          {
+            "node": "Block External Access",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Enforce Authentication",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Deploy Firewall Rules",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Scan Logs for Exploitation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Critical Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Critical Email Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Incident Ticket",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scan Logs for Exploitation": {
+      "main": [
+        [
+          {
+            "node": "Verify Patches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Patches": {
+      "main": [
+        [
+          {
+            "node": "Response Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

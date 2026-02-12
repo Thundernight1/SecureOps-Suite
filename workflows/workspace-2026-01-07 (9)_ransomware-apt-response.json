@@ -1,0 +1,211 @@
+{
+  "name": "CyberSentinel - Ransomware APT Response",
+  "nodes": [
+    {
+      "name": "ThreatFeedWebhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "parameters": {
+        "path": "cybersentinel-threat-alert",
+        "method": "POST"
+      }
+    },
+    {
+      "name": "ClassifyThreat",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const items = $input.all();\n\nconst threatTypes = {\n  'ransomware': ['ransomware', 'ransom', 'encrypt', 'lockbit', 'qilin', 'akira', 'clop', 'inc ransom'],\n  'apt': ['apt', 'advanced persistent', 'nation state', 'state-sponsored', 'chinese', 'iranian', 'russian'],\n  'phishing': ['phishing', 'spear phishing', 'bEC', 'credential harvesting', 'quishing'],\n  'malware': ['malware', 'trojan', 'backdoor', 'brickstorm', 'phantom stealer', 'toneshell'],\n  'vulnerability': ['cve', 'vulnerability', 'exploit', 'zero-day', 'rce']\n};\n\nconst processed = items.map(item => {\n  const text = JSON.stringify(item.json).toLowerCase();\n  let detectedType = 'UNKNOWN';\n  let confidence = 0;\n  \n  for (const [type, keywords] of Object.entries(threatTypes)) {\n    const matches = keywords.filter(k => text.includes(k)).length;\n    if (matches > 0 && matches / keywords.length > confidence) {\n      detectedType = type.toUpperCase();\n      confidence = matches / keywords.length;\n    }\n  }\n  \n  return {\n    json: {\n      ...item.json,\n      threatType: detectedType,\n      classificationConfidence: Math.round(confidence * 100),\n      timestamp: new Date().toISOString()\n    }\n  };\n});\n\nreturn processed;"
+      }
+    },
+    {
+      "name": "AssessSeverity",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const items = $input.all();\n\nconst highSeverityIndicators = [\n  'critical infrastructure',\n  'healthcare',\n  'government',\n  'active exploitation',\n  'ransomware',\n  'data exfiltration',\n  'nation state',\n  'zero-day'\n];\n\nconst processed = items.map(item => {\n  const json = item.json;\n  const text = JSON.stringify(json).toLowerCase();\n  \n  let score = 50; // Base score\n  \n  // Check for high severity indicators\n  for (const indicator of highSeverityIndicators) {\n    if (text.includes(indicator)) {\n      score += 15;\n    }\n  }\n  \n  // Threat type adjustments\n  if (json.threatType === 'APT') score += 20;\n  if (json.threatType === 'RANSOMWARE') score += 25;\n  if (json.threatType === 'MALWARE' && text.includes('backdoor')) score += 20;\n  \n  // Determine severity level\n  let severity = 'LOW';\n  if (score >= 100) severity = 'CRITICAL';\n  else if (score >= 80) severity = 'HIGH';\n  else if (score >= 60) severity = 'MEDIUM';\n  \n  return {\n    json: {\n      ...json,\n      severityLevel: severity,\n      severityScore: Math.min(score, 100),\n      businessImpact: score >= 80 ? 'CRITICAL' : score >= 60 ? 'HIGH' : 'MODERATE'\n    }\n  };\n});\n\nreturn processed;"
+      }
+    },
+    {
+      "name": "ExtractIOCs",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const items = $input.all();\nconst extractedIOCs = [];\n\n// Known ransomware/APT IOCs from current campaigns\nconst knownIOCs = {\n  'Qilin': {\n    iocs: {\n      ransomware: 'Qilin/Agenda',\n      fileExtension: '.qilin',\n      noteFile: 'README_QILIN.txt',\n      darkweb: 'qilin Ransomware leak site'\n    }\n  },\n  'Akira': {\n    iocs: {\n      ransomware: 'Akira',\n      fileExtension: '.akira',\n      noteFile: 'akira_readme.txt',\n      darkweb: 'Akira leak site'\n    }\n  },\n  'BRICKSTORM': {\n    iocs: {\n      malware: 'BRICKSTORM',\n      targets: ['VMware vSphere', 'Windows'],\n      capabilities: ['Persistence', 'Credential theft', 'Lateral movement', 'Data exfiltration']\n    }\n  },\n  'Prince of Persia': {\n    iocs: {\n      malware: 'Foudre, Tonnerre',\n      c2: 'Telegram (ttestro1bot)',\n      operators: ['@ehsan8999100'],\n      targets: ['Government', 'Critical infrastructure']\n    }\n  },\n  'Phantom Stealer': {\n    iocs: {\n      malware: 'Phantom Stealer',\n      targets: ['Finance teams', 'Accounting'],\n      delivery: 'Phishing emails in Russian business language',\n      data: ['Credentials', 'Financial data']\n    }\n  },\n  'LongNosedGoblin': {\n    iocs: {\n      apt: 'LongNosedGoblin',\n      technique: 'Group Policy abuse',\n      targets: ['Government SE Asia', 'Japan'],\n      vectors: ['Spear phishing']\n    }\n  },\n  'Earth Lamia': {\n    iocs: {\n      apt: 'Earth Lamia',\n      cve: 'CVE-2025-55182',\n      targets: ['React/Next.js applications', 'Kubernetes'],\n      ips: ['206.237.3.150']\n    }\n  },\n  'Jackpot Panda': {\n    iocs: {\n      apt: 'Jackpot Panda',\n      cve: 'CVE-2025-55182',\n      targets: ['React/Next.js applications', 'Kubernetes'],\n      ips: ['45.77.33.136']\n    }\n  }\n};\n\nfor (const item of items) {\n  const threat = item.json;\n  \n  for (const [name, data] of Object.entries(knownIOCs)) {\n    const threatText = JSON.stringify(threat).toLowerCase();\n    if (threatText.includes(name.toLowerCase()) || \n        (threat.targetActor && threat.targetActor.toLowerCase().includes(name.toLowerCase()))) {\n      extractedIOCs.push({\n        json: {\n          threatName: name,\n          threatType: threat.threatType,\n          severity: threat.severityLevel,\n          indicators: data.iocs,\n          timestamp: new Date().toISOString(),\n          confidence: threat.classificationConfidence\n        }\n      });\n    }\n  }\n}\n\nreturn extractedIOCs;"
+      }
+    },
+    {
+      "name": "GenerateRecommendedActions",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const items = $input.all();\nconst actionPlans = [];\n\nfor (const item of items) {\n  const threat = item.json;\n  let actions = [];\n  \n  switch (threat.threatType) {\n    case 'RANSOMWARE':\n      actions = [\n        'ISOLATE affected systems immediately',\n        'DO NOT power off systems - preserve evidence',\n        'DISCONNECT from network but keep powered on',\n        'IDENTIFY ransomware variant and check for decryptors',\n        'NOTIFY legal and compliance teams',\n        'PRESERVE all logs and forensic data',\n        'CHECK for lateral movement indicators',\n        'ENGAGE incident response team'\n      ];\n      break;\n    case 'APT':\n      actions = [\n        'ACTIVATE incident response playbook',\n        'PRESERVE all forensic evidence',\n        'IDENTIFY initial access vector',\n        'CHECK for persistence mechanisms',\n        'MAP lateral movement paths',\n        'IDENTIFY data exfiltration timeline',\n        'ENGAGE threat intelligence team',\n        'CONSIDER legal notification requirements'\n      ];\n      break;\n    case 'PHISHING':\n      actions = [\n        'BLOCK sender domain and IP',\n        'QUARANTINE similar emails',\n        'RESET compromised credentials',\n        'ENABLE MFA if not already',\n        'SCAN for lateral movement',\n        'NOTIFY users of campaign',\n        'UPDATE email filtering rules'\n      ];\n      break;\n    case 'MALWARE':\n      actions = [\n        'ISOLATE infected systems',\n        'IDENTIFY malware type and variant',\n        'CHECK for persistence mechanisms',\n        'SCAN for related infections',\n        'REMOVE malware artifacts',\n        'RESET compromised credentials',\n        'UPDATE detection signatures'\n      ];\n      break;\n    default:\n      actions = [\n        'INVESTIGATE threat indicators',\n        'CORRELATE with existing alerts',\n        'DETERMINE scope and impact',\n        'IMPLEMENT appropriate controls',\n        'DOCUMENT findings'\n      ];\n  }\n  \n  actionPlans.push({\n    json: {\n      ...threat,\n      recommendedActions: actions,\n      responsePriority: threat.severityLevel === 'CRITICAL' ? 'IMMEDIATE' : \n                        threat.severityLevel === 'HIGH' ? 'URGENT' : \n                        threat.severityLevel === 'MEDIUM' ? 'STANDARD' : 'LOW',\n      estimatedResponseTime: threat.severityLevel === 'CRITICAL' ? '15 MIN' :\n                            threat.severityLevel === 'HIGH' ? '1 HOUR' :\n                            threat.severityLevel === 'MEDIUM' ? '4 HOURS' : '24 HOURS'\n    }\n  });\n}\n\nreturn actionPlans;"
+      }
+    },
+    {
+      "name": "CreateIncidentRecord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-siem/api/incidents",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  incidentType: $json.threatType,\n  severity: $json.severityLevel,\n  title: 'CyberSentinel Alert: ' + $json.threatType + ' - ' + ($json.threatName || 'Unknown Threat'),\n  description: $json.description || 'Automated threat detection',\n  affectedSystems: $json.affectedSystems || [],\n  indicatorsOfCompromise: $json.indicators || [],\n  recommendedActions: $json.recommendedActions,\n  businessImpact: $json.businessImpact,\n  responsePriority: $json.responsePriority,\n  estimatedResponseTime: $json.estimatedResponseTime,\n  createdAt: $json.timestamp,\n  source: 'CyberSentinel',\n  status: 'OPEN'\n}) }}",
+        "options": {}
+      }
+    },
+    {
+      "name": "NotifySecurityTeam",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        200
+      ],
+      "parameters": {
+        "channel": "={{ $json.severityLevel === 'CRITICAL' ? '#security-critical' : '#security-alerts' }}",
+        "text": "={{ '🛡️ *CYBERSENTINEL THREAT ALERT* 🛡️\\n\\n*Type:* ' + $json.threatType + ' (' + ($json.threatName || 'Unknown') + ')\\n*Severity:* ' + $json.severityLevel + ' (' + $json.severityScore + '/100)\\n*Impact:* ' + $json.businessImpact + '\\n\\n*Priority:* ' + $json.responsePriority + ' (' + $json.estimatedResponseTime + ')\\n\\n*Actions Required:*\\n' + $json.recommendedActions.slice(0, 4).map(a => '• ' + a).join('\\n') }}",
+        "options": {}
+      }
+    },
+    {
+      "name": "UpdateThreatIntelDB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-threat-intel-db/api/threats",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  threatType: $json.threatType,\n  threatName: $json.threatName,\n  severity: $json.severityLevel,\n  indicators: $json.indicators,\n  recommendedActions: $json.recommendedActions,\n  firstSeen: $json.timestamp,\n  lastUpdated: new Date().toISOString(),\n  confidence: $json.classificationConfidence,\n  source: 'CyberSentinel'\n}) }}",
+        "options": {}
+      }
+    },
+    {
+      "name": "ArchiveThreatData",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const items = $input.all();\n\n// Prepare archive record\nconst archive = items.map(item => ({\n  json: {\n    ...item.json,\n    archivedAt: new Date().toISOString(),\n    archiveId: 'CS-' + Date.now(),\n    status: 'PROCESSED'\n  }\n}));\n\n// Return for archive storage\nreturn archive;"
+      }
+    }
+  ],
+  "connections": {
+    "ThreatFeedWebhook": {
+      "main": [
+        [
+          {
+            "node": "ClassifyThreat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ClassifyThreat": {
+      "main": [
+        [
+          {
+            "node": "AssessSeverity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AssessSeverity": {
+      "main": [
+        [
+          {
+            "node": "ExtractIOCs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ExtractIOCs": {
+      "main": [
+        [
+          {
+            "node": "GenerateRecommendedActions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GenerateRecommendedActions": {
+      "main": [
+        [
+          {
+            "node": "CreateIncidentRecord",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "NotifySecurityTeam",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "UpdateThreatIntelDB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UpdateThreatIntelDB": {
+      "main": [
+        [
+          {
+            "node": "ArchiveThreatData",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

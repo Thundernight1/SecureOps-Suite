@@ -1,0 +1,443 @@
+{
+  "name": "CyberSentinel - React2Shell CVE-2025-55182 Response",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger-schedule",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cybersentinel/react2shell-alert",
+        "options": {}
+      },
+      "id": "webhook-receive",
+      "name": "Webhook: React2Shell Alert",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "filter",
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.severity }}",
+              "operation": "equal",
+              "value2": "CRITICAL"
+            }
+          ]
+        }
+      },
+      "id": "filter-critical",
+      "name": "Filter Critical Alerts",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "table": "incidents",
+        "fields": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "incident_id": "={{ 'CVE-2025-55182-' + $now.format('YYYYMMDD-HHmmss') }}",
+            "threat_type": "VULNERABILITY",
+            "threat_name": "React2Shell - React Server Components RCE",
+            "severity": "CRITICAL",
+            "cvss_score": 10,
+            "cve_id": "CVE-2025-55182",
+            "status": "OPEN",
+            "assigned_to": "security-team@company.com",
+            "created_at": "={{ $now.toISOString() }}",
+            "affected_systems": "React 19.x, Next.js 15.x/16.x",
+            "iocs": "={{ JSON.stringify($json.indicatorsOfCompromise || []) }}"
+          }
+        }
+      },
+      "id": "create-incident",
+      "name": "Create Incident Record",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ],
+      "credentials": {
+        "postgresApi": {
+          "id": "postgres-credentials",
+          "name": "PostgreSQL Database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "to": "security-team@company.com,soc-alerts@company.com",
+        "subject": "🚨 CRITICAL: React2Shell CVE-2025-55182 - Active Exploitation Detected",
+        "options": {},
+        "attachments": {
+          "mappingMode": "defineBelow",
+          "value": [
+            {
+              "name": "CVE-2025-55182_Indicator_Report.json",
+              "data": "={{ JSON.stringify({ threatId: 'CVE-2025-55182', name: 'React2Shell', severity: 'CRITICAL', cvss: 10.0, affectedSystems: ['React 19.x', 'Next.js 15.x/16.x'], indicators: [{indicator: '183.6.80.214', type: 'Network', description: 'Earth Lamia C2'}, {indicator: '45.77.33.136', type: 'Network', description: 'Jackpot Panda C2'}, {indicator: '/tmp/pwned.txt', type: 'File', description: 'Suspicious file write'}], recommendedActions: ['Upgrade React to v19.2', 'Upgrade Next.js to latest', 'Deploy WAF rules', 'Enable Node.js process monitoring'] }) }}"
+            }
+          ]
+        },
+        "body": "=<h2>🚨 CRITICAL THREAT ALERT - React2Shell (CVE-2025-55182)</h2>\n\n<h3>Threat Overview</h3>\n<ul>\n  <li><strong>CVE ID:</strong> CVE-2025-55182</li>\n  <li><strong>Severity:</strong> CRITICAL (CVSS 10.0)</li>\n  <li><strong>Type:</strong> Unauthenticated Remote Code Execution</li>\n  <li><strong>Status:</strong> Actively Exploited - Zero Day</li>\n</ul>\n\n<h3>Affected Systems</h3>\n<ul>\n  <li>React 19.x Server Components</li>\n  <li>Next.js 15.x/16.x with App Router</li>\n  <li>Node.js applications using React Server Components</li>\n</ul>\n\n<h3>Known Threat Actor Infrastructure</h3>\n<table border=\"1\" cellpadding=\"8\">\n  <tr><th>Indicator</th><th>Type</th><th>Attribution</th></tr>\n  <tr><td>183.6.80.214</td><td>Network</td><td>Earth Lamia (China APT)</td></tr>\n  <tr><td>45.77.33.136</td><td>Network</td><td>Jackpot Panda (China APT)</td></tr>\n  <tr><td>206.237.3.150</td><td>Network</td><td>Earth Lamia C2</td></tr>\n</table>\n\n<h3>Immediate Actions Required</h3>\n<ol>\n  <li><strong>URGENT:</strong> Upgrade React to v19.2 or later</li>\n  <li><strong>URGENT:</strong> Upgrade Next.js to latest patched version</li>\n  <li><strong>IMMEDIATE:</strong> Deploy WAF rules to block suspicious React Server Component requests</li>\n  <li><strong>IMMEDIATE:</strong> Enable enhanced logging for Node.js/React application processes</li>\n  <li><strong>WITHIN 24H:</strong> Audit all React Server Components for external network exposure</li>\n</ol>\n\n<h3>IOCs to Block</h3>\n<pre>183.6.80.214\n45.77.33.136\n206.237.3.150\n/tmp/pwned.txt (file path)</pre>\n\n<p>Alert ID: {{ 'CVE-2025-55182-' + $now.format('YYYYMMDD-HHmmss') }}</p>\n<p>Generated by: CyberSentinel Threat Intelligence</p>"
+      },
+      "id": "email-alert",
+      "name": "Send Security Alert Email",
+      "type": "n8n-nodes-base.email",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "smtp-credentials",
+          "name": "SMTP Server"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "#security-alerts",
+        "text": "=🚨 **CRITICAL THREAT ALERT**\n\n**CVE-2025-55182 - React2Shell RCE (CVSS 10.0)**\n\n⚠️ **Status:** Actively Exploited - Zero Day\n\n**Known Attacker IPs:**\n- 183.6.80.214 (Earth Lamia)\n- 45.77.33.136 (Jackpot Panda)\n- 206.237.3.150 (Earth Lamia C2)\n\n**Immediate Actions:**\n1. Upgrade React to v19.2+\n2. Upgrade Next.js to latest\n3. Deploy WAF rules\n4. Enable Node.js process monitoring\n\n⚡ **Patching Deadline:** Immediate\n\n#threat-intelligence #critical-alert #cve-2025-55182"
+      },
+      "id": "slack-alert",
+      "name": "Post to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        900,
+        400
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credentials",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cisa.gov/api/v2/vulnerabilities/ctia",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ vulnerability: { cve: 'CVE-2025-55182', title: 'React2Shell - React Server Components RCE', description: 'Unauthenticated remote code execution vulnerability in React Server Components', severity: 'CRITICAL', cvss_score: 10.0, affected_vendors: ['Meta', 'Next.js'], known_exploited: true, discovery_date: '2025-12-03', source: 'CyberSentinel' }) }) }}",
+        "options": {}
+      },
+      "id": "report-cisa",
+      "name": "Report to CISA KEV",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        700,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "table": "threat_intel",
+        "fields": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "threat_id": "CVE-2025-55182",
+            "threat_type": "VULNERABILITY",
+            "name": "React2Shell",
+            "severity": "CRITICAL",
+            "cvss_score": 10,
+            "exploitation_status": "ACTIVE",
+            "threat_actors": "Earth Lamia, Jackpot Panda",
+            "ioc_data": "={{ JSON.stringify([{indicator: '183.6.80.214', type: 'Network'}, {indicator: '45.77.33.136', type: 'Network'}, {indicator: '206.237.3.150', type: 'Network'}]) }}",
+            "recommended_actions": "Upgrade React to 19.2+, Upgrade Next.js, Deploy WAF rules",
+            "last_updated": "={{ $now.toISOString() }}",
+            "agent_id": "a401e896-d617-4e97-8bbf-29f47e133c21"
+          }
+        },
+        "matchColumn": "threat_id",
+        "matchValue": "CVE-2025-55182"
+      },
+      "id": "update-threat-db",
+      "name": "Update Threat Database",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ],
+      "credentials": {
+        "postgresApi": {
+          "id": "postgres-credentials",
+          "name": "PostgreSQL Database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "tableName": "ioc_blocklist",
+        "fields": {
+          "mappingMode": "defineBelow",
+          "value": [
+            {
+              "ioc": "183.6.80.214",
+              "ioc_type": "IP",
+              "threat_id": "CVE-2025-55182",
+              "severity": "CRITICAL",
+              "action": "BLOCK",
+              "created_by": "CyberSentinel",
+              "created_at": "={{ $now.toISOString() }}",
+              "expires_at": "={{ $now.plus({days: 30}).toISOString() }}"
+            },
+            {
+              "ioc": "45.77.33.136",
+              "ioc_type": "IP",
+              "threat_id": "CVE-2025-55182",
+              "severity": "CRITICAL",
+              "action": "BLOCK",
+              "created_by": "CyberSentinel",
+              "created_at": "={{ $now.toISOString() }}",
+              "expires_at": "={{ $now.plus({days: 30}).toISOString() }}"
+            },
+            {
+              "ioc": "206.237.3.150",
+              "ioc_type": "IP",
+              "threat_id": "CVE-2025-55182",
+              "severity": "CRITICAL",
+              "action": "BLOCK",
+              "created_by": "CyberSentinel",
+              "created_at": "={{ $now.toISOString() }}",
+              "expires_at": "={{ $now.plus({days: 30}).toISOString() }}"
+            }
+          ]
+        }
+      },
+      "id": "block-iocs",
+      "name": "Add IOCs to Blocklist",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        400
+      ],
+      "credentials": {
+        "postgresApi": {
+          "id": "postgres-credentials",
+          "name": "PostgreSQL Database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "name": "={{ 'patch-task-' + $now.format('YYYYMMDD') }}",
+        "description": "={{ 'Patch React2Shell vulnerability CVE-2025-55182 - CVSS 10.0 critical RCE. Upgrade React to v19.2+ and Next.js to latest patched version.' }}",
+        "priority": "urgent",
+        "assignedTo": "devops-team@company.com",
+        "dueDate": "={{ $now.plus({days: 1}).toISOString().split('T')[0] }}",
+        "status": "pending"
+      },
+      "id": "create-patch-task",
+      "name": "Create Patch Task",
+      "type": "n8n-nodes-base.pagerDuty",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        200
+      ],
+      "credentials": {
+        "pagerDutyApi": {
+          "id": "pagerduty-credentials",
+          "name": "PagerDuty"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-firewall-api.local/block-ip",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "ips",
+              "value": "183.6.80.214,45.77.33.136,206.237.3.150"
+            },
+            {
+              "name": "reason",
+              "value": "React2Shell CVE-2025-55182 threat actor infrastructure"
+            },
+            {
+              "name": "expires",
+              "value": "30d"
+            }
+          ]
+        }
+      },
+      "id": "block-firewall",
+      "name": "Block IPs in Firewall",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Webhook: React2Shell Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: React2Shell Alert": {
+      "main": [
+        [
+          {
+            "node": "Filter Critical Alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Critical Alerts": {
+      "main": [
+        [
+          {
+            "node": "Create Incident Record",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Report to CISA KEV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Incident Record": {
+      "main": [
+        [
+          {
+            "node": "Send Security Alert Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Threat Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report to CISA KEV": {
+      "main": [
+        [
+          {
+            "node": "Add IOCs to Blocklist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Security Alert Email": {
+      "main": [
+        [
+          {
+            "node": "Post to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to Slack": {
+      "main": [
+        []
+      ]
+    },
+    "Update Threat Database": {
+      "main": [
+        [
+          {
+            "node": "Create Patch Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add IOCs to Blocklist": {
+      "main": [
+        [
+          {
+            "node": "Block IPs in Firewall",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Patch Task": {
+      "main": [
+        []
+      ]
+    },
+    "Block IPs in Firewall": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "workflowId": "cybersentinel-cve-2025-55182-response",
+    "triggerId": "a1a6b29f-1834-4666-82d7-1163ce25f64c",
+    "agentId": "a401e896-d617-4e97-8bbf-29f47e133c21",
+    "version": "1.0.0",
+    "created": "2025-12-27T14:20:11Z",
+    "description": "Automated response workflow for React2Shell CVE-2025-55182 critical vulnerability"
+  }
+}

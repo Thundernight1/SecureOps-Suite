@@ -1,0 +1,836 @@
+{
+  "meta": {
+    "instanceId": "e9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0",
+    "creatable": true,
+    "editable": true,
+    "id": "ransomware-response",
+    "name": "CyberSentinel - Ransomware Response (Qilin/Akira/NightSpire)",
+    "active": true,
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "hash": "f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1",
+    "versionId": "1.0.0"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cybersentinel/ransomware-alert",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "ransomware_type",
+              "value": "={{ $json.ransomware_type || 'Unknown' }}"
+            },
+            {
+              "name": "severity",
+              "value": "CRITICAL"
+            },
+            {
+              "name": "encryption_extension",
+              "value": "={{ $json.extension || '.encrypted' }}"
+            },
+            {
+              "name": "double_extortion",
+              "value": "={{ $json.double_extortion || false }}"
+            }
+          ],
+          "boolean": [
+            {
+              "name": "data_exfiltration",
+              "value": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "parse-alert",
+      "name": "Parse Ransomware Alert",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://slack.com/api/chat.postMessage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.SLACK_BOT_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "channel",
+              "value": "#security-critical"
+            },
+            {
+              "name": "text",
+              "value": "🚨🚨🚨 RANSOMWARE INCIDENT DETECTED 🚨🚨🚨\n\n**Type:** {{ $json.ransomware_type }}\n**Severity:** CRITICAL\n**Extension:** {{ $json.extension }}\n**Double Extortion:** {{ $json.double_extortion ? 'Yes' : 'Unknown' }}\n\n⚠️ **IMMEDIATE RESPONSE REQUIRED**\n\n**Ransomware Groups Monitored:**\n- Qilin (10% of attacks, supply chain focus)\n- Akira (34% of attacks, most prevalent)\n- NightSpire (emerging RaaS)\n- VolkLocker (decryption bug available)\n\n**Actions Triggered:**\n1. ✅ Network isolation initiated\n2. ✅ IR team paged\n3. ✅ Evidence preservation started\n4. ✅ Backup verification initiated\n5. ✅ Legal notification prepared\n\n🔇 Do NOT power off affected systems - memory forensics needed"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "slack-critical",
+      "name": "Slack Critical Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        500,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.pagerduty.com/incidents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Token token={{ $env.PAGERDUTY_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "incident",
+              "value": "={\"title\": \"🚨 RANSOMWARE INCIDENT: {{ $json.ransomware_type }}\", \"service\": {\"id\": \"{{ $env.PAGERDUTY_SERVICE_ID }}\", \"type\": \"service_reference\"}, \"urgency\": \"high\", \"body\": {\"type\": \"incident_body\", \"details\": \"Active ransomware infection detected. Double extortion: {{ $json.double_extortion }}. Immediate isolation and forensics required. Do NOT power off affected systems.\" }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "pagerduty-critical",
+      "name": "PagerDuty Critical",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://{{ $env.EDR_API_URL }}/isolate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.EDR_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "device_id",
+              "value": "{{ $json.affected_device_id }}"
+            },
+            {
+              "name": "network_isolation",
+              "value": true
+            },
+            {
+              "name": "reason",
+              "value": "Ransomware infection - {{ $json.ransomware_type }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "isolate-endpoint",
+      "name": "Isolate Affected Endpoint",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://{{ $env.EDR_API_URL }}/process/kill",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.EDR_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "process_pattern",
+              "value": "={{ $json.ransomware_processes || ['ransomware', 'encrypt', $json.ransomware_type] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "kill-ransomware",
+      "name": "Terminate Ransomware Processes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        500,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://{{ $env.NETWORK_API_URL }}/segment/isolate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.NETWORK_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "segment_id",
+              "value": "{{ $json.affected_segment }}"
+            },
+            {
+              "name": "isolate_from",
+              "value": "all"
+            },
+            {
+              "name": "reason",
+              "value": "Ransomware containment"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "isolate-segment",
+      "name": "Isolate Network Segment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://{{ $env.EDR_API_URL }}/forensics/collect",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.EDR_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "device_id",
+              "value": "{{ $json.affected_device_id }}"
+            },
+            {
+              "name": "collect_memory",
+              "value": true
+            },
+            {
+              "name": "collect_disk",
+              "value": true
+            },
+            {
+              "name": "priority",
+              "value": "critical"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "preserve-evidence",
+      "name": "Preserve Evidence (Forensics)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        700,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.jira.com/rest/api/3/issue",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Basic {{ $env.JIRA_API_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "={\"project\": {\"key\": \"IR\"}, \"summary\": \"[CRITICAL] Ransomware Incident - {{ $json.ransomware_type }}\", \"description\": \"**RANSOMWARE INCIDENT REPORT**\\n\\n**Incident Details:**\\n- Ransomware Type: {{ $json.ransomware_type }}\\n- Encryption Extension: {{ $json.extension }}\\n- Double Extortion: {{ $json.double_extortion }}\\n- Data Exfiltration: {{ $json.data_exfiltration }}\\n\\n**Current Status:**\\n- ✅ Network isolation: In Progress\\n- ✅ Process termination: In Progress\\n- ✅ Evidence preservation: Initiated\\n- ⏳ Backup verification: Pending\\n- ⏳ Legal notification: Pending\\n\\n**Ransomware Context:**\\n**Qilin:** Supply chain focus, 10% of attacks, targeting manufacturing (+35%) and healthcare (+43%)\\n**Akira:** Most prevalent (34%), targets SonicWall, VPN vulnerabilities\\n**NightSpire:** Emerging RaaS, active since early 2025\\n\\n**DO NOT:**\\n- Power off affected systems\\n- Attempt to decrypt without backup verification\\n- Pay ransom without executive approval\\n\\n**Next Steps:**\\n1. Complete network isolation\\n2. Verify backup integrity\\n3. Engage IR team\\n4. Legal and compliance review\\n5. Threat actor identification\", \"priority\": {\"name\": \"Highest\"}, \"labels\": [\"ransomware\", \"incident-response\", \"critical\", \"{{ $json.ransomware_type | lowercase }}\"]}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "create-ir-ticket",
+      "name": "Create IR Jira Ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://{{ $env.BACKUP_API_URL }}/status",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.BACKUP_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": false,
+        "options": {}
+      },
+      "id": "check-backups",
+      "name": "Check Backup Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        900,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.threatintel.com/v1/darkweb/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.THREAT_INTEL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "organization",
+              "value": "{{ $json.company_domain }}"
+            },
+            {
+              "name": "search_depth",
+              "value": "deep"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "check-darkweb",
+      "name": "Check Dark Web for Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://{{ $env.SIEM_API_URL }}/preserve",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.SIEM_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "retention_days",
+              "value": 90
+            },
+            {
+              "name": "scope",
+              "value": "affected_segments"
+            },
+            {
+              "name": "priority",
+              "value": "high"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "preserve-logs",
+      "name": "Preserve SIEM Logs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.presidio.az.net/v1/analyze",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.PRESIDIO_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "{{ $json.company_name }} data breach"
+            },
+            {
+              "name": "entities",
+              "value": [
+                "PHI",
+                "PII",
+                "financial"
+              ]
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "assess-data-scope",
+      "name": "Assess Data Breach Scope",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        900,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://{{ $env.EMAIL_API_URL }}/send",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.EMAIL_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "to",
+              "value": "legal@company.com,compliance@company.com,privacy@company.com"
+            },
+            {
+              "name": "subject",
+              "value": "URGENT: Potential Data Breach - Ransomware Incident"
+            },
+            {
+              "name": "body",
+              "value": "Legal and Compliance Team,\n\nA ransomware incident has been detected involving {{ $json.ransomware_type }}. Due to the potential for data exfiltration (double extortion), we are initiating legal and compliance review.\n\n**Incident Summary:**\n- Ransomware: {{ $json.ransomware_type }}\n- Double Extortion: {{ $json.double_extortion }}\n- Status: Under Investigation\n\nPlease advise on:\n1. Regulatory notification requirements (GDPR, CCPA, HIPAA, etc.)\n2. Notification timelines\n3. Communication strategy\n4. Insurance coordination\n\nDo NOT reply to this automated message.\n\nSecurity Operations Center"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "notify-legal",
+      "name": "Notify Legal & Compliance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.ic3.gov/v1/complaint",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "complaint_type",
+              "value": "ransomware"
+            },
+            {
+              "name": "ransomware_type",
+              "value": "={{ $json.ransomware_type }}"
+            },
+            {
+              "name": "loss_amount",
+              "value": "pending_investigation"
+            },
+            {
+              "name": "incident_date",
+              "value": "={{ now() | date.format('YYYY-MM-DD') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "report-ic3",
+      "name": "Report to IC3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://{{ $env.ELASTICSEARCH_HOST }}:9200/incidents/ransomware/_doc",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "ransomware_type",
+              "value": "={{ $json.ransomware_type }}"
+            },
+            {
+              "name": "severity",
+              "value": "CRITICAL"
+            },
+            {
+              "name": "extension",
+              "value": "={{ $json.extension }}"
+            },
+            {
+              "name": "double_extortion",
+              "value": "={{ $json.double_extortion }}"
+            },
+            {
+              "name": "status",
+              "value": "investigating"
+            },
+            {
+              "name": "workflow_id",
+              "value": "n8n-wf-ransomware-response"
+            },
+            {
+              "name": "incident_time",
+              "value": "={{ now() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "log-incident",
+      "name": "Log Incident",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Ransomware Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Ransomware Alert": {
+      "main": [
+        [
+          {
+            "node": "Slack Critical Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "PagerDuty Critical",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Isolate Affected Endpoint",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Terminate Ransomware Processes",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create IR Jira Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Critical Alert": {
+      "main": [
+        [
+          {
+            "node": "Isolate Affected Endpoint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PagerDuty Critical": {
+      "main": [
+        [
+          {
+            "node": "Isolate Affected Endpoint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Isolate Affected Endpoint": {
+      "main": [
+        [
+          {
+            "node": "Isolate Network Segment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Terminate Ransomware Processes": {
+      "main": [
+        [
+          {
+            "node": "Isolate Network Segment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create IR Jira Ticket": {
+      "main": [
+        [
+          {
+            "node": "Preserve Evidence (Forensics)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Backup Status",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Dark Web for Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Preserve SIEM Logs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Isolate Network Segment": {
+      "main": [
+        [
+          {
+            "node": "Preserve Evidence (Forensics)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preserve Evidence (Forensics)": {
+      "main": [
+        [
+          {
+            "node": "Assess Data Breach Scope",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Backup Status": {
+      "main": [
+        [
+          {
+            "node": "Log Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Dark Web for Data": {
+      "main": [
+        [
+          {
+            "node": "Report to IC3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preserve SIEM Logs": {
+      "main": [
+        [
+          {
+            "node": "Log Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Assess Data Breach Scope": {
+      "main": [
+        [
+          {
+            "node": "Notify Legal & Compliance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report to IC3": {
+      "main": [
+        [
+          {
+            "node": "Log Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Legal & Compliance": {
+      "main": [
+        [
+          {
+            "node": "Log Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Incident": {
+      "main": [
+        []
+      ]
+    }
+  }
+}

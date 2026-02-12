@@ -1,0 +1,258 @@
+{
+  "name": "CyberSentinel - React2Shell Vulnerability Response",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "url": "https://services.n8n.io/n8n-services/cve-monitor",
+        "options": {}
+      },
+      "id": "cve-monitor",
+      "name": "CVE Monitor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.cve_id }}",
+              "operation": "equal",
+              "value2": "CVE-2025-55182"
+            }
+          ]
+        }
+      },
+      "id": "filter-react2shell",
+      "name": "Filter React2Shell",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "text": "=🚨 CRITICAL: React2Shell (CVE-2025-55182) Detected\n\n**Severity:** CRITICAL (CVSS 10.0)\n**Type:** Remote Code Execution\n**Status:** Actively Exploited\n\n**Affected Systems:**\n- React 19.x\n- Next.js 15.x/16.x (App Router)\n- Applications using React Server Components\n\n**IOCs:**\n- Malicious RSC payloads via Flight protocol\n- Insecure deserialization in react-server package\n\n**Recommended Actions:**\n1. IMMEDIATELY patch react-server package to latest version\n2. Block external HTTP requests to RSC endpoints\n3. Enable WAF rules for RSC payload validation\n4. Monitor for suspicious JavaScript execution\n5. Review Next.js application logs for malformed requests\n\n**Reference:** https://www.wiz.io/blog/critical-vulnerability-in-react-cve-2025-55182",
+        "additionalOptions": {}
+      },
+      "id": "alert-security-team",
+      "name": "Alert Security Team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credential-id",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "to": "security-team@company.com",
+        "subject": "🚨 CRITICAL: React2Shell Vulnerability Alert - CVE-2025-55182",
+        "options": {
+          "includeAttachments": true
+        },
+        "attachments": "={{ $json.attachment_data }}"
+      },
+      "id": "email-alert",
+      "name": "Email Alert",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ],
+      "credentials": {
+        "imap": {
+          "id": "imap-credential-id",
+          "name": "IMAP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "table": "vulnerability_incidents",
+        "columns": {
+          "cve_id": "={{ $json.cve_id }}",
+          "severity": "CRITICAL",
+          "threat_type": "VULNERABILITY",
+          "description": "={{ $json.description }}",
+          "affected_systems": "={{ $json.affected_systems }}",
+          "ioc_data": "={{ $json.iocs }}",
+          "recommended_actions": "={{ $json.recommendations }}",
+          "workflow_id": "cybersentinel-cve-2025-55182",
+          "created_at": "={{ $now }}"
+        }
+      },
+      "id": "log-incident",
+      "name": "Log Incident",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-credential-id",
+          "name": "PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "policyName": "react2shell-mitigation",
+        "policyDescription": "WAF rules to block React2Shell exploitation attempts",
+        "rules": [
+          {
+            "action": "block",
+            "conditions": [
+              {
+                "type": "header",
+                "name": "content-type",
+                "operator": "contains",
+                "value": "application/x-react-server"
+              },
+              {
+                "type": "body",
+                "operator": "contains",
+                "value": "deserialize"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "update-waf-rules",
+      "name": "Update WAF Rules",
+      "type": "n8n-nodes-base.cloudflare",
+      "typeVersion": 1,
+      "position": [
+        700,
+        500
+      ],
+      "credentials": {
+        "cloudflareApi": {
+          "id": "cloudflare-credential-id",
+          "name": "Cloudflare API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "command": "=npx snyk test --org=company --severity-threshold=critical --file=package.json"
+      },
+      "id": "scan-dependencies",
+      "name": "Scan Dependencies",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        500,
+        500
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "CVE Monitor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CVE Monitor": {
+      "main": [
+        [
+          {
+            "node": "Filter React2Shell",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter React2Shell": {
+      "main": [
+        [
+          {
+            "node": "Alert Security Team",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Security Team": {
+      "main": [
+        [
+          {
+            "node": "Log Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Alert": {
+      "main": [
+        [
+          {
+            "node": "Log Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Incident": {
+      "main": [
+        [
+          {
+            "node": "Update WAF Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

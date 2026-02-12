@@ -1,0 +1,390 @@
+{
+  "name": "CyberSentinel - Automated Threat Response Orchestration",
+  "description": "Comprehensive n8n workflow for automated threat detection, classification, and response with false positive reduction",
+  "version": "1.0",
+  "created": "2025-12-27T14:20:11.968570+00:00",
+  "workflows": [
+    {
+      "id": "wf_threat_collection_pipeline",
+      "name": "Threat Intelligence Collection Pipeline",
+      "description": "Collects threats from multiple OSINT feeds, CVE databases, and security vendor APIs",
+      "nodes": [
+        {
+          "id": "trigger_schedule",
+          "type": "trigger",
+          "name": "Schedule Trigger",
+          "config": {
+            "interval": "hourly",
+            "timezone": "UTC"
+          }
+        },
+        {
+          "id": "collect_cve_feeds",
+          "type": "http_request",
+          "name": "Collect CVE Feeds",
+          "config": {
+            "url": "https://services.nvd.nist.gov/rest/json/cves/2.0",
+            "method": "GET",
+            "params": {
+              "lastModStartDate": "{{ $now.subtract(1, 'hour').toISOString() }}",
+              "resultsPerPage": 100
+            }
+          }
+        },
+        {
+          "id": "collect_ransomware_feeds",
+          "type": "http_request",
+          "name": "Collect Ransomware Feeds",
+          "config": {
+            "url": "https://api.ransomware.live/",
+            "method": "GET"
+          }
+        },
+        {
+          "id": "collect_threat_actor_feeds",
+          "type": "http_request",
+          "name": "Collect Threat Actor Feeds",
+          "config": {
+            "url": "https://api.abuse.ch/api/v1/urlhaus/",
+            "method": "GET"
+          }
+        },
+        {
+          "id": "normalize_data",
+          "type": "function",
+          "name": "Normalize Threat Data",
+          "config": {
+            "code": "return items.map(item => ({\n  source: item.source,\n  threatType: item.threatType,\n  severity: item.severity,\n  timestamp: new Date().toISOString(),\n  indicators: item.indicators || []\n}))"
+          }
+        },
+        {
+          "id": "store_threats",
+          "type": "database",
+          "name": "Store in Threat Database",
+          "config": {
+            "operation": "insert",
+            "table": "threats",
+            "fields": ["source", "threatType", "severity", "timestamp", "indicators"]
+          }
+        }
+      ],
+      "connections": [
+        { "from": "trigger_schedule", "to": ["collect_cve_feeds", "collect_ransomware_feeds", "collect_threat_actor_feeds"] },
+        { "from": ["collect_cve_feeds", "collect_ransomware_feeds", "collect_threat_actor_feeds"], "to": "normalize_data" },
+        { "from": "normalize_data", "to": "store_threats" }
+      ]
+    },
+    {
+      "id": "wf_threat_classification",
+      "name": "Threat Classification and Severity Assessment",
+      "description": "Classifies threats and determines severity with false positive reduction",
+      "nodes": [
+        {
+          "id": "trigger_new_threat",
+          "type": "trigger",
+          "name": "New Threat Detected",
+          "config": {
+            "event": "database_insert",
+            "table": "threats"
+          }
+        },
+        {
+          "id": "extract_indicators",
+          "type": "function",
+          "name": "Extract IOCs",
+          "config": {
+            "code": "const threat = $input.first().json;\nreturn {\n  ips: threat.indicators.filter(i => i.type === 'ip'),\n  domains: threat.indicators.filter(i => i.type === 'domain'),\n  hashes: threat.indicators.filter(i => i.type === 'hash'),\n  emails: threat.indicators.filter(i => i.type === 'email')\n}"
+          }
+        },
+        {
+          "id": "check_reputation",
+          "type": "http_request",
+          "name": "Check Indicator Reputation",
+          "config": {
+            "url": "https://api.abuseipdb.com/api/v2/check",
+            "method": "POST",
+            "headers": {
+              "Key": "{{ $env.ABUSEIPDB_API_KEY }}"
+            }
+          }
+        },
+        {
+          "id": "correlate_indicators",
+          "type": "database",
+          "name": "Correlate with Known Threats",
+          "config": {
+            "operation": "query",
+            "query": "SELECT * FROM threat_correlations WHERE indicator IN ({{ indicators }})"
+          }
+        },
+        {
+          "id": "assess_severity",
+          "type": "function",
+          "name": "Assess Severity",
+          "config": {
+            "code": "const reputation = $input.first().json;\nconst correlations = $input.last().json;\nlet severity = 'LOW';\n\nif (reputation.abuseConfidenceScore > 75) severity = 'CRITICAL';\nelse if (reputation.abuseConfidenceScore > 50) severity = 'HIGH';\nelse if (correlations.length > 3) severity = 'HIGH';\nelse if (correlations.length > 1) severity = 'MEDIUM';\n\nreturn { severity, confidence: reputation.abuseConfidenceScore, correlations }"
+          }
+        },
+        {
+          "id": "reduce_false_positives",
+          "type": "function",
+          "name": "False Positive Reduction",
+          "config": {
+            "code": "const assessment = $input.first().json;\n\n// Require multiple indicators for escalation\nif (assessment.correlations.length < 2 && assessment.confidence < 60) {\n  return { escalate: false, reason: 'Insufficient indicators' };\n}\n\n// Check against whitelist\nconst whitelist = $env.WHITELIST_INDICATORS || [];\nif (whitelist.includes(assessment.indicator)) {\n  return { escalate: false, reason: 'Whitelisted indicator' };\n}\n\nreturn { escalate: true, reason: 'Multiple indicators confirmed' }"
+          }
+        },
+        {
+          "id": "update_threat_record",
+          "type": "database",
+          "name": "Update Threat Classification",
+          "config": {
+            "operation": "update",
+            "table": "threats",
+            "set": {
+              "severity": "{{ $node.assess_severity.json.severity }}",
+              "confidence": "{{ $node.assess_severity.json.confidence }}",
+              "escalate": "{{ $node.reduce_false_positives.json.escalate }}",
+              "classification_timestamp": "{{ $now.toISOString() }}"
+            }
+          }
+        }
+      ],
+      "connections": [
+        { "from": "trigger_new_threat", "to": "extract_indicators" },
+        { "from": "extract_indicators", "to": ["check_reputation", "correlate_indicators"] },
+        { "from": ["check_reputation", "correlate_indicators"], "to": "assess_severity" },
+        { "from": "assess_severity", "to": "reduce_false_positives" },
+        { "from": "reduce_false_positives", "to": "update_threat_record" }
+      ]
+    },
+    {
+      "id": "wf_automated_response",
+      "name": "Automated Threat Response Orchestration",
+      "description": "Executes automated response actions based on threat classification",
+      "nodes": [
+        {
+          "id": "trigger_escalated_threat",
+          "type": "trigger",
+          "name": "Escalated Threat Detected",
+          "config": {
+            "event": "database_update",
+            "table": "threats",
+            "condition": "escalate = true AND severity IN ('CRITICAL', 'HIGH')"
+          }
+        },
+        {
+          "id": "determine_response_type",
+          "type": "function",
+          "name": "Determine Response Type",
+          "config": {
+            "code": "const threat = $input.first().json;\nlet response = {};\n\nswitch(threat.threatType) {\n  case 'MALWARE':\n    response = { action: 'isolate_endpoint', notify: 'security_team' };\n    break;\n  case 'PHISHING':\n    response = { action: 'quarantine_email', notify: 'user' };\n    break;\n  case 'RANSOMWARE':\n    response = { action: 'isolate_system', notify: 'incident_response' };\n    break;\n  case 'APT':\n    response = { action: 'hunt_indicators', notify: 'ciso' };\n    break;\n  case 'VULNERABILITY':\n    response = { action: 'create_patch_ticket', notify: 'patch_management' };\n    break;\n  default:\n    response = { action: 'alert_security_team', notify: 'security_team' };\n}\n\nreturn response"
+          }
+        },
+        {
+          "id": "isolate_endpoint",
+          "type": "http_request",
+          "name": "Isolate Endpoint",
+          "config": {
+            "url": "{{ $env.EDR_API_URL }}/endpoints/{{ threat.endpoint_id }}/isolate",
+            "method": "POST",
+            "headers": {
+              "Authorization": "Bearer {{ $env.EDR_API_KEY }}"
+            }
+          }
+        },
+        {
+          "id": "quarantine_email",
+          "type": "http_request",
+          "name": "Quarantine Email",
+          "config": {
+            "url": "{{ $env.EMAIL_GATEWAY_API }}/messages/{{ threat.message_id }}/quarantine",
+            "method": "POST"
+          }
+        },
+        {
+          "id": "block_indicator",
+          "type": "http_request",
+          "name": "Block Indicator",
+          "config": {
+            "url": "{{ $env.FIREWALL_API }}/rules",
+            "method": "POST",
+            "body": {
+              "action": "block",
+              "indicator": "{{ threat.indicator }}",
+              "type": "{{ threat.indicator_type }}",
+              "reason": "Automated threat response"
+            }
+          }
+        },
+        {
+          "id": "create_incident",
+          "type": "http_request",
+          "name": "Create Incident Ticket",
+          "config": {
+            "url": "{{ $env.SOAR_API }}/incidents",
+            "method": "POST",
+            "body": {
+              "title": "{{ threat.threatType }} - {{ threat.severity }}",
+              "description": "{{ threat.description }}",
+              "severity": "{{ threat.severity }}",
+              "indicators": "{{ threat.indicators }}",
+              "response_actions": "{{ $node.determine_response_type.json }}"
+            }
+          }
+        },
+        {
+          "id": "notify_security_team",
+          "type": "slack",
+          "name": "Notify Security Team",
+          "config": {
+            "channel": "#security-alerts",
+            "message": "🚨 {{ threat.severity }} - {{ threat.threatType }}\n{{ threat.description }}\nIndicators: {{ threat.indicators }}\nIncident: {{ $node.create_incident.json.id }}"
+          }
+        },
+        {
+          "id": "notify_user",
+          "type": "email",
+          "name": "Notify User",
+          "config": {
+            "to": "{{ threat.user_email }}",
+            "subject": "Security Alert: Phishing Attempt Detected",
+            "body": "A phishing email has been detected and quarantined. Please do not click any links or download attachments."
+          }
+        },
+        {
+          "id": "log_response",
+          "type": "database",
+          "name": "Log Response Action",
+          "config": {
+            "operation": "insert",
+            "table": "response_actions",
+            "fields": ["threat_id", "action", "timestamp", "status", "result"]
+          }
+        }
+      ],
+      "connections": [
+        { "from": "trigger_escalated_threat", "to": "determine_response_type" },
+        { "from": "determine_response_type", "to": ["isolate_endpoint", "quarantine_email", "block_indicator", "create_incident"] },
+        { "from": ["isolate_endpoint", "quarantine_email", "block_indicator", "create_incident"], "to": ["notify_security_team", "notify_user", "log_response"] }
+      ]
+    },
+    {
+      "id": "wf_threat_hunting",
+      "name": "Automated Threat Hunting",
+      "description": "Proactive threat hunting based on known TTPs and indicators",
+      "nodes": [
+        {
+          "id": "trigger_hunt_schedule",
+          "type": "trigger",
+          "name": "Daily Threat Hunt",
+          "config": {
+            "interval": "daily",
+            "time": "02:00"
+          }
+        },
+        {
+          "id": "get_hunt_queries",
+          "type": "database",
+          "name": "Get Hunt Queries",
+          "config": {
+            "operation": "query",
+            "query": "SELECT * FROM hunt_queries WHERE enabled = true"
+          }
+        },
+        {
+          "id": "execute_hunt_queries",
+          "type": "http_request",
+          "name": "Execute Hunt Queries",
+          "config": {
+            "url": "{{ $env.SIEM_API }}/search",
+            "method": "POST",
+            "body": {
+              "query": "{{ $node.get_hunt_queries.json.query }}",
+              "timeRange": "last_24_hours"
+            }
+          }
+        },
+        {
+          "id": "analyze_hunt_results",
+          "type": "function",
+          "name": "Analyze Hunt Results",
+          "config": {
+            "code": "const results = $input.first().json;\nconst findings = [];\n\nresults.forEach(result => {\n  if (result.event_count > 10 || result.severity > 5) {\n    findings.push({\n      query: result.query_name,\n      matches: result.event_count,\n      severity: result.severity,\n      indicators: result.indicators\n    });\n  }\n});\n\nreturn { findings, total_matches: findings.length }"
+          }
+        },
+        {
+          "id": "create_hunt_report",
+          "type": "database",
+          "name": "Create Hunt Report",
+          "config": {
+            "operation": "insert",
+            "table": "hunt_reports",
+            "fields": ["hunt_date", "findings", "total_matches", "status"]
+          }
+        },
+        {
+          "id": "notify_hunt_results",
+          "type": "slack",
+          "name": "Notify Hunt Results",
+          "config": {
+            "channel": "#threat-hunting",
+            "message": "🔍 Daily Threat Hunt Complete\nFindings: {{ $node.analyze_hunt_results.json.total_matches }}\nReport: {{ $node.create_hunt_report.json.id }}"
+          }
+        }
+      ],
+      "connections": [
+        { "from": "trigger_hunt_schedule", "to": "get_hunt_queries" },
+        { "from": "get_hunt_queries", "to": "execute_hunt_queries" },
+        { "from": "execute_hunt_queries", "to": "analyze_hunt_results" },
+        { "from": "analyze_hunt_results", "to": ["create_hunt_report", "notify_hunt_results"] }
+      ]
+    }
+  ],
+  "integration_points": {
+    "siem": {
+      "type": "Splunk/ELK/QRadar",
+      "endpoints": ["search", "alert", "report"]
+    },
+    "edr": {
+      "type": "CrowdStrike/Microsoft Defender/SentinelOne",
+      "endpoints": ["isolate", "scan", "hunt"]
+    },
+    "email_gateway": {
+      "type": "Proofpoint/Mimecast/Microsoft Defender",
+      "endpoints": ["quarantine", "block", "report"]
+    },
+    "firewall": {
+      "type": "Palo Alto/Fortinet/Cisco",
+      "endpoints": ["block", "allow", "report"]
+    },
+    "soar": {
+      "type": "Splunk SOAR/Demisto/Tines",
+      "endpoints": ["create_incident", "update_incident", "close_incident"]
+    },
+    "ticketing": {
+      "type": "Jira/ServiceNow/Azure DevOps",
+      "endpoints": ["create_ticket", "update_ticket", "assign_ticket"]
+    },
+    "communication": {
+      "type": "Slack/Teams/Email",
+      "endpoints": ["notify", "alert", "report"]
+    }
+  },
+  "business_context_rules": {
+    "rule_1": "CRITICAL threats require immediate escalation regardless of false positive score",
+    "rule_2": "Healthcare sector threats escalate to CISO within 15 minutes",
+    "rule_3": "Financial sector threats require compliance notification within 1 hour",
+    "rule_4": "Government sector threats require law enforcement notification",
+    "rule_5": "Supply chain threats require third-party notification",
+    "rule_6": "Ransomware threats activate incident response team immediately",
+    "rule_7": "APT threats require threat intelligence sharing with ISACs"
+  },
+  "false_positive_reduction": {
+    "confidence_threshold": 0.75,
+    "minimum_indicators": 2,
+    "whitelist_check": true,
+    "behavioral_analysis": true,
+    "machine_learning_scoring": true,
+    "manual_review_required": "MEDIUM and above severity"
+  }
+}

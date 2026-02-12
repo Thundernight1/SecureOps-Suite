@@ -1,0 +1,1365 @@
+{
+  "name": "Phishing Detection and Response - Holiday Campaigns, OAuth Attacks",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "value": 10
+            }
+          ]
+        }
+      },
+      "id": "phishing-scheduler",
+      "name": "Phishing Monitor",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://raw.githubusercontent.com/martin-ward/phishing-reports/main/active_phishing.json",
+        "options": {}
+      },
+      "id": "phishing-feed",
+      "name": "Phishing URL Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://openphish.com/feed.txt",
+        "options": {}
+      },
+      "id": "openphish",
+      "name": "OpenPhish Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        300,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://phishstats.info/phish_score.csv",
+        "options": {}
+      },
+      "id": "phishstats",
+      "name": "PhishStats Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        300,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.phishing_type }}",
+              "operation": "contains",
+              "value2": "microsoft365"
+            }
+          ]
+        }
+      },
+      "id": "check-ms365",
+      "name": "Check Microsoft 365",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.phishing_type }}",
+              "operation": "contains",
+              "value2": "oauth"
+            }
+          ]
+        }
+      },
+      "id": "check-oauth",
+      "name": "Check OAuth",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.phishing_type }}",
+              "operation": "contains",
+              "value2": "consentfix"
+            }
+          ]
+        }
+      },
+      "id": "check-consentfix",
+      "name": "Check ConsentFix",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.phishing_type }}",
+              "operation": "contains",
+              "value2": "device_code"
+            }
+          ]
+        }
+      },
+      "id": "check-devicecode",
+      "name": "Check Device Code",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        650
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.phishing_type }}",
+              "operation": "contains",
+              "value2": "holiday"
+            }
+          ]
+        }
+      },
+      "id": "check-holiday",
+      "name": "Check Holiday Themed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.phishing_type }}",
+              "operation": "contains",
+              "value2": "calendar"
+            }
+          ]
+        }
+      },
+      "id": "check-calendar",
+      "name": "Check Calendly",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        950
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.phishing_type }}",
+              "operation": "contains",
+              "value2": "google_ads"
+            }
+          ]
+        }
+      },
+      "id": "check-googleads",
+      "name": "Check Google Ads",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.phishing_type }}",
+              "operation": "contains",
+              "value2": "linkedin"
+            }
+          ]
+        }
+      },
+      "id": "check-linkedin",
+      "name": "Check LinkedIn",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        1250
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.target_industry }}",
+              "operation": "contains",
+              "value2": "finance"
+            }
+          ]
+        }
+      },
+      "id": "finance-target",
+      "name": "Finance Target",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.target_industry }}",
+              "operation": "contains",
+              "value2": "healthcare"
+            }
+          ]
+        }
+      },
+      "id": "healthcare-target",
+      "name": "Healthcare Target",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.target_industry }}",
+              "operation": "contains",
+              "value2": "retail"
+            }
+          ]
+        }
+      },
+      "id": "retail-target",
+      "name": "Retail Target",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.target_industry }}",
+              "operation": "contains",
+              "value2": "government"
+            }
+          ]
+        }
+      },
+      "id": "gov-target",
+      "name": "Government Target",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        650
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.target_industry }}",
+              "operation": "contains",
+              "value2": "technology"
+            }
+          ]
+        }
+      },
+      "id": "tech-target",
+      "name": "Technology Target",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.threat_actor }}",
+              "operation": "contains",
+              "value2": "UNK_AcademicFlare"
+            }
+          ]
+        }
+      },
+      "id": "check-academicflare",
+      "name": "Check UNK AcademicFlare",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        950
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.threat_actor }}",
+              "operation": "contains",
+              "value2": "Water Saci"
+            }
+          ]
+        }
+      },
+      "id": "check-watersaci",
+      "name": "Check Water Saci",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "post",
+        "url": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ JSON.stringify({ text: \"🎣 PHISHING ALERT: \" + $json.phishing_type + \"\\nTarget: \" + $json.target_industry + \"\\nURL: \" + $json.phishing_url + \"\\nActor: \" + $json.threat_actor + \"\\nSeverity: \" + $json.severity }) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "slack-phishing",
+      "name": "Phishing Slack Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "to": "={{ $env.SECURITY_TEAM_EMAIL }}",
+        "subject": "={{ \"🎣 PHISHING ALERT: \" + $json.phishing_type + \" Campaign Detected\" }}",
+        "body": "={{ \"PHISHING THREAT DETECTED:\\n\\nType: \" + $json.phishing_type + \"\\nTarget Industry: \" + $json.target_industry + \"\\nThreat Actor: \" + $json.threat_actor + \"\\n\\nPhishing URL: \" + $json.phishing_url + \"\\n\\nPhishing Kit Details:\\n\" + $json.phishing_kit_description + \"\\n\\nIndicators of Compromise:\\n\" + JSON.stringify($json.indicators_of_compromise, null, 2) + \"\\n\\nRecommended Actions:\\n1. BLOCK the phishing URL at perimeter\\n2. WARN users about this campaign\\n3. SCAN email for related messages\\n4. MONITOR for credential theft\\n5. INVESTIGATE any suspicious logins\" }}",
+        "options": {}
+      },
+      "id": "email-phishing",
+      "name": "Phishing Email Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        900,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "method": "post",
+        "url": "={{ $env.SPLUNK_HEC_URL }}",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ \"Splunk \" + $env.SPLUNK_TOKEN }}"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "event",
+              "value": "={{ JSON.stringify({ threat_type: \"phishing\", phishing_type: $json.phishing_type, threat_actor: $json.threat_actor, target_industry: $json.target_industry, severity: $json.severity, url: $json.phishing_url, indicators: $json.indicators_of_compromise }) }}"
+            },
+            {
+              "name": "sourcetype",
+              "value": "cyber:phishing"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "splunk-phishing",
+      "name": "Ingest to SIEM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "post",
+        "url": "={{ $env.EMAIL_SECURITY_URL }}/api/v1/quarantine",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ \"Bearer \" + $env.EMAIL_SECURITY_TOKEN }}"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "action",
+              "value": "quarantine"
+            },
+            {
+              "name": "sender",
+              "value": "={{ $json.indicators_of_compromise.sender }}"
+            },
+            {
+              "name": "subject_pattern",
+              "value": "={{ $json.indicators_of_compromise.subject_pattern }}"
+            },
+            {
+              "name": "url_pattern",
+              "value": "={{ $json.phishing_url }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "quarantine-email",
+      "name": "Quarantine Emails",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1100,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "method": "post",
+        "url": "={{ $env.SECURE_GATEWAY_URL }}/api/v1/block",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "url",
+              "value": "={{ $json.phishing_url }}"
+            },
+            {
+              "name": "category",
+              "value": "phishing"
+            },
+            {
+              "name": "threat_actor",
+              "value": "={{ $json.threat_actor }}"
+            },
+            {
+              "name": "expires",
+              "value": "={{ (Date.now() + 86400000 * 30).toString() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "block-url",
+      "name": "Block Phishing URL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1100,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "method": "post",
+        "url": "={{ $env.WAF_API_URL }}/rules",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ \"Bearer \" + $env.WAF_API_TOKEN }}"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "rule_id",
+              "value": "={{ \"BLOCK_PHISHING_\" + $json.id }}"
+            },
+            {
+              "name": "action",
+              "value": "block"
+            },
+            {
+              "name": "conditions",
+              "value": "={{ JSON.stringify([{ field: \"uri\", operator: \"contains\", value: $json.phishing_url }]) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "waf-block",
+      "name": "Update WAF Rules",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1100,
+        650
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value": "={{ $json.mfa_bypass }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "mfa-bypass",
+      "name": "MFA Bypass Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "post",
+        "url": "={{ $env.IDENTITY_PROVIDER_URL }}/api/v1/session/invalidate",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ \"Bearer \" + $env.IDENTITY_TOKEN }}"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user",
+              "value": "={{ $json.indicators_of_compromise.affected_users }}"
+            },
+            {
+              "name": "reason",
+              "value": "={{ \"Phishing campaign detected: \" + $json.phishing_type }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "invalidate-sessions",
+      "name": "Invalidate User Sessions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1300,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "method": "post",
+        "url": "={{ $env.EDR_API_URL }}/v1/threats",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.EDR_API_KEY }}"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "threat_name",
+              "value": "={{ $json.phishing_type }}"
+            },
+            {
+              "name": "threat_type",
+              "value": "phishing"
+            },
+            {
+              "name": "threat_subtype",
+              "value": "={{ $json.threat_actor }}"
+            },
+            {
+              "name": "severity",
+              "value": "={{ $json.severity }}"
+            },
+            {
+              "name": "description",
+              "value": "={{ $json.phishing_description }}"
+            },
+            {
+              "name": "urls",
+              "value": "={{ JSON.stringify($json.indicators_of_compromise.urls) }}"
+            },
+            {
+              "name": "domains",
+              "value": "={{ JSON.stringify($json.indicators_of_compromise.domains) }}"
+            },
+            {
+              "name": "recommended_actions",
+              "value": "={{ JSON.stringify([\"Block phishing URLs at perimeter\", \"Quarantine related emails\", \"Warn users about campaign\", \"Reset credentials for affected users\", \"Monitor for suspicious logins\", \"Enable enhanced authentication monitoring\", \"Review OAuth consent grants\"]) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "edr-phishing",
+      "name": "Update EDR Detection",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1300,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "method": "post",
+        "url": "={{ $env.SERVICENOW_API_URL }}/api/now/table/incident",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ \"Basic \" + $env.SERVICENOW_AUTH }}"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "short_description",
+              "value": "={{ \"🎣 PHISHING: \" + $json.phishing_type + \" (\" + $json.threat_actor + \")\" }}"
+            },
+            {
+              "name": "description",
+              "value": "={{ \"PHISHING CAMPAIGN DETECTED\\n\\nType: \" + $json.phishing_type + \"\\nActor: \" + $json.threat_actor + \"\\nTarget: \" + $json.target_industry + \"\\nSeverity: \" + $json.severity + \"\\n\\nURL: \" + $json.phishing_url + \"\\n\\nTechnical Details:\\n\" + $json.phishing_description + \"\\n\\nActions Taken:\\n1. URL blocked at perimeter\\n2. Emails quarantined\\n3. Users warned\\n\\nRequired Actions:\\n1. Investigate affected users\\n2. Reset credentials if compromised\\n3. Monitor for follow-up attacks\" }}"
+            },
+            {
+              "name": "urgency",
+              "value": "={{ $json.severity === \"CRITICAL\" ? \"1\" : \"2\" }}"
+            },
+            {
+              "name": "impact",
+              "value": "2"
+            },
+            {
+              "name": "priority",
+              "value": "={{ $json.severity === \"CRITICAL\" ? \"1\" : \"2\" }}"
+            },
+            {
+              "name": "category",
+              "value": "Incident"
+            },
+            {
+              "name": "subcategory",
+              "value": "Phishing"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "servicenow-phishing",
+      "name": "Create Incident Ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1300,
+        650
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ \"python3 /opt/scripts/spear_phish_detect.py --campaign '\" + $json.phishing_type + \"' --indicators '\" + JSON.stringify($json.indicators_of_compromise) + \"' --output json\" }}"
+      },
+      "id": "spear-detect",
+      "name": "Spear Phishing Detection",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ \"python3 /opt/scripts/oauth_consent_analyze.py --consent_grants '\" + JSON.stringify($json.indicators_of_compromise.oauth_grants) + \"' --output json\" }}"
+      },
+      "id": "oauth-analyze",
+      "name": "OAuth Consent Analysis",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ \"python3 /opt/scripts/user_awareness.py --campaign '\" + $json.phishing_type + \"' --channel security_bulletin --output json\" }}"
+      },
+      "id": "user-warning",
+      "name": "Send User Warning",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "threatType",
+              "value": "PHISHING"
+            },
+            {
+              "name": "severity",
+              "value": "={{ $json.severity }}"
+            },
+            {
+              "name": "phishingType",
+              "value": "={{ $json.phishing_type }}"
+            },
+            {
+              "name": "affectedSystems",
+              "value": "={{ $json.target_industry }}"
+            },
+            {
+              "name": "threatActor",
+              "value": "={{ $json.threat_actor }}"
+            },
+            {
+              "name": "indicatorsOfCompromise",
+              "value": "={{ JSON.stringify($json.indicators_of_compromise) }}"
+            },
+            {
+              "name": "phishingUrl",
+              "value": "={{ $json.phishing_url }}"
+            },
+            {
+              "name": "recommendedActions",
+              "value": "={{ JSON.stringify([\"Block phishing URLs at perimeter\", \"Quarantine related emails\", \"Warn users about campaign\", \"Reset credentials for affected users\", \"Monitor for suspicious logins\", \"Enable enhanced authentication monitoring\", \"Review OAuth consent grants\", \"Invalidate sessions for affected users\"]) }}"
+            }
+          ]
+        }
+      },
+      "id": "phishing-output",
+      "name": "Phishing Intel Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Phishing Monitor": {
+      "main": [
+        [
+          {
+            "node": "Phishing URL Feed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "OpenPhish Feed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "PhishStats Feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Phishing URL Feed": {
+      "main": [
+        [
+          {
+            "node": "Check Microsoft 365",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check OAuth",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check ConsentFix",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Device Code",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Holiday Themed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Calendly",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Google Ads",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenPhish Feed": {
+      "main": [
+        [
+          {
+            "node": "Finance Target",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Healthcare Target",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Retail Target",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Government Target",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Technology Target",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check UNK AcademicFlare",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Water Saci",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PhishStats Feed": {
+      "main": [
+        [
+          {
+            "node": "Phishing Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Microsoft 365": {
+      "main": [
+        [
+          {
+            "node": "Finance Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check OAuth": {
+      "main": [
+        [
+          {
+            "node": "Technology Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check ConsentFix": {
+      "main": [
+        [
+          {
+            "node": "Technology Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Device Code": {
+      "main": [
+        [
+          {
+            "node": "Government Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Holiday Themed": {
+      "main": [
+        [
+          {
+            "node": "Retail Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Calendly": {
+      "main": [
+        [
+          {
+            "node": "Technology Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Google Ads": {
+      "main": [
+        [
+          {
+            "node": "Retail Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Technology Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finance Target": {
+      "main": [
+        [
+          {
+            "node": "Phishing Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Healthcare Target": {
+      "main": [
+        [
+          {
+            "node": "Phishing Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retail Target": {
+      "main": [
+        [
+          {
+            "node": "Phishing Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Government Target": {
+      "main": [
+        [
+          {
+            "node": "Phishing Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Technology Target": {
+      "main": [
+        [
+          {
+            "node": "Phishing Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check UNK AcademicFlare": {
+      "main": [
+        [
+          {
+            "node": "Government Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Water Saci": {
+      "main": [
+        [
+          {
+            "node": "Finance Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Phishing Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Phishing Email Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Ingest to SIEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Phishing Email Alert": {
+      "main": [
+        [
+          {
+            "node": "Ingest to SIEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ingest to SIEM": {
+      "main": [
+        [
+          {
+            "node": "Quarantine Emails",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Block Phishing URL",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update WAF Rules",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "MFA Bypass Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quarantine Emails": {
+      "main": [
+        [
+          {
+            "node": "Update EDR Detection",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Incident Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block Phishing URL": {
+      "main": [
+        [
+          {
+            "node": "Update EDR Detection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update WAF Rules": {
+      "main": [
+        [
+          {
+            "node": "Update EDR Detection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MFA Bypass Check": {
+      "main": [
+        [
+          {
+            "node": "Invalidate User Sessions",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update EDR Detection",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Incident Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Invalidate User Sessions": {
+      "main": [
+        [
+          {
+            "node": "Spear Phishing Detection",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "OAuth Consent Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update EDR Detection": {
+      "main": [
+        [
+          {
+            "node": "Create Incident Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Incident Ticket": {
+      "main": [
+        [
+          {
+            "node": "Send User Warning",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Phishing Intel Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Spear Phishing Detection": {
+      "main": [
+        [
+          {
+            "node": "Phishing Intel Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OAuth Consent Analysis": {
+      "main": [
+        [
+          {
+            "node": "Phishing Intel Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send User Warning": {
+      "main": [
+        [
+          {
+            "node": "Phishing Intel Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Phishing Intel Output": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": true,
+  "id": "phishing-detection-workflow-2025-12-27",
+  "meta": {
+    "instanceId": "cybersentinel-004"
+  }
+}

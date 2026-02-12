@@ -1,0 +1,190 @@
+{
+  "name": "CyberSentinel APT Campaign Detection",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "threat-intel-feed-trigger",
+      "name": "Threat Intel Feed",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ],
+      "webhookId": "apt-campaign-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse APT campaign intelligence\nconst intelData = items[0].json;\n\n// Classify threat actor\nconst threatActor = {\n  name: intelData.threatActor || intelData.aptGroup || 'Unknown',\n  aka: intelData.aka || [],\n  attribution: {\n    country: intelData.attribution?.country || 'Unknown',\n    organization: intelData.attribution?.organization || 'Unknown',\n    sponsorType: intelData.attribution?.sponsorType || 'Unknown'\n  },\n  knownCampaigns: intelData.knownCampaigns || [],\n  ttps: intelData.ttps || []\n};\n\n// Extract IOCs from intelligence\nconst indicatorsOfCompromise = {\n  fileHashes: [],\n  domains: [],\n  ipAddresses: [],\n  emailAddresses: [],\n  urls: [],\n  mutexes: [],\n  registryKeys: []\n};\n\nif (intelData.iocs) {\n  if (intelData.iocs.fileHashes) {\n    intelData.iocs.fileHashes.forEach(hash => {\n      indicatorsOfCompromise.fileHashes.push({\n        type: hash.length === 64 ? 'SHA256' : (hash.length === 32 ? 'MD5' : 'SHA1'),\n        value: hash,\n        source: 'threat_intel'\n      });\n    });\n  }\n  if (intelData.iocs.domains) {\n    indicatorsOfCompromise.domains = intelData.iocs.domains.map(d => ({\n      type: 'domain',\n      value: d,\n      firstSeen: intelData.iocs.firstSeen,\n      source: 'threat_intel'\n    }));\n  }\n  if (intelData.iocs.ipAddresses) {\n    indicatorsOfCompromise.ipAddresses = intelData.iocs.ipAddresses.map(ip => ({\n      type: 'ip',\n      value: ip,\n      firstSeen: intelData.iocs.firstSeen,\n      source: 'threat_intel'\n    }));\n  }\n}\n\n// Map MITRE ATT&CK TTPs\nconst mappedTtps = (intelData.ttps || []).map(ttp => ({\n  tactic: ttp.tactic || 'Unknown',\n  technique: ttp.technique || 'Unknown',\n  techniqueId: ttp.techniqueId || 'Unknown',\n  description: ttp.description || ''\n}));\n\n// Assess severity for APT campaigns\nlet severity = 'HIGH';\nif (intelData.targetSector?.includes('Critical Infrastructure') || \n    intelData.targetSector?.includes('Government') ||\n    intelData.targetType === 'espionage') {\n  severity = 'CRITICAL';\n}\n\n// Determine affected industries\nconst affectedIndustries = intelData.targetIndustries || intelData.targetSector || ['Unknown'];\n\n// Determine campaign status\nconst campaignStatus = {\n  isActive: intelData.isActive !== false,\n  firstActivity: intelData.firstSeen || null,\n  lastActivity: intelData.lastSeen || null,\n  knownExploits: intelData.cves || []\n};\n\nreturn [{\n  json: {\n    campaignId: intelData.campaignId || 'CAMP-' + Date.now(),\n    threatActor,\n    indicatorsOfCompromise,\n    mappedTtps,\n    affectedIndustries,\n    severity,\n    campaignStatus,\n    targetGeography: intelData.targetGeography || 'Global',\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "analyze-apt-campaign",
+      "name": "Analyze APT Campaign",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Check for known APT groups and generate specific detection rules\nconst campaign = items[0].json;\nconst actorName = campaign.threatActor.name;\n\n// Known APT group detection logic\nconst aptGroupRules = {\n  'APT29': {\n    aliases: ['Cozy Bear', 'The Dukes', 'Nobelium'],\n    focus: 'Government, diplomatic, think tank entities',\n    techniques: ['T1071', 'T1003', 'T1562'],\n    indicators: 'Heavy use of custom malware, cloud-based C2'\n  },\n  'APT41': {\n    aliases: ['Barium', 'Winnti', 'Wicked Panda'],\n    focus: 'Healthcare, telecom, technology, gaming',\n    techniques: ['T1190', 'T1059', 'T1021'],\n    indicators: 'Supply chain attacks, zero-day exploitation'\n  },\n  'Lazarus': {\n    aliases: ['Hidden Cobra', 'Zinc'],\n    focus: 'Financial institutions, cryptocurrency',\n    techniques: ['T1204', 'T1059', 'T1486'],\n    indicators: 'M蝦蝦ware, destructive attacks'\n  },\n  'Sandworm': {\n    aliases: ['Electrum', 'Voodoo Bear'],\n    focus: 'Energy, critical infrastructure, government',\n    techniques: ['T1561', 'T1490', 'T1495'],\n    indicators: 'BlackEnergy, Industroyer, destructive malware'\n  },\n  'Fancy Bear': {\n    aliases: ['APT28', 'Strontium', 'Sofacy'],\n    focus: 'Government, military, media, NGOs',\n    techniques: ['T1059', 'T1083', 'T1110'],\n    indicators: 'ZeroEx, X-Agent, credential harvesting'\n  },\n  'Prince of Persia': {\n    aliases: ['Infy', 'MuddyWater'],\n    focus: 'Middle East, Europe targets',\n    techniques: ['T1059', 'T1027', 'T1219'],\n    indicators: 'PowGoop, multi-stage attack chains'\n  },\n  'Blind Eagle': {\n    aliases: ['APT-C-36'],\n    focus: 'Colombian government, financial sector',\n    techniques: ['T1566', 'T1204', 'T1027'],\n    indicators: 'DCRAT, Caminho downloader'\n  },\n  'Earth Lamia': {\n    aliases: ['Luooy', 'Tonto Team'],\n    focus: 'Gaming, technology companies',\n    techniques: ['T1190', 'T1059', 'T1082'],\n    indicators: 'Custom backdoors, zero-day exploits'\n  }\n};\n\n// Check if this matches a known group\nlet matchedGroup = null;\nfor (const [groupName, groupData] of Object.entries(aptGroupRules)) {\n  if (actorName.includes(groupName) || \n      groupData.aliases.some(alias => actorName.includes(alias))) {\n    matchedGroup = {\n      name: groupName,\n      ...groupData\n    };\n    break;\n  }\n}\n\n// Generate detection rules\nconst detectionRules = [];\n\n// Create detection rules for each TTP\ncampaign.mappedTtps.forEach(ttp => {\n  detectionRules.push({\n    ruleId: 'DETECT-' + ttp.techniqueId + '-' + Date.now(),\n    name: 'Detect ' + ttp.tactic + ' via ' + ttp.technique,\n    logic: 'Monitor for ' + ttp.description,\n    severity: 'HIGH',\n    enabled: true\n  });\n});\n\n// Add IOCs to detection\ncampaign.indicatorsOfCompromise.fileHashes.forEach(hash => {\n  detectionRules.push({\n    ruleId: 'DETECT-HASH-' + hash.value.substring(0, 8),\n    name: 'Detect malicious file hash',\n    logic: 'Block/hash match on ' + hash.type + ': ' + hash.value.substring(0, 16) + '...',\n    severity: 'CRITICAL',\n    enabled: true\n  });\n});\n\ncampaign.indicatorsOfCompromise.domains.forEach(domain => {\n  detectionRules.push({\n    ruleId: 'DETECT-DOMAIN-' + domain.value.replace(/[^a-zA-Z0-9]/g, '').substring(0, 10),\n    name: 'Detect C2 domain communication',\n    logic: 'Block DNS queries for ' + domain.value,\n    severity: 'HIGH',\n    enabled: true\n  });\n});\n\nreturn [{\n  json: {\n    ...campaign,\n    matchedGroup,\n    detectionRules,\n    generatedAt: new Date().toISOString(),\n    workflowId: 'cybersentinel-apt-detection-v1'\n  }\n}];"
+      },
+      "id": "generate-apt-detection",
+      "name": "Generate APT Detection Rules",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.severity }}",
+              "operation": "equal",
+              "value2": "CRITICAL"
+            }
+          ]
+        }
+      },
+      "id": "critical-campaign-filter",
+      "name": "Filter Critical Campaigns",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate APT response actions\nconst campaign = items[0].json;\n\nconst recommendedActions = [\n  {\n    action: \"THREAT_HUNTING\",\n    priority: \"P1\",\n    timeline: \"48-72 hours\",\n    description: \"Proactive threat hunting for APT indicators\",\n    steps: [\n      \"Deploy detection rules to SIEM/EDR\",\n      \"Search historical logs for IOCs\",\n      \"Hunt for TTPs in MITRE framework\",\n      \"Review network traffic for C2\",\n      \"Check endpoint telemetry for artifacts\"\n    ]\n  },\n  {\n    action: \"NETWORK_MONITORING\",\n    priority: \"P1\",\n    timeline: \"Immediate\",\n    description: \"Enhanced network monitoring for C2\",\n    steps: [\n      \"Block identified domains at DNS level\",\n      \"Alert on connections to IOCs\",\n      \"Monitor for beaconing patterns\",\n      \"Enable deep packet inspection for traffic\"\n    ]\n  },\n  {\n    action: \"ENDPOINT_PROTECTION\",\n    priority: \"P1\",\n    timeline: \"24 hours\",\n    description: \"Deploy endpoint detection and response rules\",\n    steps: [\n      \"Create EDR rules for file hashes\",\n      \"Enable behavioral detection for TTPs\",\n      \"Configure alerting on suspicious processes\",\n      \"Review and update allowlists\"\n    ]\n  },\n  {\n    action: \"CREDENTIAL_SECURITY\",\n    priority: \"P1\",\n    timeline: \"48 hours\",\n    description: \"Credential reset and monitoring\",\n    steps: [\n      \"Force password reset for affected users\",\n      \"Reset service account credentials\",\n      \"Enable MFA for all privileged accounts\",\n      \"Audit recent credential usage\",\n      \"Monitor for credential replay attacks\"\n    ]\n  },\n  {\n    action: \"STAKEHOLDER_BRIEFING\",\n    priority: \"P2\",\n    timeline: \"Weekly updates\",\n    description: \"Ongoing intelligence briefings\",\n    steps: [\n      \"Brief security leadership on campaign\",\n      \"Provide sector-specific threat updates\",\n      \"Share detection status and findings\",\n      \"Recommend defensive improvements\"\n    ]\n  }\n];\n\n// Add specific actions for state-sponsored actors\nif (campaign.threatActor.attribution?.country === 'China') {\n  recommendedActions.unshift({\n    action: \"CHINA_NEXUS_RESPONSE\",\n    priority: \"P0\",\n    timeline: \"Immediate\",\n    description: \"Enhanced monitoring for China-nexus threat actor\",\n    steps: [\n      \"Review supply chain dependencies\",\n      \"Audit third-party software integrations\",\n      \"Monitor for zero-day exploitation patterns\",\n      \"Check for web shell deployment\"\n    ]\n  });\n}\n\nif (campaign.threatActor.attribution?.country === 'Iran') {\n  recommendedActions.unshift({\n    action: \"IRAN_NEXUS_RESPONSE\",\n    priority: \"P0\",\n    timeline: \"Immediate\",\n    description: \"Enhanced monitoring for Iran-nexus threat actor\",\n    steps: [\n      \"Review VPN and remote access logs\",\n      \"Monitor for credential stuffing attacks\",\n      \"Check for destructive attack patterns\",\n      \"Verify backup integrity\"\n    ]\n  });\n}\n\nif (campaign.threatActor.attribution?.country === 'Russia') {\n  recommendedActions.unshift({\n    action: \"RUSSIA_NEXUS_RESPONSE\",\n    priority: \"P0\",\n    timeline: \"Immediate\",\n    description: \"Enhanced monitoring for Russia-nexus threat actor\",\n    steps: [\n      \"ReviewActive Directory for compromise indicators\",\n      \"Monitor for lateral movement patterns\",\n      \"Check for privilege escalation attempts\",\n      \"Verify domain controller integrity\"\n    ]\n  });\n}\n\nreturn [{\n  json: {\n    campaignId: campaign.campaignId,\n    threatType: \"APT\",\n    threatActor: campaign.threatActor,\n    matchedGroup: campaign.matchedGroup,\n    severity: campaign.severity,\n    affectedIndustries: campaign.affectedIndustries,\n    affectedGeography: campaign.targetGeography,\n    indicatorsOfCompromise: campaign.indicatorsOfCompromise,\n    detectionRules: campaign.detectionRules,\n    recommendedActions,\n    generatedAt: new Date().toISOString(),\n    workflowId: \"cybersentinel-apt-detection-v1\"\n  }\n}];"
+      },
+      "id": "generate-apt-response",
+      "name": "Generate APT Response Actions",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "#apt-intelligence",
+        "text": "={{ '🎯 *APT CAMPAIGN INTELLIGENCE* 🎯\\n\\n*Campaign ID:* ' + $json.campaignId + '\\n*Threat Actor:* ' + $json.threatActor.name + ' (' + ($json.matchedGroup?.aliases?.join(', ') || 'No aliases') + ')\\n*Attribution:* ' + $json.threatActor.attribution.country + ' (' + $json.threatActor.attribution.sponsorType + ')\\n*Severity:* ' + $json.severity + '\\n*Target Sectors:* ' + $json.affectedIndustries.join(', ') + '\\n\\n📊 *DETECTION RULES DEPLOYED:*\\n' + ($json.detectionRules || []).map(r => '• ' + r.name).join('\\n') + '\\n\\n🔍 *RECOMMENDED ACTIONS:*\\n' + $json.recommendedActions.slice(0, 3).map(a => '• ' + a.action + ': ' + a.description).join('\\n') }}"
+      },
+      "id": "apt-slack-alert",
+      "name": "APT Intelligence Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "to": "threat-intel-team@company.com",
+        "subject": "={{ 'APT Campaign Intelligence: ' + $json.threatActor.name + ' - ' + $json.campaignId }}",
+        "body": "={{ 'APT CAMPAIGN INTELLIGENCE REPORT\\n\\nCampaign ID: ' + $json.campaignId + '\\nTimestamp: ' + $json.generatedAt + '\\n\\nTHREAT ACTOR:\\nName: ' + $json.threatActor.name + '\\nAliases: ' + ($json.matchedGroup?.aliases?.join(', ') || 'None') + '\\nAttribution: ' + $json.threatActor.attribution.country + ' (' + $json.threatActor.attribution.sponsorType + ')\\nFocus Areas: ' + ($json.matchedGroup?.focus || 'Not specified') + '\\n\\nSEVERITY: ' + $json.severity + '\\nTARGET INDUSTRIES: ' + $json.affectedIndustries.join(', ') + '\\nTARGET GEOGRAPHY: ' + $json.affectedGeography + '\\n\\nINDICATORS OF COMPROMISE:\\nFile Hashes: ' + ($json.indicatorsOfCompromise.fileHashes || []).map(h => h.type + ':' + h.value.substring(0, 16) + '...').join(', ') + '\\nDomains: ' + ($json.indicatorsOfCompromise.domains || []).map(d => d.value).join(', ') + '\\nIP Addresses: ' + ($json.indicatorsOfCompromise.ipAddresses || []).map(i => i.value).join(', ') + '\\n\\nDETECTION RULES: ' + ($json.detectionRules || []).length + ' rules generated\\n\\nRECOMMENDED ACTIONS:\\n' + $json.recommendedActions.map(a => '- ' + a.action + ' (' + a.priority + '): ' + a.description).join('\\n') }}"
+      },
+      "id": "apt-email-intel",
+      "name": "Send Intelligence Email",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Deploy detection rules to SIEM\nconst rules = items[0].json.detectionRules || [];\nconst deployedRules = [];\n\nrules.forEach(rule => {\n  deployedRules.push({\n    ruleId: rule.ruleId,\n    name: rule.name,\n    status: 'deployed',\n    deployedAt: new Date().toISOString(),\n    platform: 'SIEM/EDR'\n  });\n});\n\nreturn [{\n  json: {\n    rulesDeployed: deployedRules.length,\n    deployedRules,\n    deployedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "deploy-siem-rules",
+      "name": "Deploy SIEM Rules",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Threat Intel Feed": {
+      "main": [
+        [
+          {
+            "node": "Analyze APT Campaign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze APT Campaign": {
+      "main": [
+        [
+          {
+            "node": "Generate APT Detection Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate APT Detection Rules": {
+      "main": [
+        [
+          {
+            "node": "Filter Critical Campaigns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Critical Campaigns": {
+      "main": [
+        [
+          {
+            "node": "Generate APT Response Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate APT Response Actions": {
+      "main": [
+        [
+          {
+            "node": "APT Intelligence Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Intelligence Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Deploy SIEM Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

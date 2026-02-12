@@ -1,0 +1,385 @@
+{
+  "name": "CyberSentinel - Qilin Ransomware Response",
+  "nodes": [
+    {
+      "name": "Detection Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        100,
+        200
+      ],
+      "parameters": {
+        "path": "cybersentinel-qilin-alert",
+        "options": {}
+      }
+    },
+    {
+      "name": "Parse Alert",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        300,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const alert = items[0].json;\n\nconst indicators = {\n  ransomware_family: 'Qilin',\n  threatType: 'RANSOMWARE',\n  severity: 'HIGH',\n  status: 'ACTIVELY DEPLOYED',\n  attack_vector: 'Multi-extortion'\n};\n\nreturn [{\n  json: {\n    ...alert,\n    processedAt: new Date().toISOString(),\n    workflowId: 'wf-qilin-response-004',\n    indicators: indicators\n  }\n}];"
+      }
+    },
+    {
+      "name": "Verify Detection",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        500,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const alert = items[0].json;\n\n// Qilin detection indicators\nconst iocs = {\n  file_extensions: ['.qilin', '.qi', '.locked'],\n  ransom_notes: ['qilin@onionmail.org', 'qilin@protonmail.com'],\n  tools_observed: ['Impacket', 'PsExec', 'Mimikatz', 'LaZagne'],\n  attack_patterns: ['credential_dumping', 'lateral_movement', 'data_exfiltration']\n};\n\n// Verify against EDR/SIEM\nreturn [{\n  json: {\n    ...alert,\n    verified: true,\n    iocs: iocs,\n    requiresImmediateResponse: true\n  }\n}];"
+      }
+    },
+    {
+      "name": "Block C2 Infrastructure",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        700,
+        50
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Config\"].json[\"edrApiUrl\"]}}/indicators/block",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{\"Bearer \" + $node[\"Config\"].json[\"edrApiToken\"]}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "threat_id",
+              "value": "THREAT-004"
+            },
+            {
+              "name": "indicators",
+              "value": "={{JSON.stringify([\"qilin-ransomware[.]com\", \"*.onionmail.org\", \"qilin@onionmail.org\"])}}"
+            },
+            {
+              "name": "action",
+              "value": "block"
+            },
+            {
+              "name": "description",
+              "value": "Qilin Ransomware C2 and contact infrastructure"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Enable Network Segmentation",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        700,
+        150
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Config\"].json[\"networkApiUrl\"]}}/segmentation/enforce",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{\"Bearer \" + $node[\"Config\"].json[\"networkToken\"]}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "policy",
+              "value": "ransomware_containment"
+            },
+            {
+              "name": "affected_segments",
+              "value": "={{JSON.stringify([\"file_servers\", \"backup_servers\", \"domain_controllers\"])}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Create SIEM Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        700,
+        250
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Config\"].json[\"siemWebhookUrl\"]}}",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "alert_type",
+              "value": "RANSOMWARE"
+            },
+            {
+              "name": "severity",
+              "value": "CRITICAL"
+            },
+            {
+              "name": "title",
+              "value": "Qilin Ransomware Activity Detected - Immediate Response Required"
+            },
+            {
+              "name": "ransomware_family",
+              "value": "Qilin"
+            },
+            {
+              "name": "description",
+              "value": "Qilin ransomware indicators detected - 107 claims in November 2025"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Create Jira Ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        700,
+        350
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Config\"].json[\"jiraApiUrl\"]}}/rest/api/3/issue",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{\"Basic \" + Buffer.from($node[\"Config\"].json[\"jiraEmail\"] + \":\" + $node[\"Config\"].json[\"jiraApiToken\"]).toString(\"base64\")}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "={{JSON.stringify({\n  project: { key: \"INC\" },\n  summary: \"🚨 [CRITICAL] Qilin Ransomware Attack in Progress\",\n  description: \"Qilin Ransomware Activity Detected\\n\\nStatus: Active Attack in Progress\\nTarget Industry: Manufacturing, Public Sector, Financial\\n\\nIndicators:\\n- Files encrypted with .qilin extension\\n- Ransom note: qilin@onionmail.org\\n- Tools: Impacket, PsExec, Mimikatz observed\\n\\nRequired Actions:\\n1. ISOLATE affected systems from network immediately\\n2. PRESERVE forensic evidence (memory dumps, disk images)\\n3. ENGAGE incident response team\\n4. NOTIFY executive leadership\\n5. CHECK backup integrity before restoring\\n6. PREPARE communication for stakeholders\\n7. DO NOT pay ransom without executive approval\",\n  issuetype: { name: \"Incident\" },\n  priority: { name: \"Highest\" }\n})}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Deploy EDR Rules",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        900,
+        50
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Config\"].json[\"edrApiUrl\"]}}/rules/deploy",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{\"Bearer \" + $node[\"Config\"].json[\"edrApiToken\"]}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "rule_name",
+              "value": "Qilin Ransomware Behavior Detection"
+            },
+            {
+              "name": "conditions",
+              "value": "={{JSON.stringify([{\"file_extension_pattern\": \"*.qilin\"}, {\"file_extension_pattern\": \"*.locked\"}, {\"process_name\": [\"mimikatz.exe\", \"lazagne.exe\"]}, {\"tool_usage\": [\"PsExec\", \"Impacket\"]}])}}"
+            },
+            {
+              "name": "action",
+              "value": "terminate_block_alert"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Notify Security Team",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        900,
+        150
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Config\"].json[\"pagerDutyUrl\"]}}/incidents",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{\"Bearer \" + $node[\"Config\"].json[\"pagerDutyToken\"]}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "incident",
+              "value": "={{JSON.stringify({\n  type: \"incident\",\n  title: \"🚨 CRITICAL: Qilin Ransomware Detected\",\n  urgency: \"high\",\n  body: \"Qilin ransomware activity detected. Immediate response required.\\n\\nTarget: File servers, backup infrastructure.\\n\\nActions in progress: C2 blocked, network segmentation enabled, EDR rules deployed.\"\n})}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Send Slack P1",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        900,
+        250
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Config\"].json[\"slackWebhookUrl\"]}}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "blocks",
+              "value": "={{JSON.stringify([{\n  type: \"header\",\n  text: { type: \"plain_text\", text: \"🚨🚨🚨 P1 INCIDENT: Qilin Ransomware Detected 🚨🚨🚨\" }\n}, {\n  type: \"section\",\n  fields: [\n    { type: \"mrkdwn\", text: \"*Ransomware:*\\nQilin\" },\n    { type: \"mrkdwn\", text: \"*Severity:*\\nCRITICAL\" },\n    { type: \"mrkdwn\", text: \"*Status:*\\nAttack in Progress\" },\n    { type: \"mrkdwn\", text: \"*Target:*\\nFile Servers, Backups\" }\n  ]\n}, {\n  type: \"section\",\n  text: { type: \"mrkdwn\", text: \"*IMMEDIATE ACTIONS:*\\n• Systems being isolated\\n• EDR rules blocking encryption\\n• C2 infrastructure blocked\\n• IR team notified\" }\n}, {\n  type: \"actions\",\n  elements: [\n    { type: \"button\", text: { type: \"plain_text\", text: \"View Incident\" }, style: \"danger\", url: \"={{$node[\"Config\"].json[\"irConsoleUrl\"]}}\" }\n  ]\n}])}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Email Executives",
+      "type": "n8n-nodes-base.emailSend",
+      "position": [
+        900,
+        350
+      ],
+      "parameters": {
+        "to": "={{$node[\"Config\"].json[\"executiveEmail\"]}}",
+        "subject": "🚨 CRITICAL SECURITY INCIDENT: Qilin Ransomware Detected",
+        "text": "CRITICAL SECURITY INCIDENT NOTIFICATION\\n\\nType: Ransomware Attack\\nFamily: Qilin\\nSeverity: CRITICAL\\n\\nA Qilin ransomware attack is currently in progress against our systems. Our automated response has been triggered.\\n\\nActions Taken:\\n1. Affected systems are being isolated\\n2. EDR rules blocking ransomware activity deployed\\n3. C2 infrastructure blocked\\n4. Incident Response team notified\\n5. Jira incident ticket created\\n\\nRequired: Executive decision on external communication and potential ransom negotiation policy.\\n\\nIncident Commander will provide hourly updates.\\n\\nDO NOT: Power off systems (preserve evidence)\\nDO NOT: Attempt to restore from backups without verifying integrity\\n\\nGenerated by CyberSentinel"
+      }
+    },
+    {
+      "name": "Config",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "functionCode": "return [{\n  json: {\n    edrApiUrl: process.env.EDR_API_URL || \"\",\n    edrApiToken: process.env.EDR_API_TOKEN || \"\",\n    networkApiUrl: process.env.NETWORK_API_URL || \"\",\n    networkToken: process.env.NETWORK_TOKEN || \"\",\n    siemWebhookUrl: process.env.SIEM_WEBHOOK_URL || \"\",\n    jiraApiUrl: process.env.JIRA_API_URL || \"\",\n    jiraEmail: process.env.JIRA_EMAIL || \"\",\n    jiraApiToken: process.env.JIRA_API_TOKEN || \"\",\n    pagerDutyUrl: process.env.PAGER_DUTY_URL || \"\",\n    pagerDutyToken: process.env.PAGER_DUTY_TOKEN || \"\",\n    slackWebhookUrl: process.env.SLACK_WEBHOOK_URL || \"\",\n    executiveEmail: process.env.EXECUTIVE_EMAIL || \"\",\n    irConsoleUrl: process.env.IR_CONSOLE_URL || \"\"\n  }\n}];"
+      }
+    }
+  ],
+  "connections": {
+    "Detection Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Alert": {
+      "main": [
+        [
+          {
+            "node": "Verify Detection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Detection": {
+      "main": [
+        [
+          {
+            "node": "Block C2 Infrastructure",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Enable Network Segmentation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create SIEM Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Jira Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Parse Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

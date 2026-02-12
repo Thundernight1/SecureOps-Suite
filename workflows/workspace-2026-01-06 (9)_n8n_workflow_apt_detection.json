@@ -1,0 +1,397 @@
+{
+  "name": "APT Detection - State-Sponsored Threat Response",
+  "nodes": [
+    {
+      "name": "Threat Intelligence Feed Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "parameters": {
+        "httpMethod": "post",
+        "path": "apt-threat-intel",
+        "options": {}
+      }
+    },
+    {
+      "name": "Parse Intel Feed",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const intel = items[0].json;\n\n// Normalize APT threat data\nconst threatData = {\n  threat_name: intel.threat_name || 'Unknown APT',\n  threat_type: 'APT',\n  severity: 'HIGH',\n  nation_state: intel.nation_state || 'Unknown',\n  source: intel.source || 'OSINT',\n  timestamp: new Date().toISOString(),\n  campaign_name: intel.campaign_name || null,\n  target_regions: intel.targeted_regions || [],\n  target_sectors: intel.targeted_sectors || [],\n  indicators: {\n    file_hashes: intel.iocs?.file_hashes || [],\n    domains: intel.iocs?.domains || [],\n    ip_addresses: intel.iocs?.ip_addresses || [],\n    urls: intel.iocs?.urls || [],\n    email_addresses: intel.iocs?.email_addresses || [],\n    mutex_names: intel.iocs?.mutex_names || [],\n    registry_keys: intel.iocs?.registry_keys || []\n  },\n  ttps: intelttps || [],\n  malware_families: intel.malware_families || [],\n  attribution_confidence: intel.attribution_confidence || 'MEDIUM'\n};\n\nreturn [{json: threatData}];"
+      }
+    },
+    {
+      "name": "VirusTotal Enrichment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        500,
+        100
+      ],
+      "parameters": {
+        "url": "=https://www.virustotal.com/api/v3/files/{{ $json.indicators.file_hashes[0] }}",
+        "options": {
+          "headers": {
+            "x-apikey": "={{ $node['VirusTotal Credentials'].json['apiKey'] }}"
+          }
+        }
+      }
+    },
+    {
+      "name": "ReversingLabs Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "=https://api.reversinglabs.net/api/v3/malware/{{ $json.indicators.file_hashes[0] }}",
+        "options": {
+          "headers": {
+            "Authorization": "={{ $node['ReversingLabs Credentials'].json['apiKey'] }}"
+          }
+        }
+      }
+    },
+    {
+      "name": "MISP Correlation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['MISP Instance'].json['url'] }}/attributes/restSearch",
+        "sendBody": true,
+        "jsonBody": "={{ {\n  returnFormat: 'json',\n  value: $json.indicators.file_hashes.concat($json.indicators.domains).concat($json.indicators.ip_addresses),\n  type_attribute: ['md5', 'sha256', 'domain', 'hostname', 'ip-dst', 'ip-src'],\n  limit: 100\n} }}"
+      }
+    },
+    {
+      "name": "Threat Attribution Score",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const data = items[0].json;\n\nlet attributionScore = 0;\nlet riskLevel = 'HIGH';\nlet confidence = data.attribution_confidence || 'MEDIUM';\n\n// Base score for APT activity\nattributionScore += 150;\n\n// Nation-state attribution increases score\nif (data.nation_state) {\n  attributionScore += 50;\n  \n  // Higher risk for specific nations\n  const highRiskNations = ['China', 'Russia', 'Iran', 'North Korea'];\n  if (highRiskNations.includes(data.nation_state)) {\n    attributionScore += 30;\n  }\n}\n\n// Multiple IOCs available\nconst iocCount = data.indicators.file_hashes.length + \n                 data.indicators.domains.length + \n                 data.indicators.ip_addresses.length;\nif (iocCount > 10) {\n  attributionScore += 30;\n} else if (iocCount > 5) {\n  attributionScore += 15;\n}\n\n// TTP information available\nif (data.ttps && data.ttps.length > 0) {\n  attributionScore += 20;\n}\n\n// Malware families identified\nif (data.malware_families && data.malware_families.length > 0) {\n  attributionScore += 25;\n}\n\n// MISP correlation results\nif (data.misp_results && data.misp_results.length > 0) {\n  attributionScore += 30;\n}\n\n// Determine risk level\nif (attributionScore >= 250) {\n  riskLevel = 'CRITICAL';\n} else if (attributionScore >= 180) {\n  riskLevel = 'HIGH';\n} else if (attributionScore >= 100) {\n  riskLevel = 'MEDIUM';\n}\n\nreturn [{\n  json: {\n    ...data,\n    attribution_score: attributionScore,\n    risk_level: riskLevel,\n    ioc_count: iocCount,\n    assessment_timestamp: new Date().toISOString()\n  }\n}];"
+      }
+    },
+    {
+      "name": "Create SIEM Alert - SOC",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        900,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['SIEM Integration'].json['url'] }}/api/alerts",
+        "sendHeaders": true,
+        "sendBody": true,
+        "jsonBody": "={{ { \n  alert_type: 'apt_threat',\n  severity: $json.risk_level,\n  title: 'APT Activity Detected: ' + $json.threat_name,\n  description: 'State-sponsored threat actor activity identified',\n  threat_actor: $json.threat_name,\n  nation_state: $json.nation_state,\n  indicators: $json.indicators,\n  ttps: $json.ttps,\n  target_regions: $json.target_regions,\n  target_sectors: $json.target_sectors,\n  attribution_confidence: $json.attribution_confidence,\n  timestamp: $json.assessment_timestamp,\n  source: 'CyberSentinel Threat Intel'\n} }}",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $node['SIEM Integration'].json['apiKey'] }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Slack - Threat Intel Channel",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ],
+      "parameters": {
+        "channel": "={{ $node['Slack Configuration'].json['threat_intel_channel'] }}",
+        "text": "=🎯 *APT THREAT INTELLIGENCE*\n\n*{{ $json.threat_name }}*\nNation State: {{ $json.nation_state }}\nRisk Level: {{ $json.risk_level }}\nAttribution Score: {{ $json.attribution_score }}\n\n*Campaign:* {{ $json.campaign_name || 'Unknown' }}\nConfidence: {{ $json.attribution_confidence }}\n\n*Target Profile:*\nRegions: {{ $json.target_regions.join(', ') }}\nSectors: {{ $json.target_sectors.join(', ') }}\n\n*Indicators:*\n📁 Files: {{ $json.indicators.file_hashes.length }}\n🌐 Domains: {{ $json.indicators.domains.length }}\n🔢 IPs: {{ $json.indicators.ip_addresses.length }}\n🔗 URLs: {{ $json.indicators.urls.length }}\n\n*TTPs Identified:*\n{{ $json.ttps.join('\\n') }}\n\n*Malware Families:*\n{{ $json.malware_families.join(', ') }}\n\n_Intel Received: {{ $json.assessment_timestamp }}_",
+        "attachments": [],
+        "blocks": []
+      }
+    },
+    {
+      "name": "Email - Security Team",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ],
+      "parameters": {
+        "to": "={{ $node['Email Configuration'].json['threat_intel_team'] }}",
+        "subject": "🎯 APT Alert: {{ $json.threat_name }} ({{ $json.nation_state }})",
+        "body": "=CyberSentinel APT Threat Intelligence Alert\n\nTHREAT ACTOR DETAILS:\n- Name: {{ $json.threat_name }}\n- Nation State: {{ $json.nation_state }}\n- Campaign: {{ $json.campaign_name || 'Not specified' }}\n- Risk Level: {{ $json.risk_level }}\n- Attribution Score: {{ $json.attribution_score }}\n- Confidence Level: {{ $json.attribution_confidence }}\n\nTARGET PROFILE:\n*Regions Targeted:*\n{{ $json.target_regions.join(', ') }}\n\n*Sectors Targeted:*\n{{ $json.target_sectors.join(', ') }}\n\nINDICATORS OF COMPROMISE:\n*File Hashes:*\n{{ $json.indicators.file_hashes.join(', ') }}\n\n*Domains:*\n{{ $json.indicators.domains.join(', ') }}\n\n*IP Addresses:*\n{{ $json.indicators.ip_addresses.join(', ') }}\n\n*URLs:*\n{{ $json.indicators.urls.join(', ') }}\n\n*Tactics, Techniques & Procedures (TTPs):*\n{{ $json.ttps.join(', ') }}\n\n*Associated Malware Families:*\n{{ $json.malware_families.join(', ') }}\n\nRECOMMENDED ACTIONS:\n1. Search environment for IOCs\n2. Review MITRE ATT&CK coverage for identified TTPs\n3. Enhance monitoring for identified TTPs\n4. Update firewall rules with network IOCs\n5. Update EDR rules with file/process IOCs\n6. Brief SOC analysts on new threat\n\n---\nGenerated by CyberSentinel Threat Intelligence\nTime: {{ $json.assessment_timestamp }}"
+      }
+    },
+    {
+      "name": "Update Threat Intel DB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['Threat Intel DB'].json['url'] }}/api/threats",
+        "sendBody": true,
+        "jsonBody": "={{ {\n  threat_type: 'apt',\n  threat_name: $json.threat_name,\n  nation_state: $json.nation_state,\n  campaign_name: $json.campaign_name,\n  indicators: $json.indicators,\n  ttps: $json.ttps,\n  malware_families: $json.malware_families,\n  target_regions: $json.target_regions,\n  target_sectors: $json.target_sectors,\n  risk_level: $json.risk_level,\n  attribution_score: $json.attribution_score,\n  source: $json.source,\n  first_seen: $json.timestamp,\n  last_updated: new Date().toISOString()\n} }}"
+      }
+    },
+    {
+      "name": "Block Network IOCs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['Firewall API'].json['url'] }}/api/block-ioc-batch",
+        "sendBody": true,
+        "jsonBody": "={{ {\n  ioc_type: 'apt_c2',\n  indicators: $json.indicators.ip_addresses.concat($json.indicators.domains),\n  source: 'CyberSentinel',\n  reason: 'APT ' + $json.threat_name + ' C2 infrastructure',\n  priority: $json.risk_level === 'CRITICAL' ? 'critical' : 'high',\n  expires: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()\n} }}"
+      }
+    },
+    {
+      "name": "Update EDR Rules",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['EDR API'].json['url'] }}/api/detections/threat-intel",
+        "sendBody": true,
+        "jsonBody": "={{ {\n  threat_name: $json.threat_name,\n  threat_type: 'apt',\n  indicators: {\n    file_hashes: $json.indicators.file_hashes,\n    domains: $json.indicators.domains,\n    registry_keys: $json.indicators.registry_keys,\n    mutex_names: $json.indicators.mutex_names\n  },\n  ttps: $json.ttps,\n  priority: $json.risk_level,\n  rules: [\n    {\n      name: 'APT_' + $json.threat_name.replace(/\\s+/g, '_') + '_IOC',\n      type: 'indicator',\n      action: 'alert'\n    },\n    {\n      name: 'APT_' + $json.threat_name.replace(/\\s+/g, '_') + '_Behavior',\n      type: 'behavioral',\n      action: 'alert',\n      behaviors: $json.ttps\n    }\n  ]\n} }}"
+      }
+    },
+    {
+      "name": "Update MISP",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['MISP Instance'].json['url'] }}/events/add",
+        "sendBody": true,
+        "jsonBody": "={{ {\n  event: {\n    info: 'APT ' + $json.threat_name + ' - ' + $json.campaign_name,\n    threat_level_id: $json.risk_level === 'CRITICAL' ? 1 : ($json.risk_level === 'HIGH' ? 2 : 3),\n    analysis: 2,\n    distribution: 0, // Your organization only\n    attributes: [\n      ...$json.indicators.file_hashes.map(h => ({\n        type: 'sha256',\n        value: h,\n        category: 'Network activity'\n      })),\n      ...$json.indicators.domains.map(d => ({\n        type: 'domain',\n        value: d,\n        category: 'Network activity'\n      })),\n      ...$json.indicators.ip_addresses.map(ip => ({\n        type: 'ip-dst',\n        value: ip,\n        category: 'Network activity'\n      })),\n      {\n        type: 'text',\n        value: $json.threat_name,\n        category: 'Attribution',\n        comment: 'APT Group Name'\n      }\n    ]\n  }\n} }}"
+      }
+    },
+    {
+      "name": "Log Intelligence",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['Log Storage'].json['url'] }}/api/threat-intel",
+        "sendBody": true,
+        "jsonBody": "={{ {\n  intel_type: 'apt_threat',\n  threat_name: $json.threat_name,\n  nation_state: $json.nation_state,\n  risk_level: $json.risk_level,\n  attribution_score: $json.attribution_score,\n  ioc_count: $json.ioc_count,\n  ioc_types: {\n    files: $json.indicators.file_hashes.length,\n    domains: $json.indicators.domains.length,\n    ips: $json.indicators.ip_addresses.length,\n    urls: $json.indicators.urls.length\n  },\n  ttps_count: $json.ttps.length,\n  actions_taken: [\n    'SIEM alert created',\n    'Slack notification sent',\n    'Email notification sent',\n    'Threat intel DB updated',\n    'Network IOCs blocked',\n    'EDR rules updated',\n    'MISP updated'\n  ],\n  timestamp: new Date().toISOString(),\n  source: 'CyberSentinel Automated Intel Response'\n} }}"
+      }
+    }
+  ],
+  "connections": {
+    "Threat Intelligence Feed Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Intel Feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Intel Feed": {
+      "main": [
+        [
+          {
+            "node": "VirusTotal Enrichment",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "ReversingLabs Check",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "MISP Correlation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VirusTotal Enrichment": {
+      "main": [
+        [
+          {
+            "node": "Threat Attribution Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ReversingLabs Check": {
+      "main": [
+        [
+          {
+            "node": "Threat Attribution Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MISP Correlation": {
+      "main": [
+        [
+          {
+            "node": "Threat Attribution Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Threat Attribution Score": {
+      "main": [
+        [
+          {
+            "node": "Create SIEM Alert - SOC",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Slack - Threat Intel Channel",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email - Security Team",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Threat Intel DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create SIEM Alert - SOC": {
+      "main": [
+        [
+          {
+            "node": "Block Network IOCs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Threat Intel Channel": {
+      "main": [
+        []
+      ]
+    },
+    "Email - Security Team": {
+      "main": [
+        []
+      ]
+    },
+    "Update Threat Intel DB": {
+      "main": [
+        [
+          {
+            "node": "Block Network IOCs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update EDR Rules",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update MISP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block Network IOCs": {
+      "main": [
+        [
+          {
+            "node": "Log Intelligence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update EDR Rules": {
+      "main": [
+        [
+          {
+            "node": "Log Intelligence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update MISP": {
+      "main": [
+        [
+          {
+            "node": "Log Intelligence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Intelligence": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

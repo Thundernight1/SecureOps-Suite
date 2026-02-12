@@ -1,0 +1,465 @@
+{
+  "name": "CyberSentinel - Ransomware Detection and Response Workflow",
+  "onError": "stopWorkflow",
+  "settings": {
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": 3600,
+    "errorWorkflow": "error-handler-workflow"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "pollTime": "1800000",
+        "pollUnit": "milliseconds",
+        "options": {}
+      },
+      "id": "ransomware-monitor-trigger",
+      "name": "Ransomware Monitor Trigger",
+      "type": "n8n-nodes-base.interval",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "url": "https://www.nomoreransom.org/api/crypto_sites?format=json",
+        "options": {}
+      },
+      "id": "nomoreransom-feed",
+      "name": "Monitor No More Ransom Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ],
+      "disabled": false,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "ransomware_indicators",
+        "columns": {
+          "ransomware_family": "={{ $json.name }}",
+          "extension": "={{ $json.extension }}",
+          "ransom_note": "={{ $json.ransom_note }}",
+          "decryption_available": "={{ $json.decryption_available }}",
+          "attack_vector": "={{ $json.attack_vector }}",
+          "first_seen": "={{ $json.first_seen }}",
+          "targets": "={{ JSON.stringify($json.targets) }}",
+          "created_at": "={{ new Date().toISOString() }}"
+        },
+        "additionalFields": {}
+      },
+      "id": "store-ransomware-iocs",
+      "name": "Store Ransomware IOCs",
+      "type": "n8n-nodes-base.n8nSql",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "resource": "siem",
+        "operation": "query",
+        "query": "index=syslogs sourcetype=syslog (ransomware OR encrypted OR .akira OR .lockbit OR extortion) | stats count by src_ip, dest_ip, user | sort -count | head 50",
+        "timeRange": "-1h"
+      },
+      "id": "scan-siem-ransomware",
+      "name": "Scan SIEM for Ransomware Indicators",
+      "type": "n8n-nodes-base.splunk",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ],
+      "disabled": false,
+      "credentials": {
+        "splunkApi": {
+          "name": "Splunk Instance",
+          "id": "splunk-instance",
+          "type": "splunkApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "execute",
+        "command": "grep -iE '\\.(akira|lockbit|play|bian|mount|rhysida|8base|medusa|royal|blackcat|blackbasta|donut|fenix)' /var/log/suricata/fast.log | tail -100",
+        "shell": "bash"
+      },
+      "id": "check-suricata-ransomware",
+      "name": "Check Suricata for Ransomware",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        500,
+        400
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.count }}",
+              "operation": "greaterEqual",
+              "value2": 10
+            }
+          ]
+        }
+      },
+      "id": "ransomware-threshold",
+      "name": "Ransomware Detection Threshold",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "message": "🚨 RANSOMWARE ALERT: Potential Attack Detected\n\nTimestamp: {{ $now }}\nIndicator: {{ $json.searchResult }}\nSource IP: {{ $json.src_ip }}\nDestination IP: {{ $json.dest_ip }}\nUser: {{ $json.user }}\nEvent Count: {{ $json.count }}\n\nIMMEDIATE ACTIONS:\n1. Isolate affected systems from network\n2. Preserve forensic evidence\n3. Check backup integrity\n4. Activate incident response team\n5. Document all actions taken\n\n⚠️ DO NOT power off systems - may lose volatile memory data",
+        "additionalFields": {}
+      },
+      "id": "ransomware-slack-alert",
+      "name": "Send Ransomware Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        900,
+        250
+      ],
+      "disabled": false,
+      "credentials": {
+        "slackApi": {
+          "name": "Slack Alert Channel",
+          "id": "slack-alerts",
+          "type": "slackApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "message": "Subject: 🚨 CRITICAL: RANSOMWARE ATTACK DETECTED\n\nIMMEDIATE ACTION REQUIRED\n\nRansomware indicators detected in our environment.\n\nDETECTED INDICATORS:\n- Source IP: {{ $json.src_ip }}\n- Destination IP: {{ $json.dest_ip }}\n- User Account: {{ $json.user }}\n- Event Count: {{ $json.count }}\n\nIMMEDIATE ACTIONS REQUIRED:\n1. ⏱️ ISOLATE affected systems from network NOW\n2. 🔒 DO NOT power off systems - preserve memory evidence\n3. 📞 Contact incident response team immediately\n4. 📸 Document all affected systems\n5. 💾 Verify backup integrity\n6. 🚫 Prevent users from accessing affected systems\n\nINCIDENT RESPONSE TEAM: [INSERT PHONE NUMBER]\nSOC EMAIL: soc@company.com\n\nThis is a CRITICAL severity incident.",
+        "additionalFields": {}
+      },
+      "id": "ransomware-email-critical",
+      "name": "Send Critical Email Alert",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1.3,
+      "position": [
+        900,
+        400
+      ],
+      "disabled": false,
+      "credentials": {
+        "smtp": {
+          "name": "SMTP Server",
+          "id": "smtp-server",
+          "type": "smtp"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "incident",
+        "operation": "create",
+        "title": "🚨 RANSOMWARE ATTACK IN PROGRESS",
+        "description": "=Active ransomware attack detected. Immediate isolation and response required.\n\nDetected Indicators:\n- Source: {{ $json.src_ip }}\n- Destination: {{ $json.dest_ip }}\n- User: {{ $json.user }}\n- Event Count: {{ $json.count }}",
+        "labels": [
+          "ransomware",
+          "critical",
+          "in-progress",
+          "incident"
+        ],
+        "priority": 1,
+        "additionalFields": {}
+      },
+      "id": "create-ransomware-incident",
+      "name": "Create Critical Incident",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        900,
+        500
+      ],
+      "disabled": false,
+      "credentials": {
+        "jiraApi": {
+          "name": "Jira Instance",
+          "id": "jira-instance",
+          "type": "jiraApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "execute",
+        "command": "curl -X POST https://api.pagerduty.com/incidents -H 'Content-Type: application/json' -H 'Authorization: Token token=$PAGERDUTY_API_KEY' -d '{\"incident\": {\"type\": \"incident\", \"title\": \"Ransomware Attack Detected\", \"service\": {\"id\": \"PSERVICE_ID\", \"type\": \"service_reference\"}, \"urgency\": \"high\", \"body\": {\"type\": \"incident_body\", \"details\": \"Active ransomware attack detected. Immediate response required.\"}}}'",
+        "shell": "bash"
+      },
+      "id": "pagerduty-escalation",
+      "name": "Escalate to PagerDuty",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        300
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "ransomware_incidents",
+        "columns": {
+          "incident_type": "Ransomware Detection",
+          "status": "ACTIVE",
+          "severity": "CRITICAL",
+          "source_ip": "={{ $json.src_ip }}",
+          "dest_ip": "={{ $json.dest_ip }}",
+          "affected_user": "={{ $json.user }}",
+          "detection_count": "={{ $json.count }}",
+          "created_at": "={{ new Date().toISOString() }}",
+          "response_status": "INITIATED"
+        },
+        "additionalFields": {}
+      },
+      "id": "log-ransomware-incident",
+      "name": "Log Ransomware Incident",
+      "type": "n8n-nodes-base.n8nSql",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        400
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "operation": "execute",
+        "command": "iptables -I INPUT -s {{ $json.src_ip }} -j DROP && iptables -I OUTPUT -d {{ $json.src_ip }} -j DROP && echo 'Blocked {{ $json.src_ip }}'",
+        "shell": "bash"
+      },
+      "id": "block-source-ip",
+      "name": "Block Source IP at Firewall",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        500
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "network_blocks",
+        "columns": {
+          "ip_address": "={{ $json.src_ip }}",
+          "block_reason": "Ransomware Detection",
+          "blocked_at": "={{ new Date().toISOString() }}",
+          "expires_at": "={{ new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() }}",
+          "status": "ACTIVE"
+        },
+        "additionalFields": {}
+      },
+      "id": "log-network-block",
+      "name": "Log Network Block",
+      "type": "n8n-nodes-base.n8nSql",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        500
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "operation": "execute",
+        "command": "cat > /etc/n8n/ransomware-playbook.md << 'EOF'\n# Ransomware Incident Response Playbook\n\n## Phase 1: Initial Response (0-15 minutes)\n1. ⏱️ ISOLATE - Disconnect affected systems from network\n2. 🔍 ASSESS - Identify scope of infection\n3. 📞 NOTIFY - Activate incident response team\n4. 📝 DOCUMENT - Record all observations\n\n## Phase 2: Containment (15-60 minutes)\n1. Identify patient zero\n2. Block lateral movement paths\n3. Preserve evidence\n4. Check backup integrity\n\n## Phase 3: Eradication (1-4 hours)\n1. Remove malware\n2. Close attack vector\n3. Reset credentials\n4. Patch vulnerabilities\n\n## Phase 4: Recovery\n1. Restore from clean backups\n2. Verify system integrity\n3. Monitor for reinfection\n4. Gradual restoration of services\n\n## DO NOT:\n- ❌ Power off systems (loses volatile memory)\n- ❌ Pay ransom (no guarantee of recovery)\n- ❌ Restore from affected backups\n- ❌ Ignore suspicious activity\n\n## Contact:\n- IR Team: [NUMBER]\n- Legal: [NUMBER]\n- Insurance: [NUMBER]\nEOF\necho 'Ransomware playbook updated'",
+        "shell": "bash"
+      },
+      "id": "update-playbook",
+      "name": "Update Response Playbook",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        300
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "operation": "execute",
+        "command": "echo 'RANSOMWARE ALERT: $(date) - IP: {{ $json.src_ip }}' >> /var/log/ransomware-alerts.log",
+        "shell": "bash"
+      },
+      "id": "log-alert-local",
+      "name": "Local Alert Logging",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        200
+      ],
+      "disabled": false
+    }
+  ],
+  "connections": {
+    "Ransomware Monitor Trigger": {
+      "main": [
+        [
+          {
+            "node": "Monitor No More Ransom Feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Monitor No More Ransom Feed": {
+      "main": [
+        [
+          {
+            "node": "Store Ransomware IOCs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Ransomware IOCs": {
+      "main": [
+        [
+          {
+            "node": "Scan SIEM for Ransomware Indicators",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Suricata for Ransomware",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scan SIEM for Ransomware Indicators": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Detection Threshold",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Suricata for Ransomware": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Detection Threshold",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ransomware Detection Threshold": {
+      "main": [
+        [
+          {
+            "node": "Send Ransomware Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Critical Email Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Critical Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Ransomware Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Escalate to PagerDuty",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Local Alert Logging",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Critical Incident": {
+      "main": [
+        [
+          {
+            "node": "Log Ransomware Incident",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Block Source IP at Firewall",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block Source IP at Firewall": {
+      "main": [
+        [
+          {
+            "node": "Log Network Block",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Response Playbook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "createdAt": "2025-12-27T14:20:11.968570+00:00",
+  "updatedAt": "2025-12-27T14:20:11.968570+00:00",
+  "meta": {
+    "agent_id": "a401e896-d617-4e97-8bbf-29f47e133c21",
+    "trigger_id": "a1a6b29f-1834-4666-82d7-1163ce25f64c",
+    "workflow_type": "automated_threat_response",
+    "threat_category": "ransomware",
+    "priority": "CRITICAL"
+  }
+}

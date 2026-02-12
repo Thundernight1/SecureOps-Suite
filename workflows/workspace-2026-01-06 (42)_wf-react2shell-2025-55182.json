@@ -1,0 +1,172 @@
+{
+  "name": "React2Shell Critical Vulnerability Response",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cisa.gov/v1/vulnerabilities/cve-2025-55182",
+        "authentication": "preDefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": {
+          "cveId": "CVE-2025-55182",
+          "severity": "CRITICAL",
+          "cvssScore": 10,
+          "status": "active_exploitation",
+          "affectedSoftware": [
+            "React 19.x",
+            "Next.js 15.x/16.x App Router"
+          ],
+          "description": "React Server Components Remote Code Execution - Unauthenticated RCE via malicious requests"
+        },
+        "options": {}
+      },
+      "name": "CVE-2025-55182 Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        280,
+        300
+      ],
+      "id": "cve-alert-node-1"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "channel": "security-alerts",
+        "text": "=🚨 CRITICAL ALERT: React2Shell (CVE-2025-55182)\n\nSeverity: CRITICAL (CVSS 10.0)\nStatus: Actively Exploited\n\nAffected Systems:\n• React 19.x\n• Next.js 15.x/16.x with App Router\n\nRecommended Actions:\n1. IMMEDIATE: Patch React to latest version\n2. Block external requests to Next.js dev servers\n3. Enable WAF rules for RSC endpoints\n4. Monitor for suspicious Node.js process activity\n\nAttribution: China-nexus groups (Earth Lamia, Jackpot Panda)\n\nn8nWorkflowId: wf-react2shell-2025-55182",
+        "options": {}
+      },
+      "name": "Slack Security Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        300
+      ],
+      "id": "slack-alert-1"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "to": "security-team@company.com",
+        "subject": "🚨 CRITICAL: React2Shell CVE-2025-55182 Active Exploitation",
+        "text": "=CRITICAL SECURITY ALERT\n\nVulnerability: CVE-2025-55182 (React2Shell)\nSeverity: CRITICAL (CVSS 10.0)\nStatus: Actively Exploited by China-nexus APT groups\n\nIMPACT:\n• Unauthenticated Remote Code Execution\n• Affects React Server Components\n• Targets Next.js applications with App Router\n\nAFFECTED SYSTEMS:\n• React 19.x applications\n• Next.js 15.x and 16.x with App Router enabled\n\nRECOMMENDED ACTIONS:\n1. IMMEDIATE: Upgrade React to patched version\n2. Block external access to Next.js development servers\n3. Deploy WAF rules blocking suspicious RSC requests\n4. Audit Node.js processes for suspicious activity\n5. Review logs for: whoami, id, uname commands\n\nTHREAT ACTORS:\n• Earth Lamia (206.237.3.150)\n• Jackpot Panda (45.77.33.136)\n\nContact: Security Operations Center",
+        "options": {}
+      },
+      "name": "Email Security Team",
+      "type": "n8n-nodes-base.emailReadWrite",
+      "typeVersion": 2,
+      "position": [
+        720,
+        300
+      ],
+      "id": "email-alert-1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": 9,
+              "operation": "largerEqual"
+            }
+          ]
+        },
+        "combineOperation": "any"
+      },
+      "name": "Critical Severity Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ],
+      "id": "severity-check-1"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "ticketType": "security_incident",
+        "title": "=React2Shell CVE-2025-55182 Critical Vulnerability",
+        "description": "=Critical vulnerability actively exploited. See CVE-2025-55182 for details.",
+        "options": {}
+      },
+      "name": "Create Jira Ticket",
+      "type": "n8n-nodes-base.jiraSoftware",
+      "typeVersion": 3,
+      "position": [
+        940,
+        300
+      ],
+      "id": "jira-ticket-1"
+    }
+  ],
+  "connections": {
+    "CVE-2025-55182 Alert": {
+      "main": [
+        [
+          {
+            "node": "Slack Security Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Security Alert": {
+      "main": [
+        [
+          {
+            "node": "Email Security Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Security Team": {
+      "main": [
+        [
+          {
+            "node": "Create Jira Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Critical Severity Check": {
+      "main": [
+        [
+          {
+            "node": "CVE-2025-55182 Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateId": "cve-critical-response",
+    "cyberSentinel": true,
+    "triggerId": "a1a6b29f-1834-4666-82d7-1163ce25f64c",
+    "agentId": "a401e896-d617-4e97-8bbf-29f47e133c21",
+    "scheduledTime": "2025-12-27T14:20:11.968570+00:00"
+  }
+}

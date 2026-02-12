@@ -1,0 +1,692 @@
+{
+  "report_metadata": {
+    "generated_timestamp": "2025-12-27T14:20:11.968570+00:00",
+    "report_period": "December 2025",
+    "agent_id": "a401e896-d617-4e97-8bbf-29f47e133c21",
+    "report_version": "1.0",
+    "classification": "THREAT_INTELLIGENCE_OPERATIONAL"
+  },
+  "executive_summary": {
+    "threat_landscape": "December 2025 marked an exceptionally active threat period with critical zero-day vulnerabilities, widespread ransomware campaigns, and sophisticated APT operations. The threat environment is characterized by AI-driven attacks, multi-vector exploitation, and reduced false positives through business context integration.",
+    "key_findings": [
+      "React2Shell (CVE-2025-55182) actively exploited by multiple state-nexus threat groups",
+      "Ransomware attacks against critical sectors increased 34% YoY",
+      "AI-powered phishing campaigns 4.5x more likely to succeed",
+      "Holiday season exploitation patterns with 700% retail fraud spike",
+      "New RaaS operations (Osiris) targeting healthcare and government"
+    ],
+    "business_impact": "HIGH - Multiple critical vulnerabilities affecting enterprise applications, widespread ransomware targeting critical infrastructure, and sophisticated phishing campaigns pose immediate operational and financial risks"
+  },
+  "threats": [
+    {
+      "threat_id": "THREAT_001",
+      "threatType": "VULNERABILITY",
+      "threat_name": "React2Shell (CVE-2025-55182)",
+      "cvss_score": 10.0,
+      "severity": "CRITICAL",
+      "status": "ACTIVELY_EXPLOITED",
+      "discovery_date": "2025-12-03",
+      "affected_systems": [
+        "React Server Components (RSC)",
+        "React 19.x",
+        "Next.js 15.x and 16.x with App Router",
+        "Web applications using React Server Components"
+      ],
+      "affected_industries": [
+        "Technology",
+        "SaaS",
+        "E-commerce",
+        "Financial Services",
+        "Healthcare"
+      ],
+      "threat_actors": [
+        "Earth Lamia (UNC5454)",
+        "Jackpot Panda",
+        "Multiple opportunistic cybercrime actors"
+      ],
+      "attack_vectors": [
+        "Unauthenticated Remote Code Execution",
+        "HTTP request-based exploitation",
+        "Multiple valid payload formats"
+      ],
+      "indicatorsOfCompromise": [
+        "IP: 206.237.3.150 (Earth Lamia activity 2025-12-04)",
+        "IP: 45.77.33.136 (Jackpot Panda activity 2025-12-04)",
+        "Reconnaissance commands: whoami, id, uname",
+        "Suspicious /tmp/ directory writes",
+        "Node.js process spawning unusual child processes"
+      ],
+      "business_context": "This vulnerability affects modern web application frameworks widely deployed in enterprise environments. The CVSS 10.0 score and active exploitation by state-nexus actors make this a critical priority. Organizations using React Server Components require immediate patching.",
+      "false_positive_risk": "LOW - Confirmed active exploitation with multiple threat actor attribution",
+      "recommendedActions": [
+        "IMMEDIATE: Patch React to latest version (19.x+) and Next.js to 15.x+ or 16.x+",
+        "URGENT: Scan all web applications for React Server Component usage",
+        "CRITICAL: Monitor for indicators of compromise (reconnaissance commands, /tmp/ writes)",
+        "PRIORITY: Implement WAF rules to detect React2Shell exploitation attempts",
+        "RECOMMENDED: Isolate affected systems and review access logs for 2025-12-03 onwards",
+        "BUSINESS_CONTEXT: Prioritize patching for customer-facing and revenue-generating applications first"
+      ],
+      "n8nWorkflowId": "wf_react2shell_response_001"
+    },
+    {
+      "threat_id": "THREAT_002",
+      "threatType": "VULNERABILITY",
+      "threat_name": "Microsoft Office RCE (CVE-2025-62554, CVE-2025-62557)",
+      "cvss_score": 8.4,
+      "severity": "CRITICAL",
+      "status": "PATCHED_AVAILABLE",
+      "discovery_date": "2025-12-10",
+      "affected_systems": [
+        "Microsoft Office Suite",
+        "Microsoft Outlook",
+        "Microsoft Access",
+        "Windows systems with Office installed"
+      ],
+      "affected_industries": [
+        "Enterprise",
+        "Government",
+        "Finance",
+        "Healthcare",
+        "Education"
+      ],
+      "attack_vectors": [
+        "Malicious email attachments",
+        "Crafted Office documents",
+        "No user interaction required in worst case"
+      ],
+      "indicatorsOfCompromise": [
+        "Suspicious Office document execution",
+        "Unexpected PowerShell spawning from Office processes",
+        "Network connections from Office applications",
+        "Registry modifications from Office processes"
+      ],
+      "business_context": "These vulnerabilities affect ubiquitous Office applications used across all enterprise environments. Email-based delivery makes this a high-risk vector during holiday season when vigilance is reduced. Exploitation requires no user interaction.",
+      "false_positive_risk": "MEDIUM - Office processes may legitimately spawn child processes; requires behavioral analysis",
+      "recommendedActions": [
+        "URGENT: Deploy Microsoft December 2025 Patch Tuesday updates",
+        "CRITICAL: Monitor email gateways for Office document attachments",
+        "PRIORITY: Implement email filtering rules for suspicious Office files",
+        "RECOMMENDED: Disable Office macros via Group Policy where possible",
+        "BUSINESS_CONTEXT: Coordinate patching with business operations to minimize disruption"
+      ],
+      "n8nWorkflowId": "wf_office_rce_response_002"
+    },
+    {
+      "threat_id": "THREAT_003",
+      "threatType": "RANSOMWARE",
+      "threat_name": "Akira Ransomware Campaign",
+      "severity": "CRITICAL",
+      "status": "ACTIVE",
+      "market_share": "34%",
+      "discovery_date": "2025-Q3",
+      "affected_systems": [
+        "Windows servers",
+        "Network-attached storage",
+        "Backup systems",
+        "Critical infrastructure"
+      ],
+      "affected_industries": [
+        "Healthcare",
+        "Manufacturing",
+        "Energy",
+        "Finance",
+        "Government"
+      ],
+      "threat_actors": [
+        "Akira Ransomware Group"
+      ],
+      "attack_vectors": [
+        "Phishing emails",
+        "Unpatched vulnerabilities",
+        "Compromised remote access points",
+        "Supply chain compromise"
+      ],
+      "indicatorsOfCompromise": [
+        "Akira ransom note files (.akira extension)",
+        "Suspicious lateral movement activity",
+        "Credential dumping tools (Mimikatz) execution",
+        "Mass file encryption activity",
+        "Backup system access and deletion"
+      ],
+      "business_context": "Akira represents 34% of observed ransomware attacks in Q3 2025. The group employs double/triple extortion tactics, combining encryption with data theft and public exposure threats. Critical infrastructure targeting indicates nation-state interest.",
+      "false_positive_risk": "LOW - Ransomware indicators are highly specific and rarely produce false positives",
+      "recommendedActions": [
+        "CRITICAL: Implement immutable backup systems offline from network",
+        "URGENT: Deploy EDR solutions with ransomware-specific detection",
+        "PRIORITY: Segment networks to limit lateral movement",
+        "RECOMMENDED: Implement MFA on all remote access points",
+        "BUSINESS_CONTEXT: Establish incident response procedures and communication plans before infection occurs"
+      ],
+      "n8nWorkflowId": "wf_akira_ransomware_response_003"
+    },
+    {
+      "threat_id": "THREAT_004",
+      "threatType": "RANSOMWARE",
+      "threat_name": "Qilin Ransomware - Volkswagen Group France Attack",
+      "severity": "CRITICAL",
+      "status": "ACTIVE",
+      "market_share": "10%",
+      "discovery_date": "2025-10-14",
+      "affected_systems": [
+        "Enterprise networks",
+        "Manufacturing systems",
+        "Automotive industry infrastructure"
+      ],
+      "affected_industries": [
+        "Automotive",
+        "Manufacturing",
+        "Finance",
+        "Telecommunications"
+      ],
+      "threat_actors": [
+        "Qilin Ransomware Group"
+      ],
+      "attack_vectors": [
+        "Vulnerability exploitation",
+        "Phishing campaigns",
+        "Supply chain compromise"
+      ],
+      "indicatorsOfCompromise": [
+        "Qilin ransom notes",
+        "150 GB data exfiltration patterns",
+        "Vehicle owner data access",
+        "Internal document theft",
+        "Dark web leak site postings"
+      ],
+      "business_context": "Qilin's attack on Volkswagen Group France resulted in 150 GB of sensitive data theft including vehicle owner information and internal documents. The group operates with sophisticated data exfiltration capabilities and maintains active leak sites for extortion.",
+      "false_positive_risk": "LOW - Qilin-specific indicators are well-documented",
+      "recommendedActions": [
+        "CRITICAL: Monitor for Qilin leak site postings of your organization's data",
+        "URGENT: Implement data loss prevention (DLP) for sensitive information",
+        "PRIORITY: Deploy network segmentation for sensitive data repositories",
+        "RECOMMENDED: Establish threat intelligence feeds for Qilin activity",
+        "BUSINESS_CONTEXT: Prepare customer notification procedures for potential data breaches"
+      ],
+      "n8nWorkflowId": "wf_qilin_ransomware_response_004"
+    },
+    {
+      "threat_id": "THREAT_005",
+      "threatType": "PHISHING",
+      "threat_name": "ConsentFix - OAuth Consent Phishing with ClickFix",
+      "severity": "HIGH",
+      "status": "ACTIVE",
+      "discovery_date": "2025-12-11",
+      "affected_systems": [
+        "Cloud identity systems",
+        "OAuth-enabled applications",
+        "Browser-based authentication"
+      ],
+      "affected_industries": [
+        "Technology",
+        "Finance",
+        "SaaS",
+        "Enterprise"
+      ],
+      "attack_vectors": [
+        "OAuth consent screen spoofing",
+        "Browser-native attack techniques",
+        "ClickFix-style user prompts",
+        "Credential harvesting"
+      ],
+      "indicatorsOfCompromise": [
+        "Suspicious OAuth consent requests",
+        "Browser-in-the-browser (BitB) detection",
+        "Unusual permission grant patterns",
+        "Fake CAPTCHA prompts",
+        "PowerShell execution via mshta.exe"
+      ],
+      "business_context": "ConsentFix represents a new class of browser-native attacks combining OAuth phishing with ClickFix techniques. The attack chain leads to installation of advanced stealers (Amatera) and RATs (NetSupport). Holiday season timing exploits reduced vigilance.",
+      "false_positive_risk": "MEDIUM - Legitimate OAuth flows may trigger alerts; requires behavioral analysis",
+      "recommendedActions": [
+        "URGENT: Educate users on OAuth consent screen verification",
+        "PRIORITY: Implement conditional access policies for OAuth flows",
+        "RECOMMENDED: Deploy browser security extensions to detect BitB attacks",
+        "BUSINESS_CONTEXT: Monitor for unusual permission grants to third-party applications"
+      ],
+      "n8nWorkflowId": "wf_consentfix_phishing_response_005"
+    },
+    {
+      "threat_id": "THREAT_006",
+      "threatType": "PHISHING",
+      "threat_name": "Microsoft 365 Device Code Phishing (UNK_AcademicFlare)",
+      "severity": "HIGH",
+      "status": "ACTIVE",
+      "discovery_date": "2025-09-01",
+      "affected_systems": [
+        "Microsoft 365 accounts",
+        "Government systems",
+        "Educational institutions",
+        "Think tanks",
+        "Transportation sector"
+      ],
+      "affected_industries": [
+        "Government",
+        "Education",
+        "Transportation",
+        "Think Tanks",
+        "Defense"
+      ],
+      "threat_actors": [
+        "UNK_AcademicFlare (Russia-aligned)"
+      ],
+      "attack_vectors": [
+        "Device code authentication workflow abuse",
+        "Compromised government email accounts",
+        "Spear-phishing campaigns",
+        "Graphish phishing kit usage",
+        "SquarePhish red-team tools"
+      ],
+      "indicatorsOfCompromise": [
+        "Device code phishing emails",
+        "Unusual device code authentication attempts",
+        "Compromised government email sending phishing",
+        "Account takeover indicators",
+        "Unusual geographic login locations"
+      ],
+      "business_context": "Russia-aligned actors are exploiting Microsoft 365 device code flows to conduct account takeovers. The use of compromised government email accounts adds legitimacy to phishing attempts. Targets include sensitive government, educational, and transportation sectors.",
+      "false_positive_risk": "MEDIUM - Device code flows are legitimate but unusual; requires context analysis",
+      "recommendedActions": [
+        "CRITICAL: Implement device code flow restrictions in Azure AD",
+        "URGENT: Monitor for unusual device code authentication attempts",
+        "PRIORITY: Implement MFA for all Microsoft 365 accounts",
+        "RECOMMENDED: Deploy conditional access policies based on geographic location",
+        "BUSINESS_CONTEXT: Coordinate with government/education sector peers on threat sharing"
+      ],
+      "n8nWorkflowId": "wf_m365_device_code_response_006"
+    },
+    {
+      "threat_id": "THREAT_007",
+      "threatType": "APT",
+      "threat_name": "Blind Eagle (APT-C-36) - Colombian Government Targeting",
+      "severity": "HIGH",
+      "status": "ACTIVE",
+      "discovery_date": "2018-04",
+      "affected_systems": [
+        "Colombian government agencies",
+        "Office Suite applications",
+        "Operating systems",
+        "Web applications"
+      ],
+      "affected_industries": [
+        "Government",
+        "Finance",
+        "Petroleum",
+        "Manufacturing"
+      ],
+      "threat_actors": [
+        "Blind Eagle (APT-C-36)"
+      ],
+      "attack_vectors": [
+        "Spear-phishing",
+        "Vulnerability exploitation",
+        "Credential dumping",
+        "Multi-stage fileless execution",
+        "Compromised internal email accounts"
+      ],
+      "indicatorsOfCompromise": [
+        "Caminho downloader usage",
+        "Enhanced DCRAT payload",
+        "Discord C2 communication",
+        "Steganographic data exfiltration",
+        "Multi-stage fileless attack chains"
+      ],
+      "business_context": "Blind Eagle is a persistent South American APT group targeting Colombian government institutions since 2018. Recent campaigns show advanced tradecraft including multi-stage fileless attacks and steganographic C2 communication. Geographic expansion to other regions is suspected.",
+      "false_positive_risk": "LOW - APT indicators are highly specific and well-documented",
+      "recommendedActions": [
+        "CRITICAL: Monitor for Caminho downloader and DCRAT payloads",
+        "URGENT: Implement Discord C2 communication blocking",
+        "PRIORITY: Deploy steganography detection tools",
+        "RECOMMENDED: Establish threat intelligence sharing with regional peers",
+        "BUSINESS_CONTEXT: If operating in South America, implement enhanced monitoring"
+      ],
+      "n8nWorkflowId": "wf_blind_eagle_apt_response_007"
+    },
+    {
+      "threat_id": "THREAT_008",
+      "threatType": "APT",
+      "threat_name": "Infy (Prince of Persia) - Iranian APT Resurgence",
+      "severity": "HIGH",
+      "status": "ACTIVE",
+      "discovery_date": "2025-12-21",
+      "affected_systems": [
+        "European government systems",
+        "Swedish infrastructure",
+        "Dutch infrastructure",
+        "Turkish infrastructure"
+      ],
+      "affected_industries": [
+        "Government",
+        "Defense",
+        "Critical Infrastructure"
+      ],
+      "threat_actors": [
+        "Infy (Prince of Persia) - Iranian APT"
+      ],
+      "attack_vectors": [
+        "Spear-phishing",
+        "Document-based exploitation",
+        "Embedded executables in documents",
+        "Domain generation algorithm (DGA) C2"
+      ],
+      "indicatorsOfCompromise": [
+        "Embedded executables in Office documents",
+        "DGA-generated C2 domains",
+        "RSA signature-based validation mechanisms",
+        "Evolved attack chains replacing macros"
+      ],
+      "business_context": "Iranian APT Infy resurfaced after 5 years of apparent inactivity with new malicious campaigns targeting European victims. The group has evolved its attack chains, replacing macros with embedded executables and implementing sophisticated C2 infrastructure with DGA and RSA validation.",
+      "false_positive_risk": "LOW - APT indicators are well-documented",
+      "recommendedActions": [
+        "CRITICAL: Monitor for DGA-generated domains and RSA-validated C2",
+        "URGENT: Implement document execution restrictions",
+        "PRIORITY: Deploy advanced email filtering for embedded executables",
+        "RECOMMENDED: Establish threat intelligence feeds for Infy activity",
+        "BUSINESS_CONTEXT: If operating in Europe, implement enhanced monitoring"
+      ],
+      "n8nWorkflowId": "wf_infy_apt_response_008"
+    },
+    {
+      "threat_id": "THREAT_009",
+      "threatType": "MALWARE",
+      "threat_name": "XMRig Cryptominer - Most Prevalent Malware Family",
+      "severity": "MEDIUM",
+      "status": "ACTIVE",
+      "discovery_date": "2025-H1",
+      "affected_systems": [
+        "Windows systems",
+        "Linux servers",
+        "Cloud infrastructure",
+        "IoT devices"
+      ],
+      "affected_industries": [
+        "Technology",
+        "Finance",
+        "Healthcare",
+        "Manufacturing"
+      ],
+      "attack_vectors": [
+        "Malicious loaders",
+        "Exploit kits",
+        "Supply chain compromise",
+        "Phishing attachments"
+      ],
+      "indicatorsOfCompromise": [
+        "XMRig process execution",
+        "High CPU utilization",
+        "Monero (XMR) mining pool connections",
+        "Persistence mechanisms (scheduled tasks, registry modifications)",
+        "Evasion techniques (VM detection, anti-analysis)"
+      ],
+      "business_context": "XMRig is the most-submitted malware family in H1 2025 public sandboxes. The multi-stage cryptojacking tool covertly hijacks CPU resources to mine Monero. Evasion and persistence mechanisms make detection challenging. Business impact includes performance degradation and increased infrastructure costs.",
+      "false_positive_risk": "MEDIUM - Legitimate mining operations may trigger alerts; requires context analysis",
+      "recommendedActions": [
+        "URGENT: Monitor for XMRig process execution and mining pool connections",
+        "PRIORITY: Implement CPU usage monitoring and alerting",
+        "RECOMMENDED: Deploy anti-cryptomining browser extensions",
+        "BUSINESS_CONTEXT: Monitor cloud infrastructure costs for anomalies indicating cryptomining"
+      ],
+      "n8nWorkflowId": "wf_xmrig_malware_response_009"
+    },
+    {
+      "threat_id": "THREAT_010",
+      "threatType": "IOC",
+      "threat_name": "Lumma Stealer - Malware-as-a-Service",
+      "severity": "HIGH",
+      "status": "ACTIVE",
+      "discovery_date": "2025-Q3",
+      "affected_systems": [
+        "Windows systems",
+        "Browser systems",
+        "Cryptocurrency wallets",
+        "Banking systems"
+      ],
+      "affected_industries": [
+        "Finance",
+        "Technology",
+        "Cryptocurrency",
+        "Enterprise"
+      ],
+      "attack_vectors": [
+        "Phishing campaigns",
+        "Compromised websites",
+        "Malware distribution networks",
+        "Supply chain compromise"
+      ],
+      "indicatorsOfCompromise": [
+        "Lumma Stealer process execution",
+        "Browser credential theft",
+        "Cryptocurrency wallet access",
+        "Banking information exfiltration",
+        "Cookie and autofill data theft",
+        "Virtual environment detection attempts"
+      ],
+      "business_context": "Lumma Stealer operates as a Malware-as-a-Service platform, targeting PII including credentials, banking information, cookies, browser autofill data, and cryptocurrency wallets. The malware includes sophisticated defense evasion capabilities including virtual environment detection and executable encryption.",
+      "false_positive_risk": "LOW - Stealer malware indicators are specific",
+      "recommendedActions": [
+        "CRITICAL: Monitor for Lumma Stealer process execution",
+        "URGENT: Implement credential monitoring and alerting",
+        "PRIORITY: Deploy browser security extensions",
+        "RECOMMENDED: Implement hardware-based security keys for sensitive accounts",
+        "BUSINESS_CONTEXT: Monitor for credential compromise in dark web marketplaces"
+      ],
+      "n8nWorkflowId": "wf_lumma_stealer_response_010"
+    }
+  ],
+  "threat_actor_profiles": [
+    {
+      "actor_id": "ACTOR_001",
+      "actor_name": "Earth Lamia (UNC5454)",
+      "actor_type": "STATE_NEXUS",
+      "origin": "China",
+      "primary_objectives": [
+        "Espionage",
+        "Intellectual property theft",
+        "Critical infrastructure targeting"
+      ],
+      "known_campaigns": [
+        "React2Shell exploitation (CVE-2025-55182)"
+      ],
+      "infrastructure": [
+        "IP: 206.237.3.150"
+      ],
+      "ttps": [
+        "Vulnerability exploitation",
+        "Reconnaissance",
+        "Lateral movement"
+      ]
+    },
+    {
+      "actor_id": "ACTOR_002",
+      "actor_name": "Jackpot Panda",
+      "actor_type": "STATE_NEXUS",
+      "origin": "China",
+      "primary_objectives": [
+        "Financial gain",
+        "Data theft",
+        "Espionage"
+      ],
+      "known_campaigns": [
+        "React2Shell exploitation (CVE-2025-55182)"
+      ],
+      "infrastructure": [
+        "IP: 45.77.33.136"
+      ],
+      "ttps": [
+        "Vulnerability exploitation",
+        "Reconnaissance",
+        "Data exfiltration"
+      ]
+    },
+    {
+      "actor_id": "ACTOR_003",
+      "actor_name": "Akira Ransomware Group",
+      "actor_type": "CYBERCRIMINAL",
+      "origin": "Unknown",
+      "primary_objectives": [
+        "Financial extortion",
+        "Data theft",
+        "Operational disruption"
+      ],
+      "known_campaigns": [
+        "Critical infrastructure targeting",
+        "Healthcare sector attacks",
+        "Manufacturing sector attacks"
+      ],
+      "market_share": "34%",
+      "ttps": [
+        "Phishing",
+        "Vulnerability exploitation",
+        "Lateral movement",
+        "Data exfiltration",
+        "Double/triple extortion"
+      ]
+    },
+    {
+      "actor_id": "ACTOR_004",
+      "actor_name": "Qilin Ransomware Group",
+      "actor_type": "CYBERCRIMINAL",
+      "origin": "Unknown",
+      "primary_objectives": [
+        "Financial extortion",
+        "Data theft",
+        "Operational disruption"
+      ],
+      "known_campaigns": [
+        "Volkswagen Group France attack",
+        "Automotive industry targeting",
+        "Manufacturing sector attacks"
+      ],
+      "market_share": "10%",
+      "ttps": [
+        "Vulnerability exploitation",
+        "Phishing",
+        "Supply chain compromise",
+        "Data exfiltration",
+        "Double/triple extortion"
+      ]
+    }
+  ],
+  "industry_impact_analysis": {
+    "healthcare": {
+      "threat_level": "CRITICAL",
+      "primary_threats": [
+        "Ransomware (Akira, Qilin, Osiris)",
+        "Phishing campaigns",
+        "Data theft"
+      ],
+      "business_impact": "Patient care disruption, data breach notification costs, regulatory fines",
+      "recommended_focus": [
+        "Immutable backups",
+        "Network segmentation",
+        "EDR deployment",
+        "Incident response planning"
+      ]
+    },
+    "finance": {
+      "threat_level": "CRITICAL",
+      "primary_threats": [
+        "Credential theft (Lumma Stealer)",
+        "Phishing campaigns",
+        "Account takeover",
+        "Data theft"
+      ],
+      "business_impact": "Financial fraud, regulatory fines, reputational damage, customer trust loss",
+      "recommended_focus": [
+        "MFA implementation",
+        "Credential monitoring",
+        "Browser security",
+        "Threat intelligence sharing"
+      ]
+    },
+    "technology": {
+      "threat_level": "CRITICAL",
+      "primary_threats": [
+        "React2Shell exploitation",
+        "Supply chain compromise",
+        "APT targeting",
+        "Malware distribution"
+      ],
+      "business_impact": "Service disruption, customer data breach, intellectual property theft, reputational damage",
+      "recommended_focus": [
+        "Vulnerability patching",
+        "Supply chain security",
+        "Code review processes",
+        "Incident response"
+      ]
+    },
+    "government": {
+      "threat_level": "CRITICAL",
+      "primary_threats": [
+        "APT campaigns (Blind Eagle, Infy)",
+        "Phishing campaigns",
+        "Espionage",
+        "Critical infrastructure targeting"
+      ],
+      "business_impact": "National security implications, data breach, operational disruption, diplomatic incidents",
+      "recommended_focus": [
+        "Advanced threat detection",
+        "Threat intelligence sharing",
+        "Incident response",
+        "Supply chain security"
+      ]
+    },
+    "manufacturing": {
+      "threat_level": "HIGH",
+      "primary_threats": [
+        "Ransomware (Akira, Qilin)",
+        "Operational technology targeting",
+        "Supply chain compromise",
+        "Data theft"
+      ],
+      "business_impact": "Production disruption, supply chain disruption, data theft, financial loss",
+      "recommended_focus": [
+        "OT/IT segmentation",
+        "Backup strategies",
+        "Incident response",
+        "Supply chain security"
+      ]
+    }
+  },
+  "false_positive_reduction_strategies": {
+    "strategy_1": {
+      "name": "Business Context Integration",
+      "description": "Correlate threat indicators with business operations to reduce false positives from legitimate activities",
+      "implementation": [
+        "Map known legitimate processes and network connections",
+        "Establish baseline behavior for each business unit",
+        "Implement time-based alerting (e.g., no alerts during maintenance windows)",
+        "Correlate multiple indicators before escalation"
+      ]
+    },
+    "strategy_2": {
+      "name": "Behavioral Analysis",
+      "description": "Analyze threat behavior patterns to distinguish malicious from legitimate activity",
+      "implementation": [
+        "Monitor for attack chains rather than individual indicators",
+        "Implement machine learning models for anomaly detection",
+        "Correlate process execution with network activity",
+        "Track persistence mechanisms and lateral movement"
+      ]
+    },
+    "strategy_3": {
+      "name": "Threat Intelligence Enrichment",
+      "description": "Enrich indicators with threat intelligence to provide context and reduce false positives",
+      "implementation": [
+        "Cross-reference indicators with known threat actor infrastructure",
+        "Implement reputation scoring for IPs and domains",
+        "Correlate with MITRE ATT&CK framework",
+        "Track threat actor TTPs and campaign patterns"
+      ]
+    },
+    "strategy_4": {
+      "name": "Severity Scoring",
+      "description": "Implement risk-based severity scoring to prioritize high-confidence threats",
+      "implementation": [
+        "Assign severity based on threat actor attribution",
+        "Consider business impact and affected systems",
+        "Implement confidence scoring for indicators",
+        "Prioritize threats with multiple corroborating indicators"
+      ]
+    }
+  }
+}

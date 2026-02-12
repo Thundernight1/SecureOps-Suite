@@ -1,0 +1,511 @@
+{
+  "ioc_reference": {
+    "report_id": "CSI-2025-12-27-IOC-001",
+    "generated_timestamp": "2025-12-27T14:20:11.968570+00:00",
+    "title": "Indicators of Compromise (IOC) Reference - December 2025",
+    "description": "Comprehensive IOC reference for threat detection and hunting across SIEM, EDR, and security tools"
+  },
+  "threat_actor_infrastructure": {
+    "ip_addresses": [
+      {
+        "ip": "206.237.3.150",
+        "threat_actor": "Earth Lamia",
+        "threat_type": "React2Shell exploitation",
+        "date_observed": "2025-12-04",
+        "action": "BLOCK at perimeter"
+      },
+      {
+        "ip": "45.77.33.136",
+        "threat_actor": "Jackpot Panda",
+        "threat_type": "React2Shell exploitation",
+        "date_observed": "2025-12-04",
+        "action": "BLOCK at perimeter"
+      },
+      {
+        "ip": "183.6.80.214",
+        "threat_actor": "Unattributed (China-nexus)",
+        "threat_type": "React2Shell exploitation",
+        "date_observed": "2025-12-04",
+        "action": "BLOCK at perimeter"
+      },
+      {
+        "ip": "143.198.92.82",
+        "threat_actor": "Anonymization Network",
+        "threat_type": "React2Shell exploitation",
+        "date_observed": "2025-12-04",
+        "action": "MONITOR"
+      }
+    ],
+    "domains": [
+      {
+        "domain": "typosquatted-delivery-domains.com",
+        "threat_type": "Holiday phishing",
+        "description": "Fake delivery service domains mimicking USPS, UPS, FedEx",
+        "action": "BLOCK at DNS/URL filter"
+      },
+      {
+        "domain": "fake-microsoft365-oauth.com",
+        "threat_type": "OAuth phishing",
+        "description": "Fake Microsoft 365 OAuth consent pages",
+        "action": "BLOCK at DNS/URL filter"
+      }
+    ],
+    "email_senders": [
+      {
+        "sender": "noreply@usps-tracking.com",
+        "threat_type": "Holiday phishing",
+        "description": "Spoofed USPS tracking notification",
+        "action": "BLOCK at email gateway"
+      },
+      {
+        "sender": "support@microsoft365-verify.com",
+        "threat_type": "OAuth phishing",
+        "description": "Spoofed Microsoft 365 support",
+        "action": "BLOCK at email gateway"
+      }
+    ]
+  },
+  "malware_indicators": {
+    "file_hashes": [
+      {
+        "hash_type": "SHA256",
+        "hash": "PLACEHOLDER_SHA256_HASH_1",
+        "malware_family": "XMRig Miner",
+        "description": "Cryptojacking malware",
+        "action": "QUARANTINE"
+      },
+      {
+        "hash_type": "SHA256",
+        "hash": "PLACEHOLDER_SHA256_HASH_2",
+        "malware_family": "Cobalt Strike",
+        "description": "Post-exploitation framework",
+        "action": "QUARANTINE"
+      },
+      {
+        "hash_type": "SHA256",
+        "hash": "PLACEHOLDER_SHA256_HASH_3",
+        "malware_family": "Lumma Stealer",
+        "description": "Infostealer malware",
+        "action": "QUARANTINE"
+      }
+    ],
+    "file_extensions": [
+      {
+        "extension": ".akira",
+        "malware_family": "Akira Ransomware",
+        "description": "Encrypted file extension",
+        "action": "ALERT on detection"
+      },
+      {
+        "extension": ".qilin",
+        "malware_family": "Qilin Ransomware",
+        "description": "Encrypted file extension",
+        "action": "ALERT on detection"
+      },
+      {
+        "extension": ".rhysida",
+        "malware_family": "Rhysida Ransomware",
+        "description": "Encrypted file extension",
+        "action": "ALERT on detection"
+      }
+    ],
+    "ransom_notes": [
+      {
+        "filename": "RECOVERY_KEY.txt",
+        "malware_family": "Akira Ransomware",
+        "action": "ALERT on detection"
+      },
+      {
+        "filename": "README.txt",
+        "malware_family": "Qilin Ransomware",
+        "action": "ALERT on detection"
+      },
+      {
+        "filename": "RHYSIDA_RECOVERY.txt",
+        "malware_family": "Rhysida Ransomware",
+        "action": "ALERT on detection"
+      }
+    ],
+    "process_names": [
+      {
+        "process": "caminho.exe",
+        "threat_actor": "Blind Eagle (APT-C-36)",
+        "description": "Downloader malware",
+        "action": "BLOCK/QUARANTINE"
+      },
+      {
+        "process": "dcrat.exe",
+        "threat_actor": "Blind Eagle (APT-C-36)",
+        "description": "Remote access trojan",
+        "action": "BLOCK/QUARANTINE"
+      },
+      {
+        "process": "phantom_stealer.exe",
+        "threat_actor": "Multiple",
+        "description": "Infostealer malware",
+        "action": "BLOCK/QUARANTINE"
+      }
+    ],
+    "registry_modifications": [
+      {
+        "registry_path": "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+        "indicator": "Suspicious persistence mechanism",
+        "action": "MONITOR for unauthorized entries"
+      },
+      {
+        "registry_path": "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\RunMRU",
+        "indicator": "Recently executed commands",
+        "action": "HUNT for suspicious commands"
+      }
+    ]
+  },
+  "network_indicators": {
+    "c2_domains": [
+      {
+        "domain": "discord.com",
+        "threat_actor": "Blind Eagle (APT-C-36)",
+        "description": "Discord used for C2 communication",
+        "action": "MONITOR Discord traffic for suspicious activity"
+      },
+      {
+        "domain": "steganography-c2.com",
+        "threat_actor": "Blind Eagle (APT-C-36)",
+        "description": "Steganography-based C2",
+        "action": "BLOCK at firewall"
+      }
+    ],
+    "dns_queries": [
+      {
+        "query": "*.react2shell-exploit.com",
+        "threat_type": "React2Shell exploitation",
+        "action": "BLOCK at DNS"
+      },
+      {
+        "query": "*.oauth-phishing.com",
+        "threat_type": "OAuth phishing",
+        "action": "BLOCK at DNS"
+      }
+    ],
+    "http_user_agents": [
+      {
+        "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
+        "threat_type": "React2Shell exploitation",
+        "description": "Automated exploitation attempts",
+        "action": "MONITOR/BLOCK suspicious patterns"
+      }
+    ],
+    "ssl_certificates": [
+      {
+        "certificate_subject": "CN=fake-microsoft365.com",
+        "threat_type": "OAuth phishing",
+        "action": "BLOCK at SSL inspection"
+      }
+    ]
+  },
+  "email_indicators": {
+    "phishing_keywords": [
+      "Update your account",
+      "Verify your identity",
+      "Confirm your password",
+      "Click here to verify",
+      "Urgent action required",
+      "Your package is delayed",
+      "Delivery confirmation needed",
+      "Device code verification",
+      "OAuth authorization required"
+    ],
+    "suspicious_attachments": [
+      {
+        "filename": "*.docm",
+        "description": "Word macro-enabled document",
+        "action": "BLOCK or SANDBOX"
+      },
+      {
+        "filename": "*.xlsm",
+        "description": "Excel macro-enabled spreadsheet",
+        "action": "BLOCK or SANDBOX"
+      },
+      {
+        "filename": "*.pptm",
+        "description": "PowerPoint macro-enabled presentation",
+        "action": "BLOCK or SANDBOX"
+      },
+      {
+        "filename": "*.exe",
+        "description": "Executable file",
+        "action": "BLOCK"
+      },
+      {
+        "filename": "*.zip",
+        "description": "Compressed archive (may contain malware)",
+        "action": "SANDBOX/SCAN"
+      }
+    ],
+    "suspicious_links": [
+      {
+        "pattern": "bit.ly/*",
+        "description": "URL shortener (common in phishing)",
+        "action": "MONITOR/BLOCK"
+      },
+      {
+        "pattern": "tinyurl.com/*",
+        "description": "URL shortener (common in phishing)",
+        "action": "MONITOR/BLOCK"
+      },
+      {
+        "pattern": "*.tracking-update.com",
+        "description": "Fake delivery tracking",
+        "action": "BLOCK"
+      }
+    ]
+  },
+  "endpoint_indicators": {
+    "suspicious_processes": [
+      {
+        "process": "powershell.exe",
+        "parent_process": "winword.exe",
+        "description": "PowerShell spawned from Office application",
+        "action": "ALERT/BLOCK"
+      },
+      {
+        "process": "cmd.exe",
+        "parent_process": "excel.exe",
+        "description": "Command prompt spawned from Excel",
+        "action": "ALERT/BLOCK"
+      },
+      {
+        "process": "whoami.exe",
+        "parent_process": "node.exe",
+        "description": "Reconnaissance command from Node.js",
+        "action": "ALERT/BLOCK"
+      },
+      {
+        "process": "id",
+        "parent_process": "node.exe",
+        "description": "Linux reconnaissance command",
+        "action": "ALERT/BLOCK"
+      }
+    ],
+    "suspicious_file_writes": [
+      {
+        "path": "/tmp/pwned.txt",
+        "description": "Proof of exploitation marker",
+        "action": "ALERT"
+      },
+      {
+        "path": "C:\\Windows\\Temp\\*.exe",
+        "description": "Executable in temp directory",
+        "action": "QUARANTINE"
+      },
+      {
+        "path": "/var/tmp/*",
+        "description": "Suspicious files in Linux temp",
+        "action": "QUARANTINE"
+      }
+    ],
+    "suspicious_network_connections": [
+      {
+        "source_port": "443",
+        "destination_port": "443",
+        "protocol": "TLS",
+        "description": "Encrypted outbound connection from suspicious process",
+        "action": "MONITOR/BLOCK"
+      },
+      {
+        "source_port": "random",
+        "destination_port": "53",
+        "protocol": "DNS",
+        "description": "DNS tunneling attempt",
+        "action": "BLOCK"
+      }
+    ]
+  },
+  "cloud_indicators": {
+    "azure_ad_indicators": [
+      {
+        "indicator": "Unusual login location",
+        "description": "Login from unexpected geographic location",
+        "action": "REQUIRE MFA"
+      },
+      {
+        "indicator": "Impossible travel",
+        "description": "Login from two locations in impossible timeframe",
+        "action": "BLOCK/ALERT"
+      },
+      {
+        "indicator": "Suspicious email forwarding rule",
+        "description": "New forwarding rule to external domain",
+        "action": "ALERT/REMOVE"
+      },
+      {
+        "indicator": "New OAuth app consent",
+        "description": "Unusual OAuth app permissions granted",
+        "action": "ALERT/REVOKE"
+      }
+    ],
+    "microsoft_365_indicators": [
+      {
+        "indicator": "Bulk email forwarding",
+        "description": "Large number of emails forwarded to external account",
+        "action": "ALERT/BLOCK"
+      },
+      {
+        "indicator": "Unusual file access",
+        "description": "Access to sensitive files outside normal pattern",
+        "action": "ALERT"
+      },
+      {
+        "indicator": "Suspicious Teams activity",
+        "description": "Unusual Teams calls or file sharing",
+        "action": "MONITOR"
+      }
+    ]
+  },
+  "detection_rules": {
+    "siem_rules": [
+      {
+        "rule_name": "React2Shell Exploitation Attempt",
+        "rule_id": "SIEM-REACT2SHELL-001",
+        "description": "Detects React2Shell exploitation attempts",
+        "log_source": "Web application logs, WAF logs",
+        "detection_logic": "HTTP requests to React Server Component endpoints with malicious payloads",
+        "severity": "CRITICAL"
+      },
+      {
+        "rule_name": "OAuth Phishing Email Detection",
+        "rule_id": "SIEM-OAUTH-PHISHING-001",
+        "description": "Detects OAuth phishing emails",
+        "log_source": "Email gateway logs",
+        "detection_logic": "Emails containing OAuth device code flow keywords and suspicious links",
+        "severity": "CRITICAL"
+      },
+      {
+        "rule_name": "Ransomware File Extension Detection",
+        "rule_id": "SIEM-RANSOMWARE-001",
+        "description": "Detects ransomware file extensions",
+        "log_source": "File system logs, EDR",
+        "detection_logic": "File creation with .akira, .qilin, .rhysida extensions",
+        "severity": "CRITICAL"
+      }
+    ],
+    "edr_rules": [
+      {
+        "rule_name": "Suspicious Process Spawning",
+        "rule_id": "EDR-PROCESS-001",
+        "description": "Detects suspicious process spawning patterns",
+        "detection_logic": "PowerShell/cmd spawned from Office applications or Node.js",
+        "severity": "HIGH"
+      },
+      {
+        "rule_name": "Reconnaissance Command Execution",
+        "rule_id": "EDR-RECON-001",
+        "description": "Detects reconnaissance commands",
+        "detection_logic": "whoami, id, uname, /etc/passwd access from suspicious processes",
+        "severity": "HIGH"
+      }
+    ]
+  },
+  "hunting_queries": {
+    "splunk_queries": [
+      {
+        "query_name": "React2Shell Exploitation Hunting",
+        "query": "index=web_logs (\"React\" OR \"Next.js\") (\"payload\" OR \"exploit\" OR \"RCE\") | stats count by src_ip, dest_ip, http_method",
+        "description": "Hunt for React2Shell exploitation attempts"
+      },
+      {
+        "query_name": "OAuth Phishing Email Hunting",
+        "query": "index=email (\"device code\" OR \"OAuth\" OR \"authorization\") (\"verify\" OR \"confirm\" OR \"update\") | stats count by sender, recipient, subject",
+        "description": "Hunt for OAuth phishing emails"
+      },
+      {
+        "query_name": "Ransomware File Creation Hunting",
+        "query": "index=endpoint (file_name=\"*.akira\" OR file_name=\"*.qilin\" OR file_name=\"*.rhysida\") | stats count by host, file_path, user",
+        "description": "Hunt for ransomware file creation"
+      }
+    ],
+    "elastic_queries": [
+      {
+        "query_name": "Suspicious Process Spawning",
+        "query": "process.parent.name:(winword.exe OR excel.exe OR powerpnt.exe) AND process.name:(powershell.exe OR cmd.exe)",
+        "description": "Hunt for Office applications spawning shells"
+      }
+    ]
+  },
+  "threat_intelligence_feeds": {
+    "recommended_feeds": [
+      {
+        "feed_name": "CISA Known Exploited Vulnerabilities (KEV)",
+        "url": "https://www.cisa.gov/known-exploited-vulnerabilities",
+        "update_frequency": "Daily",
+        "priority": "CRITICAL"
+      },
+      {
+        "feed_name": "Abuse.ch URLhaus",
+        "url": "https://urlhaus.abuse.ch/",
+        "update_frequency": "Real-time",
+        "priority": "HIGH"
+      },
+      {
+        "feed_name": "Abuse.ch MalwareBazaar",
+        "url": "https://bazaar.abuse.ch/",
+        "update_frequency": "Real-time",
+        "priority": "HIGH"
+      },
+      {
+        "feed_name": "AlienVault OTX",
+        "url": "https://otx.alienvault.com/",
+        "update_frequency": "Real-time",
+        "priority": "HIGH"
+      },
+      {
+        "feed_name": "Shodan",
+        "url": "https://www.shodan.io/",
+        "update_frequency": "Real-time",
+        "priority": "MEDIUM"
+      }
+    ]
+  },
+  "response_playbooks": {
+    "react2shell_playbook": {
+      "title": "React2Shell Exploitation Response Playbook",
+      "steps": [
+        "1. Alert security team immediately",
+        "2. Isolate affected React/Next.js servers from network",
+        "3. Collect forensic evidence (logs, memory dumps, network traffic)",
+        "4. Scan for malware (crypto miners, infostealers, backdoors)",
+        "5. Apply React/Next.js security patches",
+        "6. Deploy WAF rules to block exploitation attempts",
+        "7. Block threat actor IPs at perimeter",
+        "8. Generate incident report with timeline and recommendations"
+      ]
+    },
+    "oauth_phishing_playbook": {
+      "title": "OAuth Phishing Campaign Response Playbook",
+      "steps": [
+        "1. Alert security team immediately",
+        "2. Block phishing email at email gateway",
+        "3. Identify compromised Microsoft 365 accounts",
+        "4. Reset compromised account credentials",
+        "5. Review email forwarding rules for suspicious entries",
+        "6. Revoke all OAuth tokens for compromised accounts",
+        "7. Enforce MFA for affected accounts",
+        "8. Notify users of compromise and remediation steps",
+        "9. Generate incident report with scope and impact"
+      ]
+    },
+    "ransomware_playbook": {
+      "title": "Ransomware Incident Response Playbook",
+      "steps": [
+        "1. Alert security team immediately",
+        "2. Isolate infected systems from network",
+        "3. Preserve forensic evidence (memory dumps, logs, file system state)",
+        "4. Hunt for lateral movement indicators",
+        "5. Restore systems from clean backups",
+        "6. Scan for persistence mechanisms and backdoors",
+        "7. Enhance network segmentation to prevent spread",
+        "8. Generate comprehensive incident report",
+        "9. Notify executive leadership of incident"
+      ]
+    }
+  }
+}

@@ -1,0 +1,291 @@
+{
+  "name": "CyberSentinel - APT Detection and Response",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": "scheduled"
+      },
+      "name": "Scheduled Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "id": "apt-scheduled-trigger"
+    },
+    {
+      "parameters": {
+        "functionCode": "\n// Known APT groups and their IOCs from December 2025\nconst aptDatabase = [\n  {\n    name: 'Infy/Prince of Persia',\n    type: 'APT',\n    attribution: 'Iranian',\n    firstSeen: '2020-01-01',\n    lastActivity: '2025-12-14',\n    status: 'ACTIVE',\n    targetIndustries: ['Government', 'Telecommunications', 'Research'],\n    targetRegions: ['Sweden', 'Netherlands', 'Turkey', 'Middle East'],\n    tactics: ['Telegram C2', 'Credential theft', 'Foudre malware', 'Tonnerre malware'],\n    iocs: {\n      network: ['api.telegram.org (legitimate but used for C2)', 'Suspicious Telegram bot patterns'],\n      fileHashes: ['Foudre v34', 'Tonnerre C2 components'],\n      fileNames: ['ttestro1bot', 'ehsan8999100 (Telegram user)'],\n      attackPattern: 'Operation PCPcat - Next.js credential theft'\n    },\n    severity: 'HIGH',\n    falsePositiveRisks: [\n      'Legitimate Telegram bot integrations',\n      'Standard CI/CD workflows using Telegram',\n      'Normal Python script executions'\n    ]\n  },\n  {\n    name: 'Earth Lamia',\n    type: 'APT',\n    attribution: 'China State-Nexus',\n    firstSeen: '2023-01-01',\n    lastActivity: '2025-12-04',\n    status: 'ACTIVE',\n    targetIndustries: ['Technology', 'Web Applications', 'Cloud Infrastructure'],\n    tactics: ['React2Shell exploitation', 'Cloud credential theft', 'RCE attacks'],\n    iocs: {\n      network: ['183.6.80.214 (observed exploitation attempts)'],\n      attackPattern: 'Systematic troubleshooting of exploitation attempts over extended periods'\n    },\n    severity: 'CRITICAL',\n    falsePositiveRisks: [\n      'Normal React development traffic',\n      'Standard SSR data fetching patterns'\n    ]\n  },\n  {\n    name: 'Jackpot Panda',\n    type: 'APT',\n    attribution: 'China State-Nexus',\n    firstSeen: '2023-06-01',\n    lastActivity: '2025-12-04',\n    status: 'ACTIVE',\n    targetIndustries: ['React applications', 'Next.js deployments'],\n    tactics: ['React2Shell exploitation', 'Persistence mechanisms', 'Data exfiltration'],\n    iocs: {\n      network: ['Suspicious Flight protocol requests'],\n      attackPattern: 'Post-exploitation activities'\n    },\n    severity: 'CRITICAL',\n    falsePositiveRisks: [\n      'Legitimate React Server Components traffic'\n    ]\n  },\n  {\n    name: 'SideWinder',\n    type: 'APT',\n    attribution: 'Indian State-Sponsored',\n    firstSeen: '2018-01-01',\n    lastActivity: '2025-12-19',\n    status: 'ACTIVE',\n    targetIndustries: ['Government', 'Critical Infrastructure', 'Defense'],\n    targetRegions: ['India', 'South Asia'],\n    tactics: ['Living-off-the-land', 'Cloud-based lures', 'Government impersonation'],\n    iocs: {\n      attackPattern: 'Targeted government phishing with LOLBin techniques'\n    },\n    severity: 'HIGH',\n    falsePositiveRisks: [\n      'Legitimate government communications',\n      'Normal cloud infrastructure traffic'\n    ]\n  },\n  {\n    name: 'APT29 (Cozy Bear)',\n    type: 'APT',\n    attribution: 'Russian State-Sponsored',\n    firstSeen: '2014-01-01',\n    lastActivity: '2025-12-01',\n    status: 'ACTIVE',\n    targetIndustries: ['Government', 'Diplomatic', 'Research Organizations'],\n    targetRegions: ['Western Governments', 'Europe', 'North America'],\n    tactics: ['Cloud exploitation', 'Identity federation abuse', 'Stealthy long-term access'],\n    iocs: {\n      attackPattern: 'Sophisticated supply chain compromises'\n    },\n    severity: 'HIGH',\n    falsePositiveRisks: [\n      'Legitimate cloud service usage',\n      'Standard federation authentication flows'\n    ]\n  },\n  {\n    name: 'APT41 (Winnti)',\n    type: 'APT',\n    attribution: 'China State-Sponsored',\n    firstSeen: '2012-01-01',\n    lastActivity: '2025-12-01',\n    status: 'ACTIVE',\n    targetIndustries: ['Technology', 'Healthcare', 'Public Sector', 'Gaming'],\n    tactics: ['Zero-day exploitation', 'Supply chain compromise', 'Espionage + Crimeware'],\n    iocs: {\n      attackPattern: 'Dual espionage and financial motivation attacks'\n    },\n    severity: 'HIGH',\n    falsePositiveRisks: [\n      'Legitimate supply chain updates',\n      'Standard vendor communications'\n    ]\n  }\n];\n\nreturn aptDatabase.map(apt => ({ json: apt }));\n"
+      },
+      "name": "APT Threat Database",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ],
+      "id": "node-apt-database"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "returnAll": true,
+        "table": "security_logs"
+      },
+      "name": "Query SIEM for IOCs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        300,
+        400
+      ],
+      "id": "node-query-siem",
+      "credentials": {
+        "postgres": {
+          "id": "postgres-credentials",
+          "name": "PostgreSQL Database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "\nconst aptDatabase = $('APT Threat Database').all().map(n => n.json);\nconst siemLogs = $('Query SIEM for IOCs').all().map(n => n.json);\nconst detections = [];\n\n// Detection logic for APT activity\nconst detectionRules = [\n  {\n    apt: 'Infy/Prince of Persia',\n    rules: [\n      { pattern: /telegram.*bot/i, weight: 0.3, description: 'Telegram bot communication' },\n      { pattern: /api\\.telegram\\.org/i, weight: 0.2, description: 'API calls to Telegram' },\n      { pattern: /foudre/i, weight: 0.5, description: 'Foudre malware signature' },\n      { pattern: /tonnerre/i, weight: 0.5, description: 'Tonnerre C2 signature' },\n      { pattern: /ehsan8999100/i, weight: 0.4, description: 'Known operator username' },\n      { pattern: /\\.env|aws_access|aws_secret/i, weight: 0.3, description: 'Credential harvesting pattern' }\n    ]\n  },\n  {\n    apt: 'Earth Lamia',\n    rules: [\n      { pattern: /183\\.6\\.80\\.214/i, weight: 0.6, description: 'Known APT IP address' },\n      { pattern: /flight.*protocol/i, weight: 0.3, description: 'React Flight protocol requests' },\n      { pattern: /next\\.js|react.*server.*components/i, weight: 0.2, description: 'React/Next.js context' },\n      { pattern: /systematic.*troubleshooting/i, weight: 0.4, description: 'Extended exploitation attempts' }\n    ]\n  },\n  {\n    apt: 'SideWinder',\n    rules: [\n      { pattern: /powershell.*-enc/i, weight: 0.4, description: 'Encoded PowerShell commands' },\n      { pattern: /certutil.*download/i, weight: 0.3, description: 'LOLBin download pattern' },\n      { pattern: /regsvr32.*sct/i, weight: 0.3, description: 'Regsvr32 COM execution' },\n      { pattern: /gov|defense|ministry/i, weight: 0.2, description: 'Government sector targeting' }\n    ]\n  },\n  {\n    apt: 'APT29',\n    rules: [\n      { pattern: /sts\\.amazonaws\\.com/i, weight: 0.3, description: 'AWS STS token requests' },\n      { pattern: /federation| SAML/i, weight: 0.3, description: 'Federation abuse pattern' },\n      { pattern: /aws_access_key_id/i, weight: 0.4, description: 'Exposed AWS credentials' },\n      { pattern: /long.*duration|persistence.*months/i, weight: 0.3, description: 'Extended dwell time pattern' }\n    ]\n  },\n  {\n    apt: 'APT41',\n    rules: [\n      { pattern: /svchost.*network/i, weight: 0.3, description: 'LOLBin network activity' },\n      { pattern: /wmic.*process.*call/i, weight: 0.3, description: 'WMIC lateral movement' },\n      { pattern: /atlassian|jira|confluence/i, weight: 0.2, description: 'Atlassian product targeting' },\n      { pattern: /supply.*chain|update.*server/i, weight: 0.3, description: 'Supply chain compromise' }\n    ]\n  }\n];\n\n// Scan SIEM logs for APT indicators\nfor (const log of siemLogs) {\n  const logString = JSON.stringify(log).toLowerCase();\n  const logSource = log.source || log.source_ip || log.hostname || '';\n  \n  for (const aptRule of detectionRules) {\n    let totalWeight = 0;\n    let matchedRules = [];\n    \n    for (const rule of aptRule.rules) {\n      if (rule.pattern.test(logString) || rule.pattern.test(logSource)) {\n        totalWeight += rule.weight;\n        matchedRules.push(rule.description);\n      }\n    }\n    \n    if (totalWeight >= 0.5) {\n      const aptInfo = aptDatabase.find(a => a.name === aptRule.apt);\n      detections.push({\n        detectionId: `DET-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,\n        timestamp: new Date().toISOString(),\n        aptGroup: aptRule.apt,\n        attribution: aptInfo?.attribution,\n        confidence: Math.min(totalWeight, 1.0),\n        matchedIndicators: matchedRules,\n        originalEvent: log,\n        severity: aptInfo?.severity || 'HIGH',\n        falsePositiveAnalysis: {\n          riskLevel: aptInfo?.falsePositiveRisks?.length > 0 ? 'MEDIUM' : 'LOW',\n          potentialFalsePositives: aptInfo?.falsePositiveRisks || [],\n          mitigationSuggestions: [\n            'Verify against known legitimate Telegram bot integrations',\n            'Cross-reference with scheduled CI/CD activities',\n            'Check for legitimate automation scripts'\n          ]\n        },\n        recommendedActions: generateResponseActions(aptRule.apt, aptInfo?.severity),\n        enrichmentData: {\n          knownTactics: aptInfo?.tactics || [],\n          targetIndustries: aptInfo?.targetIndustries || [],\n          targetRegions: aptInfo?.targetRegions || [],\n          knownIOCs: aptInfo?.iocs || {}\n        }\n      });\n    }\n  }\n}\n\nreturn detections.map(d => ({ json: d }));\n\nfunction generateResponseActions(aptGroup, severity) {\n  const baseActions = [\n    {\n      priority: severity === 'CRITICAL' ? 'IMMEDIATE' : 'HIGH',\n      action: 'Isolate affected systems from network',\n      rationale: 'Prevent lateral movement and data exfiltration'\n    },\n    {\n      priority: 'HIGH',\n      action: 'Preserve forensic evidence',\n      rationale: 'Capture memory dumps, disk images, and network logs'\n    }\n  ];\n  \n  if (aptGroup.includes('Infy') || aptGroup.includes('Prince')) {\n    baseActions.push({\n      priority: 'IMMEDIATE',\n      action: 'Block Telegram API communications',\n      rationale: 'Disrupt C2 channel used by this APT'\n    });\n  }\n  \n  if (aptGroup.includes('Earth Lamia') || aptGroup.includes('Jackpot')) {\n    baseActions.push({\n      priority: 'IMMEDIATE',\n      action: 'Patch React/Next.js implementations',\n      rationale: 'Close exploitation vector'\n    });\n  }\n  \n  return baseActions;\n}\n"
+      },
+      "name": "APT Detection Engine",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ],
+      "id": "node-apt-detection"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.confidence }}",
+              "operation": "gte",
+              "value2": 0.7
+            }
+          ]
+        }
+      },
+      "name": "High Confidence Detection",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ],
+      "id": "node-high-confidence-filter"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "table": "apt_alerts",
+        "columns": {
+          "detection_id": "={{ $json.detectionId }}",
+          "apt_group": "={{ $json.aptGroup }}",
+          "attribution": "={{ $json.attribution }}",
+          "confidence": "={{ $json.confidence }}",
+          "severity": "={{ $json.severity }}",
+          "matched_indicators": "={{ JSON.stringify($json.matchedIndicators) }}",
+          "false_positive_analysis": "={{ JSON.stringify($json.falsePositiveAnalysis) }}",
+          "recommended_actions": "={{ JSON.stringify($json.recommendedActions) }}",
+          "enrichment_data": "={{ JSON.stringify($json.enrichmentData) }}",
+          "original_event": "={{ JSON.stringify($json.originalEvent) }}",
+          "created_at": "={{ $json.timestamp }}",
+          "status": "NEW",
+          "assigned_to": "NULL"
+        }
+      },
+      "name": "Create APT Alert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ],
+      "id": "node-create-apt-alert",
+      "credentials": {
+        "postgres": {
+          "id": "postgres-credentials",
+          "name": "PostgreSQL Database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "security-operations",
+        "text": "=🔴 **APT ACTIVITY DETECTED** 🔴\\n\\n**Group:** {{ $json.aptGroup }}\\n**Attribution:** {{ $json.attribution }}\\n**Confidence:** {{ Math.round($json.confidence * 100) }}%\\n**Severity:** {{ $json.severity }}\\n\\n**Matched Indicators:**\\n{{ $json.matchedIndicators?.join('\\n') }}\\n\\n**Potential False Positives:**\\n{{ $json.falsePositiveAnalysis?.potentialFalsePositives?.join('\\n') || 'None identified' }}\\n\\n**Recommended Actions:**\\n{{ $json.recommendedActions?.map(a => `• [${a.priority}] ${a.action}`).join('\\n') }}\\n\\n⚠️ *Review and escalate to IR team immediately*",
+        "attachments": []
+      },
+      "name": "Notify IR Team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ],
+      "id": "node-slack-ir-notification",
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credentials",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "to": "soc-lead@company.com",
+        "subject": "=🔴 CRITICAL: APT Activity Detected - {{ $json.aptGroup }} ({{ Math.round($json.confidence * 100) }}% Confidence)",
+        "body": "=APT ACTIVITY ALERT\\n=====================\\n\\nDETECTION DETAILS:\\n-----------------\\nGroup: {{ $json.aptGroup }}\\nAttribution: {{ $json.attribution }}\\nConfidence: {{ Math.round($json.confidence * 100) }}%\\nSeverity: {{ $json.severity }}\\nDetection ID: {{ $json.detectionId }}\\n\\nMATCHED INDICATORS:\\n-------------------\\n{{ $json.matchedIndicators?.join('\\n') }}\\n\\nTARGET PROFILE:\\n---------------\\nIndustries: {{ $json.enrichmentData?.targetIndustries?.join(', ') }}\\nRegions: {{ $json.enrichmentData?.targetRegions?.join(', ') }}\\nKnown Tactics: {{ $json.enrichmentData?.knownTactics?.join(', ') }}\\n\\nFALSE POSITIVE ANALYSIS:\\n------------------------\\nRisk Level: {{ $json.falsePositiveAnalysis?.riskLevel }}\\nPotential False Positives:\\n{{ $json.falsePositiveAnalysis?.potentialFalsePositives?.join('\\n') || 'None identified' }}\\n\\nMitigation Suggestions:\\n{{ $json.falsePositiveAnalysis?.mitigationSuggestions?.join('\\n') }}\\n\\nRECOMMENDED ACTIONS:\\n--------------------\\n{{ $json.recommendedActions?.map(a => `[${a.priority}] ${a.action}: ${a.rationale}`).join('\\n\\n') }}\\n\\nOriginal Event Data Attached.\\n\\n---\\nCyberSentinel APT Detection Engine\\n{{ $json.timestamp }}"
+      },
+      "name": "Email IR Team",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        400
+      ],
+      "id": "node-email-ir-team",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gmail-credentials",
+          "name": "Gmail OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "\nconst items = $input.all();\nconst summary = {\n  reportDate: new Date().toISOString(),\n  scanDuration: 'Last 24 hours',\n  totalAPTGroupsMonitored: 6,\n  detectionSummary: {\n    totalDetections: items.length,\n    byGroup: {},\n    bySeverity: { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 },\n    confidenceDistribution: { high: 0, medium: 0, low: 0 }\n  },\n  falsePositiveMetrics: {\n    potentialFalsePositivesIdentified: 0,\n    mitigationSuggestionsProvided: 0\n  },\n  priorityFindings: [],\n  recommendations: []\n};\n\nfor (const item of items) {\n  const det = item.json;\n  \n  // Group by APT\n  if (!summary.detectionSummary.byGroup[det.aptGroup]) {\n    summary.detectionSummary.byGroup[det.aptGroup] = 0;\n  }\n  summary.detectionSummary.byGroup[det.aptGroup]++;\n  \n  // By severity\n  summary.detectionSummary.bySeverity[det.severity]++;\n  \n  // By confidence\n  if (det.confidence >= 0.8) summary.detectionSummary.confidenceDistribution.high++;\n  else if (det.confidence >= 0.5) summary.detectionSummary.confidenceDistribution.medium++;\n  else summary.detectionSummary.confidenceDistribution.low++;\n  \n  // False positive tracking\n  if (det.falsePositiveAnalysis?.potentialFalsePositives) {\n    summary.falsePositiveMetrics.potentialFalsePositivesIdentified += \n      det.falsePositiveAnalysis.potentialFalsePositives.length;\n    summary.falsePositiveMetrics.mitigationSuggestionsProvided += \n      det.falsePositiveAnalysis.mitigationSuggestions?.length || 0;\n  }\n  \n  // Priority findings (high confidence + critical severity)\n  if (det.confidence >= 0.7 && det.severity === 'CRITICAL') {\n    summary.priorityFindings.push({\n      aptGroup: det.aptGroup,\n      confidence: det.confidence,\n      keyIndicators: det.matchedIndicators.slice(0, 3)\n    });\n  }\n}\n\n// Generate recommendations based on findings\nif (summary.priorityFindings.length > 0) {\n  summary.recommendations.push({\n    priority: 'IMMEDIATE',\n    recommendation: 'Review and investigate all critical-severity APT detections',\n    rationale: `${summary.priorityFindings.length} critical detections require immediate attention`\n  });\n}\n\nif (summary.falsePositiveMetrics.potentialFalsePositivesIdentified > 0) {\n  summary.recommendations.push({\n    priority: 'MEDIUM',\n    recommendation: 'Validate detections against known legitimate activities',\n    rationale: `${summary.falsePositiveMetrics.potentialFalsePositivesIdentified} potential false positives identified`\n  });\n}\n\nsummary.recommendations.push({\n  priority: 'HIGH',\n  recommendation: 'Update IOC feeds and detection rules',\n  rationale: 'Ensure coverage for newly identified APT TTPs'\n});\n\nreturn [{ json: summary }];\n"
+      },
+      "name": "Generate APT Summary",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        300
+      ],
+      "id": "node-apt-summary"
+    }
+  ],
+  "connections": {
+    "Scheduled Trigger": {
+      "main": [
+        [
+          {
+            "node": "APT Threat Database",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query SIEM for IOCs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "APT Threat Database": {
+      "main": [
+        [
+          {
+            "node": "APT Detection Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query SIEM for IOCs": {
+      "main": [
+        [
+          {
+            "node": "APT Detection Engine",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "APT Detection Engine": {
+      "main": [
+        [
+          {
+            "node": "High Confidence Detection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High Confidence Detection": {
+      "main": [
+        [
+          {
+            "node": "Create APT Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Notify IR Team",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email IR Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create APT Alert": {
+      "main": [
+        [
+          {
+            "node": "Generate APT Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify IR Team": {
+      "main": [
+        [
+          {
+            "node": "Generate APT Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email IR Team": {
+      "main": [
+        [
+          {
+            "node": "Generate APT Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "workflowId": "cybersentinel-apt-detect-001",
+  "meta": {
+    "version": "1.0.0",
+    "lastUpdated": "2025-12-28T14:20:11.968570+00:00",
+    "author": "CyberSentinel Agent",
+    "description": "APT detection workflow with false positive reduction and business context"
+  }
+}

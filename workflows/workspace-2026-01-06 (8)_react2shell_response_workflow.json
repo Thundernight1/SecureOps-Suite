@@ -1,0 +1,605 @@
+{
+  "meta": {
+    "instanceId": "d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e",
+    "creatable": true,
+    "editable": true,
+    "id": "react2shell-response",
+    "name": "CyberSentinel - React2Shell (CVE-2025-55182) Response",
+    "active": true,
+    "settings": {
+      "executionOrder": "v1"
+    },
+    "hash": "e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0",
+    "versionId": "1.0.0"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cybersentinel/react2shell-alert",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "cve_id",
+              "value": "CVE-2025-55182"
+            },
+            {
+              "name": "severity",
+              "value": "CRITICAL"
+            },
+            {
+              "name": "cvss",
+              "value": "10.0"
+            },
+            {
+              "name": "threat_actor",
+              "value": "={{ $json.threat_actor || 'Unknown' }}"
+            }
+          ],
+          "boolean": [
+            {
+              "name": "actively_exploited",
+              "value": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "parse-alert",
+      "name": "Parse Alert",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://slack.com/api/chat.postMessage",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.SLACK_BOT_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "channel",
+              "value": "#security-alerts"
+            },
+            {
+              "name": "text",
+              "value": "🚨🚨🚨 CRITICAL: React2Shell (CVE-2025-55182) DETECTED 🚨🚨🚨\n\n⚠️ **URGENT ACTION REQUIRED**\n\n**CVE Details:**\n- ID: CVE-2025-55182\n- CVSS: 10.0 (Critical)\n- Status: Actively Exploited\n- Discovered: December 3, 2025\n\n**Affected Systems:**\n- React 19 Server Components\n- Next.js applications with RSC\n- Applications using React Server Components\n\n**Recommended Actions:**\n1. ✅ Apply React 19.1.0 patch IMMEDIATELY\n2. ✅ Block external access to Next.js API routes\n3. ✅ Scan npm dependencies for vulnerable packages\n4. ✅ Monitor for XMRig mining activity\n5. ✅ Check for 'sex.sh' or similar scripts in temp\n\n**Threat Actors Observed:**\n- Earth Lamia (UNC5454) - China-nexus\n- Jackpot Panda - China-nexus\n- Various cryptomining groups\n\n🔗 Reference: https://cloud.google.com/blog/topics/threat-intelligence/threat-actors-exploit-react2shell-cve-2025-55182"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "slack-critical-alert",
+      "name": "Slack Critical Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        500,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.pagerduty.com/incidents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Token token={{ $env.PAGERDUTY_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "incident",
+              "value": "={\"title\": \"CRITICAL: React2Shell (CVE-2025-55182) - Active Exploitation\", \"service\": {\"id\": \"{{ $env.PAGERDUTY_SERVICE_ID }}\", \"type\": \"service_reference\"}, \"urgency\": \"high\", \"body\": {\"type\": \"incident_body\", \"details\": \"Critical RCE vulnerability in React Server Components. Actively exploited by multiple threat actors including China-nexus groups. Immediate patching required.\" }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "pagerduty-critical",
+      "name": "PagerDuty Critical",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.jira.com/rest/api/3/issue",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Basic {{ $env.JIRA_API_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "={\"project\": {\"key\": \"SEC\"}, \"summary\": \"[CRITICAL] React2Shell (CVE-2025-55182) - Active Exploitation\", \"description\": \"**CRITICAL SECURITY INCIDENT**\\n\\n**CVE Details:**\\n- CVE ID: CVE-2025-55182\\n- CVSS Score: 10.0\\n- Severity: CRITICAL\\n- Status: Actively Exploited\\n- Discovered: December 3, 2025\\n\\n**Description:**\\nUnauthenticated Remote Code Execution vulnerability in React Server Components. Attackers can exploit this vulnerability with a single crafted HTTP request.\\n\\n**Affected Systems:**\\n- React 19 Server Components\\n- Next.js applications with RSC\\n- Applications using React Server Components\\n\\n**Recommended Actions:**\\n1. Apply React 19.1.0 patch or later\\n2. Block external access to Next.js API routes if not required\\n3. Implement WAF rules for malformed React data requests\\n4. Scan npm dependencies for vulnerable packages\\n5. Monitor for XMRig mining activity and unauthorized crypto mining\\n\\n**Threat Actors:**\\n- Earth Lamia (UNC5454)\\n- Jackpot Panda\\n- Various cryptomining groups\\n\\n**References:**\\n- Google Threat Intelligence Report\\n- CISA KEV Alert\", \"priority\": {\"name\": \"Highest\"}, \"labels\": [\"critical\", \"cve-2025\", \"react\", \"rce\", \"vulnerability\"]}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "create-jira-ticket",
+      "name": "Create Jira Ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://{{ $env.WAF_API_URL }}/rules",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.WAF_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "action",
+              "value": "block"
+            },
+            {
+              "name": "rule",
+              "value": "React2Shell-Mitigation-v1"
+            },
+            {
+              "name": "conditions",
+              "value": "=[{\"type\": \"path\", \"operator\": \"contains\", \"value\": \"/_next/data\"}, {\"type\": \"path\", \"operator\": \"contains\", \"value\": \"/_static/chunks/pages\"}]"
+            },
+            {
+              "name": "enabled",
+              "value": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "block-api-routes",
+      "name": "Block API Routes (WAF)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.snyk.io/v1/test",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.SNYK_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "org_id",
+              "value": "{{ $env.SNYK_ORG_ID }}"
+            },
+            {
+              "name": "target_file",
+              "value": "package.json"
+            },
+            {
+              "name": "vulnerabilities",
+              "value": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "scan-npm-deps",
+      "name": "Scan NPM Dependencies",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        500,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://{{ $env.EDR_API_URL }}/collect",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.EDR_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "process_name:sex.sh OR process_name:xmrig OR file_path:*\\temp\\*.sh"
+            },
+            {
+              "name": "collect_disk",
+              "value": false
+            },
+            {
+              "name": "collect_memory",
+              "value": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "hunt-crypto-miner",
+      "name": "Hunt for Crypto Miner IOCs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.microsoft.com/v1.0/security/incidents",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.AZURE_ACCESS_TOKEN }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "title",
+              "value": "React2Shell (CVE-2025-55182) - Critical RCE Vulnerability"
+            },
+            {
+              "name": "severity",
+              "value": "high"
+            },
+            {
+              "name": "category",
+              "value": "Vulnerability"
+            },
+            {
+              "name": "status",
+              "value": "new"
+            },
+            {
+              "name": "assignedTo",
+              "value": "security-team@company.com"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "create-m365-incident",
+      "name": "Create M365 Defender Incident",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        500,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://{{ $env.EMAIL_GATEWAY_URL }}/api/v1/quarantine",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.EMAIL_GATEWAY_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "filter",
+              "value": "subject:contains:'React' AND attachment:contains:'js'"
+            },
+            {
+              "name": "action",
+              "value": "quarantine"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "quarantine-suspicious",
+      "name": "Quarantine Suspicious Emails",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        700,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://{{ $env.ELASTICSEARCH_HOST }}:9200/threats/cve-2025-55182/_doc",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "cve_id",
+              "value": "CVE-2025-55182"
+            },
+            {
+              "name": "name",
+              "value": "React2Shell"
+            },
+            {
+              "name": "severity",
+              "value": "CRITICAL"
+            },
+            {
+              "name": "cvss",
+              "value": 10
+            },
+            {
+              "name": "threat_type",
+              "value": "VULNERABILITY"
+            },
+            {
+              "name": "affected_systems",
+              "value": "=[\"React 19 Server Components\", \"Next.js applications\"]"
+            },
+            {
+              "name": "indicators_of_compromise",
+              "value": "=[\"sex.sh script\", \"xmrig process\", \"malformed API requests\"]"
+            },
+            {
+              "name": "recommended_actions",
+              "value": "=[\"Apply React 19.1.0 patch\", \"Block API routes\", \"Scan npm dependencies\", \"Monitor for crypto mining\"]"
+            },
+            {
+              "name": "alert_time",
+              "value": "={{ now() }}"
+            },
+            {
+              "name": "workflow_id",
+              "value": "n8n-wf-001-react2shell-response"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "log-elasticsearch",
+      "name": "Log to Elasticsearch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Alert": {
+      "main": [
+        [
+          {
+            "node": "Slack Critical Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "PagerDuty Critical",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Jira Ticket",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Block API Routes (WAF)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Critical Alert": {
+      "main": [
+        [
+          {
+            "node": "Create Jira Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PagerDuty Critical": {
+      "main": [
+        [
+          {
+            "node": "Create Jira Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Jira Ticket": {
+      "main": [
+        [
+          {
+            "node": "Hunt for Crypto Miner IOCs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Scan NPM Dependencies",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create M365 Defender Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block API Routes (WAF)": {
+      "main": [
+        [
+          {
+            "node": "Log to Elasticsearch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scan NPM Dependencies": {
+      "main": [
+        [
+          {
+            "node": "Log to Elasticsearch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hunt for Crypto Miner IOCs": {
+      "main": [
+        [
+          {
+            "node": "Quarantine Suspicious Emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create M365 Defender Incident": {
+      "main": [
+        [
+          {
+            "node": "Log to Elasticsearch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quarantine Suspicious Emails": {
+      "main": [
+        [
+          {
+            "node": "Log to Elasticsearch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

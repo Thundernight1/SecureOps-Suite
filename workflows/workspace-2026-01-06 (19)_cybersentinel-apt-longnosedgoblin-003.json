@@ -1,0 +1,109 @@
+{
+  "n8nWorkflowId": "cybersentinel-apt-longnosedgoblin-003",
+  "name": "APT LongNosedGoblin Detection and Response",
+  "nodes": [
+    {
+      "name": "OSINTFeedMonitor",
+      "type": "n8n-nodes-base.rssRead",
+      "parameters": {
+        "feedUrl": "https://www.eset.com/us/about/newsroom/research/feed"
+      },
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "name": "APTAnalyzer",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "const feedItems = items;\nconst aptThreats = feedItems.filter(item => \n  item.json.title && item.json.title.toLowerCase().includes('apt') ||\n  item.json.title && item.json.title.toLowerCase().includes('longnosedgoblin')\n);\n\nreturn aptThreats.map(item => ({\n  json: {\n    threatType: 'APT',\n    severity: 'CRITICAL',\n    actorName: 'LongNosedGoblin',\n    attribution: 'China-aligned',\n    targetRegions: ['Southeast Asia', 'Japan'],\n    targetSectors: ['Government', 'Public Sector'],\n    techniques: [\n      'Group Policy Abuse',\n      'Lateral Movement',\n      'Cloud C2 (OneDrive/Google Drive)',\n      'Browser History Exfiltration',\n      'Backdoor Deployment'\n    ],\n    tools: ['NosyHistorian', 'NosyDoor'],\n    firstSeen: '2024',\n    discoveryDate: '2025-12-18',\n    persistence: 'Long-term stealthy access',\n    dataTheft: 'Browser history gathering'\n  }\n}));"
+      },
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "name": "DetectGPPayloads",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "return [{\n  json: {\n    detectionRule: 'GroupPolicyObjectModification',\n    indicators: [\n      {\n        type: 'EventID',\n        value: '5136',\n        description: 'Modified Group Policy Object'\n      },\n      {\n        type: 'Process',\n        value: 'gpmc.exe',\n        description: 'Group Policy Management Console'\n      },\n      {\n        type: 'Process',\n        value: 'powershell.exe -Command \"Import-Module GroupPolicy\"',\n        description: 'PowerShell GP Module'\n      }\n    ],\n    suspiciousPaths: [\n      '*/SYSVOL/*/Machine/Scripts/Startup/*',\n      '*/SYSVOL/*/Machine/Scripts/Shutdown/*',\n      '*/SYSVOL/*/Users/*/Scripts/Logon/*'\n    ],\n    cloudIOCs: {\n      onedrive: ['*.sharepoint.com/*temp*'],\n      googledrive: ['*.drive.google.com/*upload*']\n    }\n  }\n}];"
+      },
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "name": "BlockThreatInfrastructure",
+      "type": "n8n-nodes-base.firewall",
+      "parameters": {
+        "action": "block",
+        "iocs": [
+          "oneDrive-suspicious*.sharepoint.com",
+          "googledrive-upload*.drive.google.com"
+        ]
+      },
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "name": "DeployEDRDetection",
+      "type": "n8n-nodes-base.crowdstrike",
+      "parameters": {
+        "action": "createCustomIOC",
+        "iocType:": "process",
+        "iocValue": "nosyhistorian.exe,nosydoor.exe",
+        "description": "LongNosedGoblin malware IOCs - Auto-detect"
+      },
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "name": "NotifyIntelligenceTeam",
+      "type": "n8n-nodes-base.slack",
+      "parameters": {
+        "channel": "#apt-intel",
+        "text": "=🔴 **APT ALERT: LongNosedGoblin (China-aligned)**\n\n**Discovery:** ESET Research - Dec 18, 2025\n**Severity:** CRITICAL\n**Targeting:** Government entities in SE Asia & Japan\n\n**Attack Vector:**\n- Group Policy abuse for lateral movement\n- Cloud services (OneDrive/Google Drive) as C2\n- NosyHistorian for reconnaissance\n- NosyDoor backdoor deployment\n\n**Immediate Actions:**\n1. Audit all GPO modifications in past 30 days\n2. Review OneDrive/GoogleDrive API logs\n3. Search for nosyhistorian/nosydoor artifacts\n4. Enable enhanced logging on domain controllers\n\n**Detection Rules:**\nEventID 5136 (GPP modification)\nPowerShell GP module imports"
+      },
+      "position": [
+        900,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "OSINTFeedMonitor": {
+      "main": [
+        [
+          "APTAnalyzer"
+        ]
+      ]
+    },
+    "APTAnalyzer": {
+      "main": [
+        [
+          "DetectGPPayloads"
+        ]
+      ]
+    },
+    "DetectGPPayloads": {
+      "main": [
+        [
+          "BlockThreatInfrastructure"
+        ],
+        [
+          "DeployEDRDetection"
+        ],
+        [
+          "NotifyIntelligenceTeam"
+        ]
+      ]
+    }
+  }
+}

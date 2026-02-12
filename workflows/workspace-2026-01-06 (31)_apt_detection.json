@@ -1,0 +1,180 @@
+{
+  "name": "CyberSentinel - APT Activity Detection",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": "webhook"
+      },
+      "id": "apt-trigger",
+      "name": "Webhook: APT Intelligence Feed",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "={{ $json.threat_group ? \"APT\" : \"THREAT_ACTOR\" }}",
+          "severity": "={{ $json.target_sectors ? \"HIGH\" : \"MEDIUM\" }}",
+          "affectedSystems": "={{ $json.target_sectors }}",
+          "indicatorsOfCompromise": "={{ $json.iocs }}",
+          "recommendedActions": "={{ $json.defensive_recommendations }}",
+          "n8nWorkflowId": "={{ $node[\"Webhook: APT Intelligence Feed\"].webhookId }}"
+        }
+      },
+      "id": "process-intel",
+      "name": "Process APT Intelligence",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "sendEmail",
+        "subject": "🎯 APT THREAT ALERT: {{ $json.threat_group }} Targeting {{ $json.target_sectors?.[0] }}",
+        "email": "ciso@company.com,threat-intel@company.com",
+        "body": "ADVANCED PERSISTENT THREAT DETECTED\\n\\nThreat Actor: {{ $json.threat_group }}\\nAliases: {{ $json.aliases }}\\nAttribution: {{ $json.attribution }}\\n\\nTarget Profile:\\n- Sectors: {{ $json.target_sectors }}\\n- Regions: {{ $json.target_regions }}\\n\\nCampaign Details:\\n{{ $json.campaign_description }}\\n\\nAttack Vectors:\\n{{ $json.attack_vectors }}\\n\\nINDICATORS OF COMPROMISE:\\nNetwork:\\n{{ $json.iocs?.network }}\\n\\nFile Hashes:\\n{{ $json.iocs?.file_hashes }}\\n\\nDomains:\\n{{ $json.iocs?.domains }}\\n\\nMITRE ATT&CK TTPs:\\n{{ $json.mitre_ttps }}\\n\\nDEFENSIVE RECOMMENDATIONS:\\n{{ $json.defensive_recommendations }}"
+      },
+      "id": "apt-alert",
+      "name": "Alert SOC & CISO",
+      "type": "n8n-nodes-base.email",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/scripts/update_ioc_database.py '{{ $json.iocs | toJSON }}'"
+      },
+      "id": "update-ioc-db",
+      "name": "Update IOC Database",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/scripts/generate_sigma_rules.py '{{ $json | toJSON }}'"
+      },
+      "id": "sigma-rules",
+      "name": "Generate Detection Rules",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "apt_campaigns",
+        "columns": {
+          "threat_actor": "={{ $json.threat_group }}",
+          "aliases": "={{ $json.aliases }}",
+          "attribution": "={{ $json.attribution }}",
+          "target_sectors": "={{ $json.target_sectors }}",
+          "mitre_ttps": "={{ $json.mitre_ttps }}",
+          "campaign_details": "={{ $json.campaign_description }}",
+          "created_at": "={{ now }}"
+        }
+      },
+      "id": "store-apt",
+      "name": "Store APT Campaign",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "urlExpression": "https://api.mitre-attack.org/rest/techniques/{{ $item }}}",
+        "options": {}
+      },
+      "id": "mitre-lookup",
+      "name": "MITRE ATT&CK Lookup",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        500,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: APT Intelligence Feed": {
+      "main": [
+        [
+          {
+            "node": "Process APT Intelligence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process APT Intelligence": {
+      "main": [
+        [
+          {
+            "node": "Alert SOC & CISO",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "MITRE ATT&CK Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MITRE ATT&CK Lookup": {
+      "main": [
+        [
+          {
+            "node": "Update IOC Database",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate Detection Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update IOC Database": {
+      "main": [
+        [
+          {
+            "node": "Store APT Campaign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null
+}

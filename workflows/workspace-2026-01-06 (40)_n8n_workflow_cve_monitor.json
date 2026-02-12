@@ -1,0 +1,351 @@
+{
+  "name": "CyberSentinel - Critical CVE Monitoring and Response",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": "scheduled"
+      },
+      "name": "Scheduled Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "id": "node-scheduled-trigger"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "url": "https://services.nvd.nist.gov/rest/json/cves/2.0",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        },
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "resultsPerPage",
+              "value": "50"
+            },
+            {
+              "name": "pubStartDate",
+              "value": "={{ new Date(Date.now() - 86400000 * 7).toISOString() }}"
+            }
+          ]
+        }
+      },
+      "name": "NVD CVE Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        300,
+        200
+      ],
+      "id": "node-nvd-cve-feed"
+    },
+    {
+      "parameters": {
+        "functionCode": "\nconst items = $input.all();\nconst criticalCVEs = [];\nconst currentDate = new Date();\n\nfor (const item of items) {\n  const cveData = item.json.vulnerabilities[0].cve;\n  const metrics = cveData.metrics?.cvssMetricV31?.[0]?.cvssData || \n                 cveData.metrics?.cvssMetricV30?.[0]?.cvssData || {};\n  \n  const severity = metrics.baseScore >= 9.0 ? 'CRITICAL' : \n                   metrics.baseScore >= 7.0 ? 'HIGH' : \n                   metrics.baseScore >= 4.0 ? 'MEDIUM' : 'LOW';\n  \n  // Critical CVE detection logic\n  if (metrics.baseScore >= 9.0) {\n    criticalCVEs.push({\n      cveId: cveData.id,\n      published: cveData.published,\n      lastModified: cveData.lastModified,\n      description: cveData.descriptions?.[0]?.value || 'No description',\n      cvssScore: metrics.baseScore,\n      severity: severity,\n      attackVector: metrics.attackVector,\n      attackComplexity: metrics.attackComplexity,\n      privilegesRequired: metrics.privilegesRequired,\n      userInteraction: metrics.userInteraction,\n      scope: metrics.scope,\n      confidentialityImpact: metrics.confidentialityImpact,\n      integrityImpact: metrics.integrityImpact,\n      availabilityImpact: metrics.availabilityImpact,\n      detectionDate: currentDate.toISOString(),\n      source: 'NVD'\n    });\n  }\n}\n\nreturn criticalCVEs.map(cve => ({ json: cve }));\n"
+      },
+      "name": "Filter Critical CVEs",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ],
+      "id": "node-filter-critical-cves"
+    },
+    {
+      "parameters": {
+        "functionCode": "\n// Known critical CVEs from December 2025\nconst knownCriticalCVEs = [\n  {\n    cveId: 'CVE-2025-55182',\n    name: 'React2Shell',\n    affectedSoftware: ['React 19.x', 'Next.js 15.x', 'Next.js 16.x'],\n    description: 'React Server Components RCE',\n    severity: 'CRITICAL',\n    cvssScore: 10.0,\n    exploitationStatus: 'ACTIVE_ZERO_DAY',\n    mitigation: 'Patch to React 19.0.1+ or Next.js 15.2.1+/16.0.0+'\n  },\n  {\n    cveId: 'CVE-2025-66516',\n    name: 'Atlassian Tika XXE',\n    affectedSoftware: ['Atlassian Crowd', 'Confluence Data Center'],\n    description: 'Apache Tika XXE Vulnerability',\n    severity: 'CRITICAL',\n    cvssScore: 10.0,\n    exploitationStatus: 'CONFIRMED',\n    mitigation: 'Apply Atlassian security patches'\n  },\n  {\n    cveId: 'CVE-2025-68664',\n    name: 'LangChain Core',\n    affectedSoftware: ['langchain-core Python package'],\n    description: 'Serialization Injection vulnerability',\n    severity: 'CRITICAL',\n    cvssScore: 9.3,\n    exploitationStatus: 'REPORTED',\n    mitigation: 'Update to latest langchain-core version'\n  },\n  {\n    cveId: 'CVE-2025-59718',\n    name: 'FortiOS Auth Bypass',\n    affectedSoftware: ['FortiOS', 'FortiGate', 'FortiProxy'],\n    description: 'Authentication Bypass vulnerability',\n    severity: 'CRITICAL',\n    cvssScore: 9.8,\n    exploitationStatus: 'ACTIVE_ZERO_DAY',\n    mitigation: 'Apply Fortinet patches immediately'\n  },\n  {\n    cveId: 'CVE-2025-20393',\n    name: 'Cisco AsyncOS Zero-Day',\n    affectedSoftware: ['Cisco ESA', 'Cisco WSA'],\n    description: 'Maximum severity zero-day vulnerability',\n    severity: 'CRITICAL',\n    cvssScore: 10.0,\n    exploitationStatus: 'ACTIVE_ZERO_DAY',\n    mitigation: 'Restrict management interface access'\n  },\n  {\n    cveId: 'CVE-2025-62554',\n    name: 'Microsoft Office RCE',\n    affectedSoftware: ['Microsoft Office'],\n    description: 'Type confusion RCE vulnerability',\n    severity: 'HIGH',\n    cvssScore: 8.4,\n    exploitationStatus: 'CONFIRMED',\n    mitigation: 'Apply Microsoft December 2025 patches'\n  },\n  {\n    cveId: 'CVE-2025-62557',\n    name: 'Microsoft Office RCE',\n    affectedSoftware: ['Microsoft Office'],\n    description: 'Use-after-free RCE vulnerability',\n    severity: 'HIGH',\n    cvssScore: 8.4,\n    exploitationStatus: 'CONFIRMED',\n    mitigation: 'Apply Microsoft December 2025 patches'\n  },\n  {\n    cveId: 'CVE-2025-64671',\n    name: 'GitHub Copilot RCE',\n    affectedSoftware: ['GitHub Copilot for JetBrains'],\n    description: 'Command injection vulnerability',\n    severity: 'HIGH',\n    cvssScore: 8.4,\n    exploitationStatus: 'PUBLICLY_DISCLOSED',\n    mitigation: 'Apply GitHub security patches'\n  },\n  {\n    cveId: 'CVE-2025-62221',\n    name: 'Windows Cloud Files EoP',\n    affectedSoftware: ['Windows Cloud Files Mini Filter Driver'],\n    description: 'Use-after-free EoP vulnerability',\n    severity: 'HIGH',\n    cvssScore: 7.8,\n    exploitationStatus: 'ACTIVE_ZERO_DAY',\n    mitigation: 'Apply Microsoft patches immediately'\n  }\n];\n\nreturn knownCriticalCVEs.map(cve => ({ json: cve }));\n"
+      },
+      "name": "December 2025 Critical CVEs",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        300,
+        400
+      ],
+      "id": "node-december-2025-critical-cves"
+    },
+    {
+      "parameters": {
+        "mode": "mergeByField",
+        "mergeByFields": {
+          "fieldToMergeOn": "cveId"
+        },
+        "options": {}
+      },
+      "name": "Merge CVE Feeds",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ],
+      "id": "node-merge-cve-feeds"
+    },
+    {
+      "parameters": {
+        "functionCode": "\nconst items = $input.all();\nconst enrichedItems = [];\n\nfor (const item of items) {\n  const cve = item.json;\n  \n  // False positive reduction logic\n  let fpAnalysis = {\n    isFalsePositive: false,\n    fpReasons: [],\n    confidenceScore: 0\n  };\n  \n  // Check for false positive conditions\n  if (cve.severity === 'CRITICAL' && !cve.exploitationStatus?.includes('ACTIVE')) {\n    fpAnalysis.isFalsePositive = false; // Still important, just not actively exploited yet\n    fpAnalysis.fpReasons.push('Critical severity without active exploitation - high priority for patching');\n    fpAnalysis.confidenceScore += 0.3;\n  }\n  \n  if (cve.attackVector === 'LOCAL' && cve.privilegesRequired !== 'NONE') {\n    fpAnalysis.fpReasons.push('Local attack vector with required privileges - harder to exploit');\n    fpAnalysis.confidenceScore += 0.2;\n  }\n  \n  if (cve.userInteraction === 'REQUIRED') {\n    fpAnalysis.fpReasons.push('User interaction required - social engineering needed');\n    fpAnalysis.confidenceScore += 0.2;\n  }\n  \n  // High confidence actual threats\n  if (cve.exploitationStatus === 'ACTIVE_ZERO_DAY' && cve.cvssScore >= 9.0) {\n    fpAnalysis.isFalsePositive = false;\n    fpAnalysis.confidenceScore = 1.0;\n    fpAnalysis.fpReasons = ['Critical zero-day vulnerability with active exploitation'];\n  }\n  \n  // Business context enrichment\n  const businessContext = {\n    patchPriority: cve.cvssScore >= 9.0 ? 'IMMEDIATE' : \n                   cve.cvssScore >= 7.0 ? 'HIGH' : 'STANDARD',\n    estimatedPatchTime: cve.cvssScore >= 9.0 ? '< 24 hours' : '< 1 week',\n    businessImpact: cve.cvssScore >= 9.0 ? 'CRITICAL - immediate action required' :\n                    cve.cvssScore >= 7.0 ? 'HIGH - schedule patch soon' :\n                    'MEDIUM - include in regular patching cycle',\n    affectedDeploymentTypes: determineAffectedDeployments(cve.affectedSoftware),\n    complianceImplications: determineComplianceImpact(cve)\n  };\n  \n  enrichedItems.push({\n    json: {\n      ...cve,\n      falsePositiveAnalysis: fpAnalysis,\n      businessContext: businessContext,\n      processedAt: new Date().toISOString()\n    }\n  });\n}\n\nreturn enrichedItems;\n\nfunction determineAffectedDeployments(software) {\n  const deployments = [];\n  if (software?.some(s => s?.toLowerCase().includes('react') || s?.toLowerCase().includes('next'))) {\n    deployments.push('Web Applications');\n    deployments.push('SSR/Server Components');\n    deployments.push('Node.js Deployments');\n  }\n  if (software?.some(s => s?.toLowerCase().includes('office') || s?.toLowerCase().includes('windows'))) {\n    deployments.push('Desktop Endpoints');\n    deployments.push('Microsoft 365');\n  }\n  if (software?.some(s => s?.toLowerCase().includes('forti') || s?.toLowerCase().includes('cisco'))) {\n    deployments.push('Network Security Infrastructure');\n    deployments.push('Edge Security Appliances');\n  }\n  return deployments;\n}\n\nfunction determineComplianceImpact(cve) {\n  const frameworks = [];\n  if (cve.cvssScore >= 7.0) {\n    frameworks.push('PCI-DSS: Requires immediate remediation');\n    frameworks.push('SOC 2: CC6.1 - Security breach risk');\n    frameworks.push('NIST CSF: PR.DS - Data protection impact');\n  }\n  if (cve.cvssScore >= 9.0) {\n    frameworks.push('CRITICAL: Executive notification required');\n    frameworks.push('CISA KEV: Likely addition soon');\n  }\n  return frameworks;\n}\n"
+      },
+      "name": "Enrich with Business Context",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ],
+      "id": "node-enrich-business-context"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.businessContext?.patchPriority }}",
+              "operation": "equal",
+              "value2": "IMMEDIATE"
+            }
+          ]
+        }
+      },
+      "name": "Filter Critical Priority",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        300
+      ],
+      "id": "node-filter-critical-priority"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "table": "threat_alerts",
+        "columns": {
+          "threat_id": "={{ $json.cveId }}",
+          "threat_name": "={{ $json.name }}",
+          "threat_type": "VULNERABILITY",
+          "severity": "={{ $json.severity }}",
+          "cvss_score": "={{ $json.cvssScore }}",
+          "exploitation_status": "={{ $json.exploitationStatus }}",
+          "affected_systems": "={{ JSON.stringify($json.affectedSoftware) }}",
+          "description": "={{ $json.description }}",
+          "mitigation": "={{ $json.mitigation }}",
+          "business_context": "={{ JSON.stringify($json.businessContext) }}",
+          "false_positive_analysis": "={{ JSON.stringify($json.falsePositiveAnalysis) }}",
+          "created_at": "={{ new Date().toISOString() }}",
+          "status": "NEW"
+        }
+      },
+      "name": "Create Alert in Database",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1300,
+        300
+      ],
+      "id": "node-create-alert-database",
+      "credentials": {
+        "postgres": {
+          "id": "postgres-credentials",
+          "name": "PostgreSQL Database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "security-alerts",
+        "text": "=🚨 **CRITICAL VULNERABILITY ALERT** 🚨\\n\\n**CVE:** {{ $json.cveId }}\\n**Name:** {{ $json.name }}\\n**Severity:** {{ $json.severity }} (CVSS: {{ $json.cvssScore }})\\n**Status:** {{ $json.exploitationStatus }}\\n\\n**Description:** {{ $json.description }}\\n\\n**Affected Software:**\\n{{ $json.affectedSoftware?.join('\\n') }}\\n\\n**Mitigation:**\\n{{ $json.mitigation }}\\n\\n**Business Impact:** {{ $json.businessContext?.businessImpact }}\\n\\n_Priority: {{ $json.businessContext?.patchPriority }}_",
+        "attachments": [],
+        "blocks": []
+      },
+      "name": "Send Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        200
+      ],
+      "id": "node-slack-alert",
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credentials",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "to": "security-team@company.com",
+        "subject": "=🚨 CRITICAL: {{ $json.cveId }} - {{ $json.name }} Vulnerability Alert",
+        "body": "=CRITICAL VULNERABILITY ALERT\\n===========================\\n\\nCVE ID: {{ $json.cveId }}\\nName: {{ $json.name }}\\nSeverity: {{ $json.severity }}\\nCVSS Score: {{ $json.cvssScore }}\\nExploitation Status: {{ $json.exploitationStatus }}\\n\\nDescription:\\n{{ $json.description }}\\n\\nAffected Software:\\n{{ $json.affectedSoftware?.join(', ') }}\\n\\nRecommended Actions:\\n{{ $json.mitigation }}\\n\\nBusiness Impact:\\n{{ $json.businessContext?.businessImpact }}\\n\\nPriority: {{ $json.businessContext?.patchPriority }}\\nEstimated Patch Time: {{ $json.businessContext?.estimatedPatchTime }}\\n\\n---\\nGenerated by CyberSentinel\\n{{ new Date().toISOString() }}"
+      },
+      "name": "Send Email Alert",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        400
+      ],
+      "id": "node-email-alert",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gmail-credentials",
+          "name": "Gmail OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "\n// Generate summary for reporting\nconst items = $input.all();\nconst summary = {\n  timestamp: new Date().toISOString(),\n  totalCriticalCVEs: items.length,\n  activelyExploited: items.filter(i => i.json.exploitationStatus?.includes('ACTIVE')).length,\n  zeroDays: items.filter(i => i.json.exploitationStatus?.includes('ZERO_DAY')).length,\n  threatsBySeverity: {\n    CRITICAL: items.filter(i => i.json.severity === 'CRITICAL').length,\n    HIGH: items.filter(i => i.json.severity === 'HIGH').length\n  },\n  topPriorities: items.slice(0, 5).map(i => ({\n    cveId: i.json.cveId,\n    name: i.json.name,\n    severity: i.json.severity,\n    action: i.json.mitigation?.substring(0, 100) + '...'\n  }))\n};\n\nreturn [{ json: summary }];\n"
+      },
+      "name": "Generate Summary Report",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        300
+      ],
+      "id": "node-summary-report"
+    }
+  ],
+  "connections": {
+    "Scheduled Trigger": {
+      "main": [
+        [
+          {
+            "node": "NVD CVE Feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NVD CVE Feed": {
+      "main": [
+        [
+          {
+            "node": "Filter Critical CVEs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Critical CVEs": {
+      "main": [
+        [
+          {
+            "node": "Merge CVE Feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "December 2025 Critical CVEs": {
+      "main": [
+        [
+          {
+            "node": "Merge CVE Feeds",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge CVE Feeds": {
+      "main": [
+        [
+          {
+            "node": "Enrich with Business Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enrich with Business Context": {
+      "main": [
+        [
+          {
+            "node": "Filter Critical Priority",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Critical Priority": {
+      "main": [
+        [
+          {
+            "node": "Create Alert in Database",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Email Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Alert in Database": {
+      "main": [
+        [
+          {
+            "node": "Generate Summary Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Generate Summary Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email Alert": {
+      "main": [
+        [
+          {
+            "node": "Generate Summary Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "workflowId": "cybersentinel-cve-monitor-001",
+  "meta": {
+    "version": "1.0.0",
+    "lastUpdated": "2025-12-28T14:20:11.968570+00:00",
+    "author": "CyberSentinel Agent",
+    "description": "Automated CVE monitoring, false positive reduction, and business context enrichment workflow"
+  }
+}

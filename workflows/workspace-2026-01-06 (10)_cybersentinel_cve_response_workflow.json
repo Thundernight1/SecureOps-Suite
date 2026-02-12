@@ -1,0 +1,407 @@
+{
+  "name": "CyberSentinel_CVE_Response_Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook/cve-alert",
+        "options": {}
+      },
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "id": "webhook-trigger"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "CVE-2025-55182",
+              "operation": "contains"
+            }
+          ]
+        }
+      },
+      "name": "Filter React2Shell",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ],
+      "id": "filter-react2shell"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "CVE-2025-62221",
+              "operation": "contains"
+            }
+          ]
+        }
+      },
+      "name": "Filter CVE-2025-62221",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        300,
+        350
+      ],
+      "id": "filter-cve-2025-62221"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "CVE-2025-68668",
+              "operation": "contains"
+            }
+          ]
+        }
+      },
+      "name": "Filter n8n CVE",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        300,
+        500
+      ],
+      "id": "filter-n8n-cve"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId={{ $json.cve_id }}",
+        "options": {}
+      },
+      "name": "NVD Enrichment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ],
+      "id": "nvd-enrichment"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.virustotal.com/v3/votes",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-apikey",
+              "value": "={{ $env.VIRUSTOTAL_API_KEY }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "data",
+              "value": {
+                "type": "vote",
+                "attributes": {
+                  "verdict": "malicious",
+                  "description": "{{ $json.cve_id }} - Critical Vulnerability"
+                }
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "VT Intelligence Sharing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ],
+      "id": "vt-intelligence-sharing"
+    },
+    {
+      "parameters": {
+        "channel": "={{ $env.SLACK_SECURITY_CHANNEL }}",
+        "text": "=🚨 CRITICAL VULNERABILITY ALERT\n\n**CVE:** {{ $json.cve_id }}\n**Severity:** CRITICAL\n**CVSS:** {{ $json.cvss }}\n**Description:** {{ $json.description }}\n\n**Affected Systems:**\n{{ $json.affected_systems }}\n\n**Recommended Actions:**\n{{ $json.recommended_actions }}\n\n**IOCs:**\n{{ $json.iocs }}\n\n_Source: CyberSentinel Threat Intelligence_",
+        "options": {}
+      },
+      "name": "Slack Alert - Critical",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ],
+      "id": "slack-alert-critical"
+    },
+    {
+      "parameters": {
+        "to": "={{ $env.SECURITY_TEAM_EMAIL }}",
+        "subject": "🚨 CRITICAL: {{ $json.cve_id }} Vulnerability Alert",
+        "emailFormat": "html",
+        "html": "=<\n<h2>🚨 Critical Vulnerability Alert</h2>\n<table style=\"border-collapse: collapse; width: 100%; margin: 20px 0;\">\n<tr style=\"background-color: #ff4444; color: white;\">\n<th style=\"padding: 12px; text-align: left;\">Field</th>\n<th style=\"padding: 12px; text-align: left;\">Value</th>\n</tr>\n<tr>\n<td style=\"padding: 10px; border: 1px solid #ddd;\"><strong>CVE ID</strong></td>\n<td style=\"padding: 10px; border: 1px solid #ddd;\">{{ $json.cve_id }}</td>\n</tr>\n<tr>\n<td style=\"padding: 10px; border: 1px solid #ddd;\"><strong>Severity</strong></td>\n<td style=\"padding: 10px; border: 1px solid #ddd;\">CRITICAL</td>\n</tr>\n<tr>\n<td style=\"padding: 10px; border: 1px solid #ddd;\"><strong>CVSS Score</strong></td>\n<td style=\"padding: 10px; border: 1px solid #ddd;\">{{ $json.cvss }}</td>\n</tr>\n<tr>\n<td style=\"padding: 10px; border: 1px solid #ddd;\"><strong>Attack Vector</strong></td>\n<td style=\"padding: 10px; border: 1px solid #ddd;\">{{ $json.attack_vector }}</td>\n</tr>\n<tr>\n<td style=\"padding: 10px; border: 1px solid #ddd;\"><strong>Affected Systems</strong></td>\n<td style=\"padding: 10px; border: 1px solid #ddd;\">{{ $json.affected_systems }}</td>\n</tr>\n</table>\n\n<h3>Description</h3>\n<p>{{ $json.description }}</p>\n\n<h3>Recommended Actions</h3>\n<ol>\n{{ $json.recommended_actions_list }}\n</ol>\n\n<h3>Indicators of Compromise (IOCs)</h3>\n<pre style=\"background-color: #f5f5f5; padding: 15px; border-radius: 5px;\">{{ $json.iocs }}</pre>\n\n<hr>\n<p style=\"color: #666; font-size: 12px;\">This alert was generated by CyberSentinel Threat Intelligence System.\nTrigger ID: {{ $trigger_id }} | Agent ID: {{ $agent_id }}</p>\n"
+      },
+      "name": "Email Alert - Critical",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        900,
+        350
+      ],
+      "id": "email-alert-critical"
+    },
+    {
+      "parameters": {
+        "command": "=python3 /opt/cybersentinel/scripts/patch_assessment.py --cve {{ $json.cve_id }} --affected-systems \"{{ $json.affected_systems }}\""
+      },
+      "name": "Patch Assessment Script",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        700,
+        500
+      ],
+      "id": "patch-assessment"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.cvss }}",
+              "operation": "gte",
+              "value2": 9
+            }
+          ]
+        }
+      },
+      "name": "Check Severity",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        500
+      ],
+      "id": "check-severity"
+    },
+    {
+      "parameters": {
+        "command": "=python3 /opt/cybersentinel/scripts/block_iocs.py --cve {{ $json.cve_id }}"
+      },
+      "name": "Block IOCs",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        900,
+        500
+      ],
+      "id": "block-iocs"
+    },
+    {
+      "parameters": {
+        "jiraProject": "SEC",
+        "issueType": "Task",
+        "summary": "🚨 CRITICAL: {{ $json.cve_id }} Vulnerability Remediation Required",
+        "description": "=**CVE ID:** {{ $json.cve_id }}\n**Severity:** CRITICAL (CVSS: {{ $json.cvss }})\n**Priority:** P1 - Critical\n\n**Description:**\n{{ $json.description }}\n\n**Affected Systems:**\n{{ $json.affected_systems }}\n\n**Required Actions:**\n1. Apply vendor patch immediately\n2. Verify patch deployment across all affected systems\n3. Conduct post-patch vulnerability scan\n4. Monitor for exploitation attempts for 72 hours\n\n**References:**\n- NVD: {{ $json.nvd_url }}\n- Vendor Advisory: {{ $json.vendor_advisory }}\n\nGenerated by CyberSentinel",
+        "priority": "Highest",
+        "options": {}
+      },
+      "name": "Create Jira Ticket",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        500
+      ],
+      "id": "create-jira-ticket"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "=blocked"
+            }
+          ]
+        }
+      },
+      "name": "Update SIEM Alert",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        500
+      ],
+      "id": "update-siem-alert"
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Filter React2Shell",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter CVE-2025-62221",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter n8n CVE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter React2Shell": {
+      "main": [
+        [
+          {
+            "node": "NVD Enrichment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter CVE-2025-62221": {
+      "main": [
+        [
+          {
+            "node": "NVD Enrichment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter n8n CVE": {
+      "main": [
+        [
+          {
+            "node": "NVD Enrichment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NVD Enrichment": {
+      "main": [
+        [
+          {
+            "node": "VT Intelligence Sharing",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Severity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VT Intelligence Sharing": {
+      "main": [
+        [
+          {
+            "node": "Slack Alert - Critical",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email Alert - Critical",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Severity": {
+      "main": [
+        [
+          {
+            "node": "Patch Assessment Script",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Slack Alert - Critical",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Patch Assessment Script": {
+      "main": [
+        [
+          {
+            "node": "Block IOCs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Jira Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block IOCs": {
+      "main": [
+        [
+          {
+            "node": "Update SIEM Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Jira Ticket": {
+      "main": [
+        [
+          {
+            "node": "Update SIEM Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "meta": {
+    "instanceId": "cybersentinel-001"
+  },
+  "trigger": "webhook",
+  "workflow_id": "cve-response-critical-2025-12"
+}

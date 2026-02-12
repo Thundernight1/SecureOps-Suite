@@ -1,0 +1,364 @@
+{
+  "meta": {
+    "instanceId": "cybersentinel-001",
+    "createdAt": "2025-12-30T14:20:11.968570+00:00",
+    "version": "1.0.0",
+    "triggerId": "a1a6b29f-1834-4666-82d7-1163ce25f64c",
+    "agentId": "a401e896-d617-4e97-8bbf-29f47e133c21"
+  },
+  "name": "CyberSentinel Automated Threat Response",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": 3600
+        }
+      },
+      "id": "trigger-schedule",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://cve.circl.lu/api/last",
+        "options": {}
+      },
+      "id": "fetch-cve-feed",
+      "name": "Fetch CVE Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://otx.alienvault.com/api/v1/indicators/latest",
+        "options": {}
+      },
+      "id": "fetch-otx-feed",
+      "name": "Fetch AlienVault OTX",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://threatfox.abuse.ch/api/v1/bots",
+        "options": {}
+      },
+      "id": "fetch-threatfox",
+      "name": "Fetch ThreatFox IOCs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.cvss }}",
+              "operation": "greaterEqual",
+              "value2": "9"
+            }
+          ]
+        }
+      },
+      "id": "filter-critical-cvss",
+      "name": "Filter Critical CVEs",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.misp_tags }}",
+              "operation": "containsString",
+              "value2": "APT"
+            }
+          ]
+        }
+      },
+      "id": "filter-apt-threats",
+      "name": "Filter APT Threats",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.threat_type }}",
+              "operation": "equal",
+              "value2": "ransomware"
+            }
+          ]
+        }
+      },
+      "id": "filter-ransomware",
+      "name": "Filter Ransomware",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "tableId": "={{ $env.N8N_DATABASE_ID }}",
+        "columns": {
+          "threat_type": "={{ $json.threat_type }}",
+          "severity": "={{ $json.severity }}",
+          "cve_id": "={{ $json.cve }}",
+          "description": "={{ $json.description }}",
+          "affected_systems": "={{ JSON.stringify($json.affected_systems) }}",
+          "indicators_of_compromise": "={{ JSON.stringify($json.iocs) }}",
+          "recommended_actions": "={{ JSON.stringify($json.recommended_actions) }}",
+          "created_at": "={{ $now }}",
+          "n8n_workflow_id": "={{ $env.N8N_WORKFLOW_ID }}"
+        }
+      },
+      "id": "store-threat-intel",
+      "name": "Store Threat Intel",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        1500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "sendEmail",
+        "fromEmail": "={{ $env.ALERT_SENDER_EMAIL }}",
+        "toEmail": "={{ $env.SECURITY_TEAM_EMAIL }}",
+        "subject": "=🚨 CRITICAL THREAT ALERT: {{ $json.cve }} - {{ $json.threat_type }}",
+        "body": "=<h2>CyberSentinel Critical Threat Alert</h2>\n<p><strong>Threat Type:</strong> {{ $json.threat_type }}</p>\n<p><strong>Severity:</strong> {{ $json.severity }}</p>\n<p><strong>CVE ID:</strong> {{ $json.cve }}</p>\n<p><strong>CVSS Score:</strong> {{ $json.cvss }}</p>\n<p><strong>Description:</strong> {{ $json.description }}</p>\n<p><strong>Affected Systems:</strong> {{ $json.affected_systems }}</p>\n<p><strong>Indicators of Compromise:</strong></p>\n<ul>{{ $json.iocs }}</ul>\n<p><strong>Recommended Actions:</strong></p>\n<ul>{{ $json.recommended_actions }}</ul>\n<p><strong>Generated Workflow ID:</strong> {{ $json.n8n_workflow_id }}</p>"
+      },
+      "id": "alert-security-team",
+      "name": "Alert Security Team",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "={{ $env.SLACK_SECURITY_CHANNEL }}",
+        "text": "=🚨 *CRITICAL THREAT ALERT*\n\n*Type:* {{ $json.threat_type }}\n*Severity:* {{ $json.severity }}\n*CVE:* {{ $json.cve }}\n*CVSS:* {{ $json.cvss }}\n*Description:* {{ $json.description }}\n\n*Recommended Actions:*\n{{ $json.recommended_actions }}\n\n_Workflow ID: {{ $json.n8n_workflow_id }}_"
+      },
+      "id": "slack-alert",
+      "name": "Slack Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "event": "vulnerability.detected",
+        "payload": {
+          "cve": "={{ $json.cve }}",
+          "severity": "={{ $json.severity }}",
+          "threat_type": "={{ $json.threat_type }}"
+        }
+      },
+      "id": "trigger-soar-playbook",
+      "name": "Trigger SOAR Playbook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        2100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "error": true
+        }
+      },
+      "id": "error-handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "={{ $env.SLACK_ALERTS_CHANNEL }}",
+        "text": "=❌ *Workflow Error*\n\nNode: {{ $node.name }}\nError: {{ $json.message }}\n\nPlease review the workflow execution."
+      },
+      "id": "error-notification",
+      "name": "Error Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        500
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch CVE Feed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch AlienVault OTX",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch ThreatFox IOCs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch CVE Feed": {
+      "main": [
+        [
+          {
+            "node": "Filter Critical CVEs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch AlienVault OTX": {
+      "main": [
+        [
+          {
+            "node": "Filter APT Threats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch ThreatFox IOCs": {
+      "main": [
+        [
+          {
+            "node": "Filter Ransomware",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Critical CVEs": {
+      "main": [
+        [
+          {
+            "node": "Store Threat Intel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Filter APT Threats": {
+      "main": [
+        [
+          {
+            "node": "Store Threat Intel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Filter Ransomware": {
+      "main": [
+        [
+          {
+            "node": "Store Threat Intel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Store Threat Intel": {
+      "main": [
+        [
+          {
+            "node": "Alert Security Team",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Slack Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Trigger SOAR Playbook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Handler": {
+      "main": [
+        [
+          {
+            "node": "Error Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "active": true
+}

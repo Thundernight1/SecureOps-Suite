@@ -1,0 +1,625 @@
+{
+  "name": "CyberSentinel - APT Threat Response (China State-Sponsored)",
+  "meta": {
+    "threatType": "APT",
+    "threatGroups": [
+      {
+        "name": "Earth Lamia",
+        "country": "China",
+        "alias": "Jackpot Panda"
+      },
+      {
+        "name": "UAT-9686",
+        "country": "China"
+      },
+      {
+        "name": "APT36",
+        "country": "Pakistan"
+      },
+      {
+        "name": "BlindEagle",
+        "country": "Colombia"
+      },
+      {
+        "name": "Prince of Persia",
+        "country": "Iran"
+      }
+    ],
+    "severity": "CRITICAL",
+    "attackVectors": [
+      "Zero-day exploitation",
+      "Supply chain attacks",
+      "Spear phishing",
+      "Cloud service abuse"
+    ],
+    "targetIndustries": [
+      "Government agencies (32%)",
+      "Military institutions (29%)",
+      "Critical infrastructure",
+      "Technology sector"
+    ],
+    "n8nWorkflowId": "apt-china-state-sponsored-response"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "pollTime": "0 */6 * * *"
+      },
+      "name": "APT Detection Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "id": "trigger-001"
+    },
+    {
+      "parameters": {
+        "url": "https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json"
+      },
+      "name": "MITRE ATT&CK Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        300,
+        100
+      ],
+      "id": "mitre-feed-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/detect_apt_indicators.py --mode comprehensive --country China,Pakistan,Iran"
+      },
+      "name": "Scan for APT IoCs",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ],
+      "id": "apt-scan-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/analyze_network_anomalies.py --apt_mode"
+      },
+      "name": "Network Anomaly Detection",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ],
+      "id": "network-anomaly-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/check_cloud_abuse.py"
+      },
+      "name": "Check Cloud Service Abuse",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        300,
+        400
+      ],
+      "id": "cloud-check-001"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.aptDetected }}",
+              "operation": "equal",
+              "value2": "true"
+            }
+          ]
+        }
+      },
+      "name": "APT Activity Detected?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ],
+      "id": "apt-detected-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/identify_attack_chain.py"
+      },
+      "name": "Identify Attack Chain",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ],
+      "id": "attack-chain-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/map_mitre_attack.py --techniques $json.techniques"
+      },
+      "name": "Map MITRE ATT&CK",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ],
+      "id": "mitre-map-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/collect_forensic_evidence.py --apt_mode"
+      },
+      "name": "Collect Evidence",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ],
+      "id": "evidence-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/contain_apt.py --aggressive"
+      },
+      "name": "Contain APT",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        700,
+        400
+      ],
+      "id": "contain-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/block_c2_intelligence.py"
+      },
+      "name": "Block C2 Intelligence",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        700,
+        500
+      ],
+      "id": "block-c2-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/disable_compromised_accounts.py"
+      },
+      "name": "Disable Compromised Accounts",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        700,
+        600
+      ],
+      "id": "disable-accounts-001"
+    },
+    {
+      "parameters": {
+        "channel": "#security-critical",
+        "text": "🏴 **APT THREAT DETECTED - STATE-SPONSORED** 🏴\n\n**Threat Level:** CRITICAL\n**Attribution:** {{ $json.threatGroup }} ({{ $json.country }})\n**Attack Type:** {{ $json.attackType }}\n\n**DETECTED ACTIVITIES:**\n- Initial Access: {{ $json.initialAccess }}\n- Persistence: {{ $json.persistenceMechanism }}\n- Lateral Movement: {{ $json.lateralMovement }}\n- Data Exfiltration: {{ $json.dataExfiltration }}\n\n**MITRE ATT&CK TTPs:**\n{{ $json.mitreTechniques }}\n\n**IMMEDIATE ACTIONS:**\n✅ Evidence collection initiated\n✅ C2 blocked\n✅ Compromised accounts disabled\n✅ Containment in progress\n\n**INTELLIGENCE REQUIREMENT:**\nThis is likely a STATE-SPONSORED campaign.\n- Preserve all evidence for government reporting\n- Coordinate with legal for potential attribution disclosure\n- Prepare executive briefing\n- Do NOT communicate with threat actors"
+      },
+      "name": "Critical APT Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ],
+      "id": "apt-slack-001"
+    },
+    {
+      "parameters": {
+        "from": "cybersentinel@company.com",
+        "to": "ciso@company.com,security-ops@company.com,legal@company.com,executive@company.com",
+        "subject": "🚨 CRITICAL APT INCIDENT - State-Sponsored Attack Detected - Immediate Action Required",
+        "text": "CyberSentinel has detected active state-sponsored APT activity. This is a CRITICAL security incident requiring immediate executive attention.\n\n**THREAT ATTRIBUTION:**\n- Threat Group: {{ $json.threatGroup }}\n- Origin: {{ $json.country }}\n- Campaign Type: {{ $json.campaignType }}\n\n**ATTACK CHAIN ANALYSIS:**\n{{ $json.attackChain }}\n\n**DETECTED TECHNIQUES (MITRE ATT&CK):**\n{{ $json.mitreTechniques }}\n\n**ACTIONS TAKEN:**\n1. Forensic evidence collection in progress\n2. C2 communication blocked\n3. Compromised accounts disabled\n4. Lateral movement containment initiated\n\n**EXECUTIVE SUMMARY:**\nA sophisticated state-sponsored threat actor has gained access to our systems. This type of attack typically targets:\n- Intellectual property\n- Sensitive government/military information\n- Critical infrastructure\n- Trade secrets and competitive intelligence\n\n**REQUIRED ACTIONS:**\n1. IMMEDIATE executive briefing\n2. Legal coordination for potential disclosure requirements\n3. Government reporting coordination (if applicable)\n4. Extended incident response timeline (weeks to months)\n\n**CRITICAL:** Preserve all logs and evidence. Do NOT restore systems without complete forensic analysis and attribution confirmation."
+      },
+      "name": "APT Executive Alert",
+      "type": "n8n-nodes-base.email",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ],
+      "id": "apt-email-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/notify_government.py --if_required"
+      },
+      "name": "Government Notification",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        900,
+        400
+      ],
+      "id": "gov-notify-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/create_apt_intel_report.py"
+      },
+      "name": "Create Intel Report",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ],
+      "id": "intel-report-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/scan_lateral_movement.py"
+      },
+      "name": "Lateral Movement Scan",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        300
+      ],
+      "id": "lateral-scan-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/check_data_exfiltration.py"
+      },
+      "name": "Data Exfiltration Check",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        400
+      ],
+      "id": "exfil-check-001"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "apt_incidents",
+        "columns": "incident_id, threat_group, country, attack_type, mitre_ttps, containment_status, forensic_status, intelligence_report, created_at, status",
+        "values": "gen_random_uuid(), '{{ $json.threatGroup }}', '{{ $json.country }}', '{{ $json.attackType }}', '{{ JSON.stringify($json.mitreTechniques) }}', 'in_progress', 'in_progress', '{{ JSON.stringify($json.intelligenceReport) }}', NOW(), 'active'"
+      },
+      "name": "Log APT Incident",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        500
+      ],
+      "id": "db-log-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/update_threat_intel.py --apt"
+      },
+      "name": "Update Threat Intel",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        200
+      ],
+      "id": "update-intel-001"
+    },
+    {
+      "parameters": {
+        "channel": "#security-critical",
+        "text": "📊 **APT INCIDENT - STATUS UPDATE** 📊\n\n**Investigation Status:** 🔄 ONGOING\n**Threat Group:** {{ $json.threatGroup }} ({{ $json.country }})\n\n**Current Phase:** {{ $json.investigationPhase }}\n\n**Findings:**\n- Initial Access Vector: {{ $json.initialAccessVector }}\n- Time on Network: {{ $json.timeOnNetwork }}\n- Systems Compromised: {{ $json.systemsCompromised }}\n- Data Potentially Exfiltrated: {{ $json.dataExfiltrated }}\n\n**MITRE ATT&CK Coverage:**\n{{ $json.mitreCoverage }}\n\n**Recommended Next Steps:**\n1. Complete full forensic imaging\n2. Implement enhanced monitoring\n3. Review access controls\n4. Plan remediation timeline\n5. Coordinate attribution disclosure"
+      },
+      "name": "APT Status Update",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        300
+      ],
+      "id": "status-update-001"
+    }
+  ],
+  "connections": {
+    "APT Detection Trigger": {
+      "main": [
+        [
+          {
+            "node": "MITRE ATT&CK Feed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Scan for APT IoCs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Network Anomaly Detection",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Cloud Service Abuse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MITRE ATT&CK Feed": {
+      "main": [
+        [
+          {
+            "node": "APT Activity Detected?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scan for APT IoCs": {
+      "main": [
+        [
+          {
+            "node": "APT Activity Detected?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Network Anomaly Detection": {
+      "main": [
+        [
+          {
+            "node": "APT Activity Detected?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Cloud Service Abuse": {
+      "main": [
+        [
+          {
+            "node": "APT Activity Detected?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "APT Activity Detected?": {
+      "main": [
+        [
+          {
+            "node": "Identify Attack Chain",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Map MITRE ATT&CK",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Collect Evidence",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Contain APT",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Block C2 Intelligence",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Disable Compromised Accounts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Critical APT Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "APT Executive Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Government Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Intel Report",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Lateral Movement Scan",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Data Exfiltration Check",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log APT Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Identify Attack Chain": {
+      "main": [
+        [
+          {
+            "node": "Update Threat Intel",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "APT Status Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Map MITRE ATT&CK": {
+      "main": [
+        [
+          {
+            "node": "APT Status Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect Evidence": {
+      "main": [
+        [
+          {
+            "node": "APT Status Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Contain APT": {
+      "main": [
+        [
+          {
+            "node": "APT Status Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block C2 Intelligence": {
+      "main": [
+        [
+          {
+            "node": "APT Status Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Disable Compromised Accounts": {
+      "main": [
+        [
+          {
+            "node": "APT Status Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Critical APT Alert": {
+      "main": [
+        [
+          {
+            "node": "APT Status Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "APT Executive Alert": {
+      "main": [
+        [
+          {
+            "node": "APT Status Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Government Notification": {
+      "main": [
+        [
+          {
+            "node": "APT Status Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Intel Report": {
+      "main": [
+        [
+          {
+            "node": "APT Status Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lateral Movement Scan": {
+      "main": [
+        [
+          {
+            "node": "APT Status Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Data Exfiltration Check": {
+      "main": [
+        [
+          {
+            "node": "APT Status Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log APT Incident": {
+      "main": [
+        [
+          {
+            "node": "APT Status Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

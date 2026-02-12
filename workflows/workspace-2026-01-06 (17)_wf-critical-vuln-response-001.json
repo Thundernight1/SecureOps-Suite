@@ -1,0 +1,403 @@
+{
+  "name": "CyberSentinel - Critical Vulnerability Response",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "scheduled",
+        "triggerTimes": {
+          "item": {
+            "mode": "everyX",
+            "everyX": 15,
+            "unit": "minutes"
+          }
+        }
+      },
+      "id": "vuln-scheduler",
+      "name": "Schedule: Every 15 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "endpoint": "rest/api/3/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "jiraApi",
+        "options": {}
+      },
+      "id": "jira-check",
+      "name": "Check JIRA for Open Vulnerability Tickets",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ],
+      "credentials": {
+        "jiraApi": {
+          "id": "jira-credential",
+          "name": "JIRA API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://services.nvd.nist.gov/rest/json/cves/2.0",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apiKey",
+              "value": "={{$node['nvd-credentials'].json['api_key']}}"
+            }
+          ]
+        },
+        "options": {
+          "qs": {
+            "parameters": [
+              {
+                "name": "resultsPerPage",
+                "value": "50"
+              },
+              {
+                "name": "pubStartDate",
+                "value": "2025-12-26T00:00:00Z"
+              }
+            ]
+          }
+        }
+      },
+      "id": "nvd-fetch",
+      "name": "Fetch New CVEs from NVD",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        300,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+        "options": {}
+      },
+      "id": "cisa-kev-fetch",
+      "name": "Fetch CISA KEV Catalog",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "resource": "issue",
+        "projectKey": "SEC",
+        "issueTypeId": "1",
+        "additionalFields": "={}",
+        "fields": {
+          "summary": "={{'CRITICAL: ' + $json['cveID'] + ' - ' + $json['description']}}",
+          "description": "={{ JSON.stringify($json) }}",
+          "priority": {
+            "name": "Highest"
+          }
+        }
+      },
+      "id": "jira-create-ticket",
+      "name": "Create JIRA Security Ticket",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ],
+      "credentials": {
+        "jiraApi": {
+          "id": "jira-credential",
+          "name": "JIRA API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "text": "=🔴 **CRITICAL VULNERABILITY ALERT** 🔴\n\n**CVE:** {{$json.cveID}}\n**CVSS:** {{$json.cvssScore}}\n**Description:** {{$json.description}}\n\n**Immediate Actions Required:**\n1. Apply patches immediately\n2. Deploy WAF rules\n3. Isolate affected systems\n\n[Link to Ticket]({{$node['jira-create-ticket'].json['self']}})"
+      },
+      "id": "slack-alert",
+      "name": "Send Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credential",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "resource": "message",
+        "channel": "#security-alerts",
+        "text": "=🔴 **CRITICAL VULNERABILITY ALERT** 🔴\n\n**CVE:** {{$json.cveID}}\n**CVSS:** {{$json.cvssScore}}\n\nPlease check Slack for details."
+      },
+      "id": "teams-alert",
+      "name": "Send Teams Alert",
+      "type": "n8n-nodes-base.microsoftTeams",
+      "typeVersion": 1,
+      "position": [
+        900,
+        350
+      ],
+      "credentials": {
+        "microsoftTeamsApi": {
+          "id": "teams-credential",
+          "name": "Microsoft Teams API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json.cvssScore}}",
+              "operation": "greaterEqual",
+              "value2": 9
+            }
+          ]
+        }
+      },
+      "id": "critical-filter",
+      "name": "Filter Critical CVEs (CVSS >= 9)",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 1,
+      "position": [
+        550,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{$json['cisaKnownExploited']}}",
+              "operation": "equal",
+              "value2": "true"
+            }
+          ]
+        }
+      },
+      "id": "kev-filter",
+      "name": "Filter CISA KEV Vulnerabilities",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 1,
+      "position": [
+        550,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.cloudflare.com/client/v4/zones/{{$node['cloudflare-config'].json['zone_id']}}/rulesets/phases/http_request_sanitize_override/entrypoint",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "cloudflareApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$node['cloudflare-config'].json['api_token']}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "waf-deploy",
+      "name": "Deploy WAF Rule (Cloudflare/F5)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        700,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "resource": "email",
+        "to": "security-team@example.com",
+        "subject": "=🔴 CRITICAL: {{$json.cveID}} - Immediate Action Required",
+        "body": "=**VULNERABILITY ALERT**\n\nCVE: {{$json.cveID}}\nCVSS Score: {{$json.cvssScore}}\nDescription: {{$json.description}}\n\n**Immediate Actions:**\n1. Patch affected systems\n2. Deploy WAF rules\n3. Enable enhanced monitoring\n\nFull details in JIRA: {{$node['jira-create-ticket'].json['self']}}"
+      },
+      "id": "email-alert",
+      "name": "Send Email Alert",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1,
+      "position": [
+        900,
+        500
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "smtp-credential",
+          "name": "SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.crowdstrike.com/mfal/entities/vulnerabilities/GET/v1",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "crowdStrikeApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "ids",
+              "value": "={{[$json.cveID]}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "crowdstrike-fetch",
+      "name": "Check CrowdStrike for Vulnerability Exposure",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        300,
+        500
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule: Every 15 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Check JIRA for Open Vulnerability Tickets",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch New CVEs from NVD",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch CISA KEV Catalog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch New CVEs from NVD": {
+      "main": [
+        [
+          {
+            "node": "Filter Critical CVEs (CVSS >= 9)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch CISA KEV Catalog": {
+      "main": [
+        [
+          {
+            "node": "Filter CISA KEV Vulnerabilities",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Critical CVEs (CVSS >= 9)": {
+      "main": [
+        [
+          {
+            "node": "Create JIRA Security Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter CISA KEV Vulnerabilities": {
+      "main": [
+        [
+          {
+            "node": "Deploy WAF Rule (Cloudflare/F5)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create JIRA Security Ticket": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Teams Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Email Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "wf-critical-vuln-response-001",
+  "meta": {
+    "instanceId": "cyber-sentinel-001",
+    "trigger_id": "a1a6b29f-1834-4666-82d7-1163ce25f64c",
+    "agent_id": "a401e896-d617-4e97-8bbf-29f47e133c21",
+    "created_at": "2025-12-27T14:20:11.968570+00:00",
+    "threat_coverage": [
+      "React2Shell (CVE-2025-55182)",
+      "Gogs Zero-Day (CVE-2025-8110)",
+      "Microsoft Zero-Days",
+      "All CVSS >= 9 vulnerabilities"
+    ],
+    "automation_features": [
+      "Automatic CVE fetching from NVD",
+      "CISA KEV catalog monitoring",
+      "JIRA ticket creation",
+      "Slack/Teams/Email alerts",
+      "WAF rule deployment",
+      "CrowdStrike integration"
+    ],
+    "response_actions": [
+      "Create security ticket",
+      "Notify security team",
+      "Deploy WAF rules",
+      "Initiate patch management"
+    ]
+  }
+}

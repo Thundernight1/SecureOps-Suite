@@ -1,0 +1,271 @@
+{
+  "name": "Critical Vulnerability Response - React2Shell & Zero-Days",
+  "nodes": [
+    {
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        100,
+        200
+      ],
+      "parameters": {
+        "path": "critical-vulnerability-alert",
+        "method": "post",
+        "options": {}
+      }
+    },
+    {
+      "name": "NVD CVE Lookup",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        300,
+        200
+      ],
+      "parameters": {
+        "url": "https://services.nvd.nist.gov/rest/json/cves/2.0",
+        "method": "get",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      }
+    },
+    {
+      "name": "CISA KEV Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        300,
+        300
+      ],
+      "parameters": {
+        "url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+        "method": "get",
+        "options": {}
+      }
+    },
+    {
+      "name": "Extract CVE Details",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        500,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const items = $input.all();\nconst cveId = items[0].json.cveId || 'CVE-2025-55182';\nconst criticalCves = [\n  'CVE-2025-55182', // React2Shell\n  'CVE-2025-20393', // Cisco AsyncOS\n  'CVE-2025-59718', // Fortinet\n  'CVE-2025-59719', // Fortinet\n  'CVE-2025-62221', // Windows Zero-Day\n  'CVE-2025-54100', // PowerShell\n  'CVE-2025-64671', // GitHub Copilot\n  'CVE-2025-68664'  // LangChain Core\n];\n\nconst isCritical = criticalCves.includes(cveId);\nconst severityMap = {\n  'CVE-2025-55182': { severity: 'CRITICAL', cvss: 10.0, exploitStatus: 'Active' },\n  'CVE-2025-20393': { severity: 'CRITICAL', cvss: 10.0, exploitStatus: 'Active' },\n  'CVE-2025-59718': { severity: 'HIGH', cvss: 9.8, exploitStatus: 'Active' },\n  'CVE-2025-59719': { severity: 'HIGH', cvss: 9.8, exploitStatus: 'Active' },\n  'CVE-2025-62221': { severity: 'HIGH', cvss: 7.8, exploitStatus: 'Active' },\n  'CVE-2025-54100': { severity: 'HIGH', cvss: 7.8, exploitStatus: 'Active' },\n  'CVE-2025-64671': { severity: 'HIGH', cvss: 8.4, exploitStatus: 'Public' },\n  'CVE-2025-68664': { severity: 'HIGH', cvss: 9.3, exploitStatus: 'Active' }\n};\n\nreturn items.map(item => ({\n  json: {\n    ...item.json,\n    cveId: cveId,\n    isCritical: isCritical,\n    severity: severityMap[cveId]?.severity || 'UNKNOWN',\n    cvss: severityMap[cveId]?.cvss || 0,\n    exploitStatus: severityMap[cveId]?.exploitStatus || 'Unknown',\n    falsePositiveProbability: isCritical ? 0.15 : 0.35,\n    affectedSystems: getAffectedSystems(cveId),\n    recommendedActions: getRecommendedActions(cveId)\n  }\n}));\n\nfunction getAffectedSystems(cveId) {\n  const systems = {\n    'CVE-2025-55182': ['React 19.x', 'Next.js 15.x/16.x', 'Node.js applications', 'Web servers running RSC'],\n    'CVE-2025-20393': ['Cisco Email Security Appliance', 'Cisco AsyncOS', 'Network appliances'],\n    'CVE-2025-59718': ['FortiOS', 'FortiProxy', 'FortiWeb'],\n    'CVE-2025-62221': ['Windows Cloud Files Mini Filter Driver', 'Windows 10/11', 'Windows Server'],\n    'CVE-2025-68664': ['LangChain Core', 'LLM applications', 'AI-powered systems']\n  };\n  return systems[cveId] || ['Check vendor advisory'];\n}\n\nfunction getRecommendedActions(cveId) {\n  const actions = {\n    'CVE-2025-55182': [\n      'Upgrade React to patched version immediately',\n      'Block external HTTP requests to Next.js servers if patching delayed',\n      'Monitor for suspicious Node.js process behavior',\n      'Review application logs for unusual requests'\n    ],\n    'CVE-2025-20393': [\n      'Apply Cisco security patches immediately',\n      'Restrict access to management interfaces',\n      'Review appliance logs for persistence mechanisms',\n      'Implement network segmentation'\n    ],\n    'CVE-2025-59718': [\n      'Upgrade FortiOS to patched version',\n      'Review authentication logs for bypass attempts',\n      'Enable enhanced logging'\n    ],\n    'CVE-2025-68664': [\n      'Update langchain-core package',\n      'Audit LLM application serialization logic',\n      'Implement input validation for LLM prompts'\n    ]\n  };\n  return actions[cveId] || ['Apply vendor patches', 'Review security advisory'];\n}"
+      }
+    },
+    {
+      "name": "False Positive Filter",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        700,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const items = $input.all();\nreturn items.filter(item => {\n  const fpProb = item.json.falsePositiveProbability || 0.5;\n  const severity = item.json.severity;\n  \n  // Critical severity always requires attention\n  if (severity === 'CRITICAL') return true;\n  \n  // Filter out likely false positives (FP > 50%)\n  return fpProb < 0.5;\n}).map(item => ({\n  json: {\n    ...item.json,\n    filtered: item.json.falsePositiveProbability >= 0.5 ? 'LIKELY_FALSE_POSITIVE' : 'VERIFIED'\n  }\n}));"
+      }
+    },
+    {
+      "name": "Business Impact Assessment",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        900,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const items = $input.all();\nconst businessContext = {\n  criticalAssets: ['customer_data', 'financial_systems', 'production_servers', 'customer_facing_apps'],\n  industry: 'technology',\n  dataSensitivity: 'high'\n};\n\nreturn items.map(item => {\n  const severity = item.json.severity;\n  const cvss = item.json.cvss;\n  let priority = 3;\n  let businessImpact = 'MEDIUM';\n  \n  // Calculate priority based on CVSS and business context\n  if (severity === 'CRITICAL' || cvss >= 9.0) {\n    priority = 1;\n    businessImpact = 'CRITICAL';\n  } else if (severity === 'HIGH' || cvss >= 7.0) {\n    priority = 2;\n    businessImpact = 'HIGH';\n  }\n  \n  return {\n    json: {\n      ...item.json,\n      priority: priority,\n      businessImpact: businessImpact,\n      estimatedExposure: calculateExposure(severity, cvss),\n      remediationDeadline: calculateDeadline(severity)\n    }\n  };\n});\n\nfunction calculateExposure(severity, cvss) {\n  const baseExposure = cvss * 10; // 0-100 scale\n  return Math.min(baseExposure, 100);\n}\n\nfunction calculateDeadline(severity) {\n  const now = new Date();\n  const hoursToAdd = severity === 'CRITICAL' ? 24 : severity === 'HIGH' ? 72 : 168;\n  now.setHours(now.getHours() + hoursToAdd);\n  return now.toISOString();\n}"
+      }
+    },
+    {
+      "name": "Alert Triage",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        1100,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const items = $input.all();\n\nconst triageRules = [\n  { condition: \"json.severity === 'CRITICAL'\", action: 'IMMEDIATE', channel: ['slack', 'email', 'pagerduty'] },\n  { condition: \"json.severity === 'HIGH' && json.exploitStatus === 'Active'\", action: 'URGENT', channel: ['slack', 'email'] },\n  { condition: \"json.severity === 'HIGH'\", action: 'HIGH', channel: ['slack'] },\n  { condition: \"json.severity === 'MEDIUM'\", action: 'STANDARD', channel: ['email'] },\n  { condition: \"json.severity === 'LOW'\", action: 'LOW', channel: ['dashboard'] }\n];\n\nreturn items.map(item => {\n  const rule = triageRules.find(r => eval(r.condition));\n  return {\n    json: {\n      ...item.json,\n      triageAction: rule?.action || 'REVIEW',\n      notificationChannels: rule?.channel || ['dashboard'],\n      ticketPriority: rule?.action === 'IMMEDIATE' ? 'P1' : rule?.action === 'URGENT' ? 'P2' : 'P3',\n      slaBreachTime: calculateSlaBreach(item.json.severity)\n    }\n  };\n});\n\nfunction calculateSlaBreach(severity) {\n  const now = new Date();\n  const minutes = severity === 'CRITICAL' ? 60 : severity === 'HIGH' ? 240 : 1440;\n  now.setMinutes(now.getMinutes() + minutes);\n  return now.toISOString();\n}"
+      }
+    },
+    {
+      "name": "Slack Notification - Critical",
+      "type": "n8n-nodes-base.slack",
+      "position": [
+        1300,
+        100
+      ],
+      "parameters": {
+        "channel": "#security-alerts",
+        "text": "={{'🚨 CRITICAL VULNERABILITY ALERT 🚨\\n\\nCVE: ' + $json.cveId + '\\nSeverity: ' + $json.severity + ' (CVSS: ' + $json.cvss + ')\\nStatus: ' + $json.exploitStatus + '\\n\\n📋 Recommended Actions:\\n' + $json.recommendedActions.join('\\n') + '\\n\\n🎯 Affected Systems:\\n' + $json.affectedSystems.join(', ')}}",
+        "options": {}
+      }
+    },
+    {
+      "name": "Email Notification",
+      "type": "n8n-nodes-base.emailReadImap",
+      "position": [
+        1300,
+        200
+      ],
+      "parameters": {
+        "to": "security-team@company.com",
+        "subject": "={{'VULNERABILITY ALERT: ' + $json.cveId + ' - ' + $json.severity}}",
+        "body": "={{'Critical vulnerability detected.\\n\\nCVE: ' + $json.cveId + '\\nSeverity: ' + $json.severity + '\\nCVSS: ' + $json.cvss + '\\nExploit Status: ' + $json.exploitStatus + '\\n\\nRecommended Actions:\\n' + $json.recommendedActions.join('\\n') + '\\n\\nAffected Systems:\\n' + $json.affectedSystems.join('\\n') + '\\n\\nBusiness Impact: ' + $json.businessImpact + '\\nPriority: P' + $json.priority}}",
+        "options": {}
+      }
+    },
+    {
+      "name": "Create Jira Ticket",
+      "type": "n8n-nodes-base.jira",
+      "position": [
+        1300,
+        300
+      ],
+      "parameters": {
+        "projectKey": "SEC",
+        "issueType": "Task",
+        "title": "={{'[VULNERABILITY] ' + $json.cveId + ' - ' + $json.severity + ' Alert'}}",
+        "description": "={{'Critical vulnerability requires immediate attention.\\n\\n**CVE:** ' + $json.cveId + '\\n**Severity:** ' + $json.severity + ' (CVSS: ' + $json.cvss + ')\\n**Status:** ' + $json.exploitStatus + '\\n**Business Impact:** ' + $json.businessImpact + '\\n**Priority:** P' + $json.priority + '\\n\\n**Recommended Actions:**\\n' + $json.recommendedActions.join('\\n') + '\\n\\n**Affected Systems:**\\n' + $json.affectedSystems.join('\\n') + '\\n\\n**False Positive Probability:** ' + ($json.falsePositiveProbability * 100) + '%\\n\\n**Remediation Deadline:** ' + $json.remediationDeadline}}",
+        "priority": "={{$json.severity === 'CRITICAL' ? 'Highest' : 'High'}}"
+      }
+    },
+    {
+      "name": "SIEM Integration",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1300,
+        400
+      ],
+      "parameters": {
+        "url": "https://your-siem-endpoint.com/api/v1/alerts",
+        "method": "post",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      }
+    },
+    {
+      "name": "Vulnerability Report",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        1500,
+        200
+      ],
+      "parameters": {
+        "operation": "append",
+        "sheetId": "your-google-sheet-id",
+        "range": "A:M",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "NVD CVE Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NVD CVE Lookup": {
+      "main": [
+        [
+          {
+            "node": "CISA KEV Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CISA KEV Check": {
+      "main": [
+        [
+          {
+            "node": "Extract CVE Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract CVE Details": {
+      "main": [
+        [
+          {
+            "node": "False Positive Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "False Positive Filter": {
+      "main": [
+        [
+          {
+            "node": "Business Impact Assessment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Business Impact Assessment": {
+      "main": [
+        [
+          {
+            "node": "Alert Triage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Triage": {
+      "main": [
+        [
+          {
+            "node": "Slack Notification - Critical",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Jira Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "SIEM Integration",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Vulnerability Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

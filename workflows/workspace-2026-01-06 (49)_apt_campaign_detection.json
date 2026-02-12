@@ -1,0 +1,1372 @@
+{
+  "name": "APT Campaign Detection and Response - UAT-9686, Earth Lamia, APT36",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "value": 30
+            }
+          ]
+        }
+      },
+      "id": "apt-scheduler",
+      "name": "APT Monitor",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://www.mandiant.com/advantage/threat-intelligence",
+        "options": {}
+      },
+      "id": "mandiant-feed",
+      "name": "Mandiant Threat Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://raw.githubusercontent.com/StrangerealIntel/DailyIOC/master/IP/ipv4.csv",
+        "options": {}
+      },
+      "id": "daily-ioc",
+      "name": "Daily IOC Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        300,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://bazaar.abuse.ch/export/csv/recent/",
+        "options": {}
+      },
+      "id": "abuse-ch",
+      "name": "Abuse.ch Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        300,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.threat_actor }}",
+              "operation": "contains",
+              "value2": "UAT-9686"
+            }
+          ]
+        }
+      },
+      "id": "check-uat9686",
+      "name": "Check UAT-9686",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.threat_actor }}",
+              "operation": "contains",
+              "value2": "Earth Lamia"
+            }
+          ]
+        }
+      },
+      "id": "check-earthlamia",
+      "name": "Check Earth Lamia",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.threat_actor }}",
+              "operation": "contains",
+              "value2": "Jackpot Panda"
+            }
+          ]
+        }
+      },
+      "id": "check-jackpotpanda",
+      "name": "Check Jackpot Panda",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.threat_actor }}",
+              "operation": "contains",
+              "value2": "APT36"
+            }
+          ]
+        }
+      },
+      "id": "check-apt36",
+      "name": "Check APT36",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        650
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.threat_actor }}",
+              "operation": "contains",
+              "value2": "MuddyWater"
+            }
+          ]
+        }
+      },
+      "id": "check-muddywater",
+      "name": "Check MuddyWater",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.threat_actor }}",
+              "operation": "contains",
+              "value2": "BRICKSTORM"
+            }
+          ]
+        }
+      },
+      "id": "check-brickstorm",
+      "name": "Check BRICKSTORM",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        950
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.threat_actor }}",
+              "operation": "contains",
+              "value2": "Tomiris"
+            }
+          ]
+        }
+      },
+      "id": "check-tomiris",
+      "name": "Check Tomiris",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.target_region }}",
+              "operation": "contains",
+              "value2": "North America"
+            }
+          ]
+        }
+      },
+      "id": "na-target",
+      "name": "North America Target",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.target_region }}",
+              "operation": "contains",
+              "value2": "Europe"
+            }
+          ]
+        }
+      },
+      "id": "eu-target",
+      "name": "Europe Target",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.target_region }}",
+              "operation": "contains",
+              "value2": "Asia"
+            }
+          ]
+        }
+      },
+      "id": "asia-target",
+      "name": "Asia Target",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.target_sector }}",
+              "operation": "contains",
+              "value2": "government"
+            }
+          ]
+        }
+      },
+      "id": "gov-sector",
+      "name": "Government Sector",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        650
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.target_sector }}",
+              "operation": "contains",
+              "value2": "critical_infrastructure"
+            }
+          ]
+        }
+      },
+      "id": "critical-sector",
+      "name": "Critical Infrastructure",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.target_sector }}",
+              "operation": "contains",
+              "value2": "technology"
+            }
+          ]
+        }
+      },
+      "id": "tech-sector",
+      "name": "Technology Sector",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        950
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.target_sector }}",
+              "operation": "contains",
+              "value2": "healthcare"
+            }
+          ]
+        }
+      },
+      "id": "healthcare-sector",
+      "name": "Healthcare Sector",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.threat_actor }}",
+              "operation": "contains",
+              "value2": "China"
+            }
+          ]
+        }
+      },
+      "id": "china-nexus",
+      "name": "China Nexus Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.threat_actor }}",
+              "operation": "contains",
+              "value2": "Iran"
+            }
+          ]
+        }
+      },
+      "id": "iran-nexus",
+      "name": "Iran Nexus Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        900,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.threat_actor }}",
+              "operation": "contains",
+              "value2": "Russia"
+            }
+          ]
+        }
+      },
+      "id": "russia-nexus",
+      "name": "Russia Nexus Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        900,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.threat_actor }}",
+              "operation": "contains",
+              "value2": "North Korea"
+            }
+          ]
+        }
+      },
+      "id": "nk-nexus",
+      "name": "North Korea Nexus",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        900,
+        650
+      ]
+    },
+    {
+      "parameters": {
+        "method": "post",
+        "url": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ JSON.stringify({ text: \"🛡️ APT ALERT: \" + $json.threat_actor + \"\\nCampaign: \" + $json.campaign_name + \"\\nTarget: \" + $json.target_sector + \" (\" + $json.target_region + \")\\nNation State: \" + $json.nation_state + \"\\nSeverity: CRITICAL\" }) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "slack-apt",
+      "name": "APT Slack Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "to": "={{ $env.SECURITY_TEAM_EMAIL }}",
+        "subject": "={{ \"🛡️ APT ALERT: \" + $json.threat_actor + \" (\" + $json.nation_state + \") Campaign Detected\" }}",
+        "body": "={{ \"ADVANCED PERSISTENT THREAT DETECTED:\\n\\nThreat Actor: \" + $json.threat_actor + \"\\nAttribution: \" + $json.nation_state + \"\\nCampaign: \" + $json.campaign_name + \"\\nTarget Sector: \" + $json.target_sector + \"\\nTarget Region: \" + $json.target_region + \"\\n\\nAttack Details:\\n\" + $json.attack_description + \"\\n\\nTactics, Techniques, and Procedures (TTPs):\\n\" + JSON.stringify($jsonttps, null, 2) + \"\\n\\nIndicators of Compromise:\\n\" + JSON.stringify($json.indicators_of_compromise, null, 2) + \"\\n\\nRecommended Actions:\\n1. IMMEDIATE: Hunt for IOCs across all systems\\n2. REVIEW: Access logs for suspicious activity\\n3. ENHANCE: Monitoring on critical assets\\n4. ENGAGE: Threat intelligence team for attribution\\n5. ESCALATE: To executive leadership if confirmed breach\" }}",
+        "options": {}
+      },
+      "id": "email-apt",
+      "name": "APT Email Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value": "={{ $json.government_target }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "gov-escalation",
+      "name": "Government Escalation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value": "={{ $json.cisa_notification }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "cisa-report",
+      "name": "CISA Notification",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        650
+      ]
+    },
+    {
+      "parameters": {
+        "method": "post",
+        "url": "={{ $env.SPLUNK_HEC_URL }}",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ \"Splunk \" + $env.SPLUNK_TOKEN }}"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "event",
+              "value": "={{ JSON.stringify({ threat_type: \"APT\", threat_actor: $json.threat_actor, nation_state: $json.nation_state, campaign: $json.campaign_name, severity: \"CRITICAL\", target_sector: $json.target_sector,ttps: $jsonttps, indicators: $json.indicators_of_compromise }) }}"
+            },
+            {
+              "name": "sourcetype",
+              "value": "cyber:apt"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "splunk-apt",
+      "name": "Ingest to SIEM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "post",
+        "url": "={{ $env.EDR_API_URL }}/v1/threats",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.EDR_API_KEY }}"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "threat_name",
+              "value": "={{ $json.threat_actor }}"
+            },
+            {
+              "name": "threat_type",
+              "value": "APT"
+            },
+            {
+              "name": "threat_subtype",
+              "value": "={{ $json.nation_state }}"
+            },
+            {
+              "name": "severity",
+              "value": "critical"
+            },
+            {
+              "name": "description",
+              "value": "={{ $json.campaign_description }}"
+            },
+            {
+              "name": "ttps",
+              "value": "={{ JSON.stringify($jsonttps) }}"
+            },
+            {
+              "name": "indicators",
+              "value": "={{ JSON.stringify($json.indicators_of_compromise) }}"
+            },
+            {
+              "name": "recommended_actions",
+              "value": "={{ JSON.stringify([\"Conduct immediate IOC hunt across all systems\", \"Review authentication logs for unusual access patterns\", \"Enhance monitoring on critical infrastructure\", \"Engage nation-state threat intelligence team\", \"Prepare incident response team for potential breach\", \"Coordinate with ISACs for sector-wide warning\", \"Implement enhanced authentication for privileged accounts\"]) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "edr-apt",
+      "name": "Update EDR Detection",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1300,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "method": "post",
+        "url": "={{ $env.SERVICENOW_API_URL }}/api/now/table/incident",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ \"Basic \" + $env.SERVICENOW_AUTH }}"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "short_description",
+              "value": "={{ \"🛡️ CRITICAL: \" + $json.threat_actor + \" (\" + $json.nation_state + \") APT Campaign\" }}"
+            },
+            {
+              "name": "description",
+              "value": "={{ \"NATION-STATE ADVANCED PERSISTENT THREAT DETECTED\\n\\nThreat Actor: \" + $json.threat_actor + \"\\nAttribution: \" + $json.nation_state + \"\\nCampaign: \" + $json.campaign_name + \"\\nTarget: \" + $json.target_sector + \" in \" + $json.target_region + \"\\n\\nTHIS IS A CRITICAL SEVERITY INCIDENT\\n\\nThis APT campaign is attributed to a nation-state actor and requires immediate attention from executive leadership and the incident response team.\\n\\nTTPs Observed:\\n\" + JSON.stringify($jsonttps, null, 2) + \"\\n\\nImmediate Actions Required:\\n1. Alert executive leadership\\n2. Mobilize incident response team\\n3. Begin IOC hunting immediately\\n4. Enhance monitoring on all critical systems\\n5. Coordinate with government agencies if required\" }}"
+            },
+            {
+              "name": "urgency",
+              "value": "1"
+            },
+            {
+              "name": "impact",
+              "value": "1"
+            },
+            {
+              "name": "priority",
+              "value": "1"
+            },
+            {
+              "name": "category",
+              "value": "Incident"
+            },
+            {
+              "name": "subcategory",
+              "value": "Malware - APT"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "servicenow-apt",
+      "name": "Create Incident Ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1300,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ \"python3 /opt/scripts/apt_hunt.py --actor '\" + $json.threat_actor + \"' --campaign '\" + $json.campaign_name + \"' --ioc '\" + JSON.stringify($json.indicators_of_compromise) + \"' --output json\" }}"
+      },
+      "id": "apt-hunt",
+      "name": "APT Threat Hunt",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ \"python3 /opt/scripts/behavior_analysis.py --log_source endpoint --time_range 24h --ttps '\" + JSON.stringify($jsonttps) + \"' --output json\" }}"
+      },
+      "id": "behavior-analysis",
+      "name": "Behavior Analysis",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ \"python3 /opt/scripts/network_beacon_detect.py --c2_indicators '\" + JSON.stringify($json.indicators_of_compromise.c2) + \"' --output json\" }}"
+      },
+      "id": "beacon-detection",
+      "name": "C2 Beacon Detection",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ \"python3 /opt/scripts/lateral_movement_detect.py --indicators '\" + JSON.stringify($json.indicators_of_compromise) + \"' --output json\" }}"
+      },
+      "id": "lateral-movement",
+      "name": "Lateral Movement Detection",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        650
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ \"python3 /opt/scripts/report_generation.py --threat_type apt --actor '\" + $json.threat_actor + \"' --campaign '\" + $json.campaign_name + \"' --output json\" }}"
+      },
+      "id": "apt-report",
+      "name": "Generate Intel Report",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value": "={{ $json.confirmed_breach }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "breach-confirmed",
+      "name": "Confirmed Breach Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "threatType",
+              "value": "APT"
+            },
+            {
+              "name": "severity",
+              "value": "CRITICAL"
+            },
+            {
+              "name": "threatGroup",
+              "value": "={{ $json.threat_actor }}"
+            },
+            {
+              "name": "nationState",
+              "value": "={{ $json.nation_state }}"
+            },
+            {
+              "name": "campaign",
+              "value": "={{ $json.campaign_name }}"
+            },
+            {
+              "name": "affectedSystems",
+              "value": "={{ $json.target_sector + \" in \" + $json.target_region }}"
+            },
+            {
+              "name": "ttps",
+              "value": "={{ JSON.stringify($jsonttps) }}"
+            },
+            {
+              "name": "indicatorsOfCompromise",
+              "value": "={{ JSON.stringify($json.indicators_of_compromise) }}"
+            },
+            {
+              "name": "recommendedActions",
+              "value": "={{ JSON.stringify([\"Conduct immediate IOC hunt across all systems\", \"Review authentication logs for unusual access patterns\", \"Enhance monitoring on critical infrastructure\", \"Engage nation-state threat intelligence team\", \"Prepare incident response team for potential breach\", \"Coordinate with ISACs for sector-wide warning\", \"Implement enhanced authentication for privileged accounts\", \"Preserve forensic evidence on all affected systems\"]) }}"
+            }
+          ]
+        }
+      },
+      "id": "apt-output",
+      "name": "APT Intel Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "APT Monitor": {
+      "main": [
+        [
+          {
+            "node": "Mandiant Threat Feed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Daily IOC Feed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Abuse.ch Feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mandiant Threat Feed": {
+      "main": [
+        [
+          {
+            "node": "Check UAT-9686",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Earth Lamia",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Jackpot Panda",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check APT36",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check MuddyWater",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check BRICKSTORM",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Tomiris",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily IOC Feed": {
+      "main": [
+        [
+          {
+            "node": "North America Target",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Europe Target",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Asia Target",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Government Sector",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Critical Infrastructure",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Technology Sector",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Healthcare Sector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Abuse.ch Feed": {
+      "main": [
+        [
+          {
+            "node": "China Nexus Check",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Iran Nexus Check",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Russia Nexus Check",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "North Korea Nexus",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check UAT-9686": {
+      "main": [
+        [
+          {
+            "node": "North America Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Earth Lamia": {
+      "main": [
+        [
+          {
+            "node": "North America Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Jackpot Panda": {
+      "main": [
+        [
+          {
+            "node": "North America Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check APT36": {
+      "main": [
+        [
+          {
+            "node": "Asia Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check MuddyWater": {
+      "main": [
+        [
+          {
+            "node": "Europe Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check BRICKSTORM": {
+      "main": [
+        [
+          {
+            "node": "Government Sector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Tomiris": {
+      "main": [
+        [
+          {
+            "node": "Critical Infrastructure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "North America Target": {
+      "main": [
+        [
+          {
+            "node": "China Nexus Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Europe Target": {
+      "main": [
+        [
+          {
+            "node": "Russia Nexus Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Asia Target": {
+      "main": [
+        [
+          {
+            "node": "China Nexus Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Government Sector": {
+      "main": [
+        [
+          {
+            "node": "China Nexus Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Critical Infrastructure": {
+      "main": [
+        [
+          {
+            "node": "Government Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Technology Sector": {
+      "main": [
+        [
+          {
+            "node": "China Nexus Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Healthcare Sector": {
+      "main": [
+        [
+          {
+            "node": "Government Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "China Nexus Check": {
+      "main": [
+        [
+          {
+            "node": "APT Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "APT Email Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Government Escalation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "CISA Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Iran Nexus Check": {
+      "main": [
+        [
+          {
+            "node": "APT Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Russia Nexus Check": {
+      "main": [
+        [
+          {
+            "node": "APT Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "North Korea Nexus": {
+      "main": [
+        [
+          {
+            "node": "APT Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "APT Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "APT Email Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Ingest to SIEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "APT Email Alert": {
+      "main": [
+        [
+          {
+            "node": "Ingest to SIEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Government Escalation": {
+      "main": [
+        [
+          {
+            "node": "CISA Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CISA Notification": {
+      "main": [
+        [
+          {
+            "node": "Ingest to SIEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ingest to SIEM": {
+      "main": [
+        [
+          {
+            "node": "Update EDR Detection",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Incident Ticket",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "APT Threat Hunt",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Behavior Analysis",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "C2 Beacon Detection",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Lateral Movement Detection",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate Intel Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update EDR Detection": {
+      "main": [
+        [
+          {
+            "node": "APT Intel Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Incident Ticket": {
+      "main": [
+        [
+          {
+            "node": "Confirmed Breach Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "APT Threat Hunt": {
+      "main": [
+        [
+          {
+            "node": "APT Intel Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Behavior Analysis": {
+      "main": [
+        [
+          {
+            "node": "APT Intel Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "C2 Beacon Detection": {
+      "main": [
+        [
+          {
+            "node": "APT Intel Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lateral Movement Detection": {
+      "main": [
+        [
+          {
+            "node": "APT Intel Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Intel Report": {
+      "main": [
+        [
+          {
+            "node": "APT Intel Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Confirmed Breach Check": {
+      "main": [
+        [
+          {
+            "node": "APT Intel Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "APT Intel Output": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": true,
+  "id": "apt-response-workflow-2025-12-27",
+  "meta": {
+    "instanceId": "cybersentinel-003"
+  }
+}

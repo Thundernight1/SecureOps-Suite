@@ -1,0 +1,313 @@
+{
+  "name": "CyberSentinel - Microsoft Office RCE Response",
+  "nodes": [
+    {
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        100,
+        200
+      ],
+      "parameters": {
+        "path": "cybersentinel-office-rce-alert",
+        "options": {}
+      }
+    },
+    {
+      "name": "Parse Alert",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        300,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const alert = items[0].json;\n\nconst indicators = {\n  cve: 'CVE-2025-62554, CVE-2025-62557, CVE-2025-62553',\n  threatType: 'VULNERABILITY',\n  severity: 'HIGH',\n  cvss: 8.4\n};\n\nreturn [{\n  json: {\n    ...alert,\n    processedAt: new Date().toISOString(),\n    workflowId: 'wf-office-rce-response-002',\n    indicators: indicators\n  }\n}];"
+      }
+    },
+    {
+      "name": "Validate CVE",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        500,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const alert = items[0].json;\n\n// Check if Office versions are vulnerable\n// Query endpoint management system for version info\nconst vulnerableVersions = [\n  'Office 2016',\n  'Office 2019',\n  'Office 2021',\n  'Microsoft 365 Apps for Enterprise'\n];\n\n// In real implementation, verify against actual inventory\nconst isVulnerable = true;\nconst requiresPatch = true;\n\nreturn [{\n  json: {\n    ...alert,\n    validation: {\n      isVulnerable: isVulnerable,\n      vulnerableVersions: vulnerableVersions,\n      requiresPatch: requiresPatch\n    }\n  }\n}];"
+      }
+    },
+    {
+      "name": "Create SIEM Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        700,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Config\"].json[\"siemWebhookUrl\"]}}",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "alert_type",
+              "value": "VULNERABILITY"
+            },
+            {
+              "name": "severity",
+              "value": "HIGH"
+            },
+            {
+              "name": "title",
+              "value": "Microsoft Office RCE Vulnerability - December 2025"
+            },
+            {
+              "name": "cve",
+              "value": "CVE-2025-62554, CVE-2025-62557, CVE-2025-62553"
+            },
+            {
+              "name": "description",
+              "value": "Multiple Microsoft Office RCE vulnerabilities requiring immediate patching"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Create Jira Ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        700,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Config\"].json[\"jiraApiUrl\"]}}/rest/api/3/issue",
+        "sendHeaders": true,
+        "sendBody": true,
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{\"Basic \" + Buffer.from($node[\"Config\"].json[\"jiraEmail\"] + \":\" + $node[\"Config\"].json[\"jiraApiToken\"]).toString(\"base64\")}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "={{JSON.stringify({\n  project: { key: \"SEC\" },\n  summary: \"[HIGH] Microsoft Office RCE Vulnerabilities - Apply December 2025 Updates\",\n  description: \"CVE-2025-62554, CVE-2025-62557, CVE-2025-62553\\n\\nType Confusion and Use-After-Free vulnerabilities in Microsoft Office\\n\\nStatus: Publicly Disclosed - Exploitation Likely\\n\\nRequired Actions:\\n1. Deploy December 2025 Microsoft security updates\\n2. Implement macro blocking policies\\n3. Enable Attack Surface Reduction rules\\n4. Configure Safe Links/Safe Attachments\",\n  issuetype: { name: \"Bug\" },\n  priority: { name: \"High\" }\n})}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Deploy EDR Rules",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        900,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Config\"].json[\"edrApiUrl\"]}}/rules/deploy",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{\"Bearer \" + $node[\"Config\"].json[\"edrApiToken\"]}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "rule_name",
+              "value": "Office Process Spawning Command"
+            },
+            {
+              "name": "description",
+              "value": "Detect Office processes spawning cmd.exe or powershell.exe"
+            },
+            {
+              "name": "conditions",
+              "value": "={{JSON.stringify([{\"parent_process\": [\"WINWORD.EXE\", \"EXCEL.EXE\", \"OUTLOOK.EXE\", \"POWERPNT.EXE\"]}, {\"child_process\": [\"cmd.exe\", \"powershell.exe\", \"wscript.exe\", \"cscript.exe\"]}])}}"
+            },
+            {
+              "name": "action",
+              "value": "block_and_alert"
+            },
+            {
+              "name": "enabled",
+              "value": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Enable ASR Rules",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        900,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Config\"].json[\"intuneApiUrl\"]}}/deviceManagement/configurationPolicies",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{\"Bearer \" + $node[\"Config\"].json[\"intuneToken\"]}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "name",
+              "value": "Office RCE Mitigation - ASR Rules"
+            },
+            {
+              "name": "description",
+              "value": "Enable ASR rules to block Office-based attacks"
+            },
+            {
+              "name": "settings",
+              "value": "={{JSON.stringify({\n  \"BlockOfficeApplicationsFromCreatingChildProcesses\": \"Enabled\",\n  \"BlockAllOfficeApplicationsFromCreatingChildProcesses\": \"Enabled\",\n  \"PreventCredentialStealingUsingLSASS\": \"Enabled\",\n  \"BlockProcessCreationsFromPSExecAndWMICommands\": \"Enabled\"\n})}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Send Slack Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        900,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Config\"].json[\"slackWebhookUrl\"]}}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "⚠️ Microsoft Office RCE Vulnerability Alert"
+            },
+            {
+              "name": "blocks",
+              "value": "={{JSON.stringify([{\n  type: \"header\",\n  text: { type: \"plain_text\", text: \"⚠️ Microsoft Office RCE Vulnerability\" }\n}, {\n  type: \"section\",\n  fields: [\n    { type: \"mrkdwn\", text: \"*CVE:*\\nCVE-2025-62554, CVE-2025-62557, CVE-2025-62553\" },\n    { type: \"mrkdwn\", text: \"*Severity:*\\nHIGH (CVSS 8.4)\" },\n    { type: \"mrkdwn\", text: \"*Type:*\\nType Confusion, Use-After-Free\" },\n    { type: \"mrkdwn\", text: \"*Status:*\\nPublicly Disclosed\" }\n  ]\n}, {\n  type: \"section\",\n  text: { type: \"mrkdwn\", text: \"*Actions:*\\n• Apply December 2025 patches\\n• Enable ASR rules\\n• Deploy EDR detection rules\" }\n}])}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Email Security Team",
+      "type": "n8n-nodes-base.emailSend",
+      "position": [
+        1100,
+        200
+      ],
+      "parameters": {
+        "to": "={{$node[\"Config\"].json[\"securityTeamEmail\"]}}",
+        "subject": "⚠️ Microsoft Office RCE Vulnerabilities - December 2025 Security Updates Required",
+        "text": "SECURITY ALERT: Microsoft Office RCE Vulnerabilities\\n\\nCVE: CVE-2025-62554, CVE-2025-62557, CVE-2025-62553\\nSeverity: HIGH (CVSS 8.4)\\n\\nMultiple Remote Code Execution vulnerabilities in Microsoft Office have been publicly disclosed. Exploitation is likely.\\n\\nAffected Systems:\\n- Microsoft Office 2016, 2019, 2021\\n- Microsoft 365 Apps for Enterprise\\n- Microsoft Outlook\\n\\nRequired Actions:\\n1. Deploy December 2025 Microsoft security updates\\n2. Implement macro blocking policies\\n3. Configure Safe Links/Safe Attachments\\n4. Enable Attack Surface Reduction rules\\n5. Deploy EDR rules for Office process monitoring\\n\\nGenerated by CyberSentinel"
+      }
+    },
+    {
+      "name": "Config",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "functionCode": "return [{\n  json: {\n    siemWebhookUrl: process.env.SIEM_WEBHOOK_URL || \"\",\n    jiraApiUrl: process.env.JIRA_API_URL || \"\",\n    jiraEmail: process.env.JIRA_EMAIL || \"\",\n    jiraApiToken: process.env.JIRA_API_TOKEN || \"\",\n    edrApiUrl: process.env.EDR_API_URL || \"\",\n    edrApiToken: process.env.EDR_API_TOKEN || \"\",\n    intuneApiUrl: process.env.INTUNE_API_URL || \"\",\n    intuneToken: process.env.INTUNE_TOKEN || \"\",\n    slackWebhookUrl: process.env.SLACK_WEBHOOK_URL || \"\",\n    securityTeamEmail: process.env.SECURITY_TEAM_EMAIL || \"\"\n  }\n}];"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Alert": {
+      "main": [
+        [
+          {
+            "node": "Validate CVE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate CVE": {
+      "main": [
+        [
+          {
+            "node": "Create SIEM Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Jira Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Parse Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

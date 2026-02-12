@@ -1,0 +1,157 @@
+{
+  "name": "CyberSentinel - Critical Vulnerability Response",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": "webhook"
+      },
+      "id": "cve-trigger",
+      "name": "Webhook: Critical CVE Alert",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://services.nvd.nist.gov/rest/json/cves/2.0?cvssV3Severity=HIGH",
+        "options": {}
+      },
+      "id": "nvd-fetch",
+      "name": "Fetch NVD CVE Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "severity": "={{ $json.cvssMetricsV31?.cvssData?.baseScore }}",
+          "threatType": "VULNERABILITY",
+          "affectedSystems": "={{ $json.configurations?.[0]?.nodes }}",
+          "indicatorsOfCompromise": "={{ $json.cve?.metrics?.cvssMetricV31?.[0]?.cvssData }}",
+          "recommendedActions": "={{ $json.references }}",
+          "n8nWorkflowId": "={{ $node[\"Webhook: Critical CVE Alert\"].webhookId }}"
+        }
+      },
+      "id": "extract-fields",
+      "name": "Extract Intelligence Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "sendEmail",
+        "subject": "🚨 CRITICAL: New Vulnerability Detected - {{ $json.cve?.ID }}",
+        "email": "security-team@company.com",
+        "body": "Critical vulnerability detected:\\n\\nCVE: {{ $json.cve?.ID }}\\nSeverity: {{ $json.cvssMetricsV31?.cvssData?.baseScore }}\\nDescription: {{ $json.cve?.description }}\\n\\nRecommended Actions:\\n{{ $json.references }}"
+      },
+      "id": "alert-security",
+      "name": "Alert Security Team",
+      "type": "n8n-nodes-base.email",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "command": "curl -X POST https://api.cisa.gov/v1/vulnerabilities -H \"Content-Type: application/json\" -d '{\"cve_id\": \"{{ $json.cve?.ID }}\", \"cvss_score\": \"{{ $json.cvssMetricsV31?.cvssData?.baseScore }}\", \"description\": \"{{ $json.cve?.description }}\"}'"
+      },
+      "id": "cisa-report",
+      "name": "Report to CISA",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        700,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "threat_intel",
+        "columns": {
+          "threatType": "={{ $json.threatType }}",
+          "severity": "={{ $json.severity }}",
+          "affectedSystems": "={{ $json.affectedSystems }}",
+          "indicatorsOfCompromise": "={{ $json.indicatorsOfCompromise }}",
+          "recommendedActions": "={{ $json.recommendedActions }}",
+          "n8nWorkflowId": "={{ $json.n8nWorkflowId }}",
+          "timestamp": "={{ now }}"
+        }
+      },
+      "id": "store-intel",
+      "name": "Store Intelligence",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: Critical CVE Alert": {
+      "main": [
+        [
+          {
+            "node": "Fetch NVD CVE Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch NVD CVE Data": {
+      "main": [
+        [
+          {
+            "node": "Extract Intelligence Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Intelligence Fields": {
+      "main": [
+        [
+          {
+            "node": "Alert Security Team",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Report to CISA",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Store Intelligence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null
+}

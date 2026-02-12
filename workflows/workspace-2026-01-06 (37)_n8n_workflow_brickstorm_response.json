@@ -1,0 +1,445 @@
+{
+  "name": "CyberSentinel - BRICKSTORM APT Malware Response",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cybersentinel/brickstorm-alert",
+        "options": {}
+      },
+      "id": "webhook-brickstorm",
+      "name": "Webhook: BRICKSTORM Alert",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "table": "incidents",
+        "fields": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "incident_id": "={{ 'BRICKSTORM-' + $now.format('YYYYMMDD-HHmmss') }}",
+            "threat_type": "MALWARE",
+            "threat_name": "BRICKSTORM - China State-Sponsored Backdoor",
+            "severity": "CRITICAL",
+            "status": "OPEN",
+            "assigned_to": "soc-team@company.com",
+            "created_at": "={{ $now.toISOString() }}",
+            "affected_systems": "VMware vSphere, Windows Servers, Virtualization Infrastructure",
+            "iocs": "={{ JSON.stringify({ malware: 'BRICKSTORM', indicators: ['VM snapshot theft', 'Hidden rogue VMs', 'DoH C2 traffic', 'Multiple encryption layers'] }) }}",
+            "threat_actor": "China State-Sponsored",
+            "exploitation_status": "ACTIVE"
+          }
+        }
+      },
+      "id": "create-incident",
+      "name": "Create Critical Incident",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ],
+      "credentials": {
+        "postgresApi": {
+          "id": "postgres-credentials",
+          "name": "PostgreSQL Database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableName": "escalations",
+        "fields": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "incident_id": "={{ 'BRICKSTORM-' + $now.format('YYYYMMDD-HHmmss') }}",
+            "escalation_level": "P1-CRITICAL",
+            "escalated_to": "CISO, SOC Manager, IR Team Lead",
+            "reason": "State-sponsored APT malware targeting virtualization infrastructure",
+            "sla_response": "15 minutes",
+            "created_at": "={{ $now.toISOString() }}"
+          }
+        }
+      },
+      "id": "escalate-incident",
+      "name": "Escalate to Leadership",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ],
+      "credentials": {
+        "postgresApi": {
+          "id": "postgres-credentials",
+          "name": "PostgreSQL Database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "to": "ciso@company.com,soc-manager@company.com,ir-team@company.com",
+        "subject": "🚨 CRITICAL - State-Sponsored APT Malware (BRICKSTORM) Detected",
+        "options": {},
+        "body": "=<h2>🚨 CRITICAL SECURITY INCIDENT - BRICKSTORM APT</h2>\n\n<h3>Threat Summary</h3>\n<table border=\"1\" cellpadding=\"8\">\n  <tr><th>Attribute</th><th>Value</th></tr>\n  <tr><td>Malware Name</td><td>BRICKSTORM</td></tr>\n  <tr><td>Threat Type</td><td>State-Sponsored APT Backdoor</td></tr>\n  <tr><td>Attribution</td><td>China State-Sponsored Actors</td></tr>\n  <tr><td>Source</td><td>CISA/NSA/Canadian Cyber Centre Joint Advisory</td></tr>\n  <tr><td>Advisory Date</td><td>December 4, 2025</td></tr>\n</table>\n\n<h3>Targeted Systems</h3>\n<ul>\n  <li>VMware vSphere ESXi</li>\n  <li>VMware vCenter Server</li>\n  <li>Windows Servers</li>\n  <li>Virtualization Infrastructure</li>\n  <li>Government & Critical Infrastructure</li>\n</ul>\n\n<h3>Indicators of Compromise</h3>\n<table border=\"1\" cellpadding=\"8\">\n  <tr><th>IOC Type</th><th>Description</th></tr>\n  <tr><td>Network</td><td>DNS-over-HTTPS encrypted C2 traffic</td></tr>\n  <tr><td>File</td><td>Suspicious VM snapshot operations (theft)</td></tr>\n  <tr><td>File</td><td>Hidden rogue VMs created</td></tr>\n  <tr><td>Process</td><td>Multiple encryption layers in traffic</td></tr>\n</table>\n\n<h3>Immediate Actions Required</h3>\n<ol>\n  <li><strong>IMMEDIATE (0-1 hour):</strong>\n    <ul>\n      <li>Audit VMware vSphere environments for BRICKSTORM indicators</li>\n      <li>Review VM snapshot creation logs for unauthorized operations</li>\n      <li>Enable enhanced logging for hypervisor management</li>\n      <li>Isolate virtualization management networks</li>\n    </ul>\n  </li>\n  <li><strong>SHORT-TERM (24-48 hours):</strong>\n    <ul>\n      <li>Deploy EDR on ESXi hosts if supported</li>\n      <li>Implement network segmentation</li>\n      <li>Rotate all vSphere/vCenter credentials</li>\n      <li>Enable vSphere Trust Architecture</li>\n    </ul>\n  </li>\n  <li><strong>LONG-TERM:</strong>\n    <ul>\n      <li>Implement zero-trust for virtualization management</li>\n      <li>Deploy micro-segmentation</li>\n      <li>Continuous monitoring for hypervisor anomalies</li>\n    </ul>\n  </li>\n</ol>\n\n<h3>Compliance Impact</h3>\n<ul>\n  <li>FedRAMP violations</li>\n  <li>NIST 800-53 non-compliance</li>\n  <li>CJIS requirements</li>\n  <li>Potential breach notification requirements</li>\n</ul>\n\n<p><strong>Estimated Recovery Time:</strong> 1-2 weeks for complete remediation</p>\n<p><strong>Incident ID:</strong> {{ 'BRICKSTORM-' + $now.format('YYYYMMDD-HHmmss') }}</p>\n<p><strong>Generated by:</strong> CyberSentinel Autonomous Threat Intelligence</p>"
+      },
+      "id": "email-executive",
+      "name": "Executive Alert Email",
+      "type": "n8n-nodes-base.email",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "smtp-credentials",
+          "name": "SMTP Server"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "#security-critical",
+        "text": "=🚨 **CRITICAL INCIDENT - State-Sponsored APT**\n\n**BRICKSTORM** Backdoor Malware Detected\n\n⚠️ **Attribution:** China State-Sponsored Actors\n📢 **Source:** CISA/NSA/CCCS Joint Advisory (Dec 4, 2025)\n\n**Target Systems:**\n- VMware vSphere ESXi/vCenter\n- Windows Servers\n- Virtualization Infrastructure\n\n**IOCs Detected:**\n- DoH (DNS-over-HTTPS) encrypted C2\n- Unauthorized VM snapshot operations\n- Hidden rogue VMs\n- Multi-layer encrypted traffic\n\n**IMMEDIATE ACTIONS:**\n1. Audit vSphere environments NOW\n2. Review VM snapshot logs\n3. Isolate virtualization mgmt network\n4. Rotate all vSphere credentials\n\n⚡ **Escalation:** CISO, SOC Manager, IR Team\n\n#apt #critical-incident #state-sponsored #brickstorm"
+      },
+      "id": "slack-critical",
+      "name": "Post Critical Alert to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        700,
+        400
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credentials",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "message": "={{ 'CRITICAL: BRICKSTORM APT detected. Immediate response required. Target: VMware vSphere infrastructure. IOCs: DoH C2, VM snapshot theft, rogue VMs.' }}",
+        "priority": "high"
+      },
+      "id": "pagerduty-critical",
+      "name": "PagerDuty Critical Alert",
+      "type": "n8n-nodes-base.pagerDuty",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ],
+      "credentials": {
+        "pagerDutyApi": {
+          "id": "pagerduty-credentials",
+          "name": "PagerDuty"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "tableName": "siem_alerts",
+        "fields": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "alert_name": "BRICKSTORM_APT_Detection",
+            "severity": "CRITICAL",
+            "source": "CyberSentinel Threat Intel",
+            "description": "State-sponsored BRICKSTORM backdoor detected - China APT",
+            "attack_type": "APT",
+            "indicators": "DoH C2, VM snapshot theft, rogue VMs, multi-layer encryption",
+            "target_systems": "VMware vSphere, Windows Servers",
+            "playbook": "BRICKSTORM_IR_Playbook",
+            "status": "OPEN",
+            "created_at": "={{ $now.toISOString() }}"
+          }
+        }
+      },
+      "id": "siem-alert",
+      "name": "Create SIEM Alert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        900,
+        400
+      ],
+      "credentials": {
+        "postgresApi": {
+          "id": "postgres-credentials",
+          "name": "PostgreSQL Database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://vmware-api.local/investigate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.VMWARE_API_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ investigation_type: 'BRICKSTORM_APT', actions: ['list_vm_snapshots', 'audit_vm_operations', 'check_rogue_vms', 'analyze_network_traffic', 'review_esxi_logs'] }) }) }}",
+        "options": {}
+      },
+      "id": "vmware-investigate",
+      "name": "Initiate VMware Investigation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://edr-api.local/block",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "rule_name",
+              "value": "Block_BRICKSTORM_APT_Indicators"
+            },
+            {
+              "name": "detection_rules",
+              "value": "={{ JSON.stringify([{rule: 'suspicious_vm_snapshot_access', severity: 'critical'}, {rule: 'unauthorized_vm_creation', severity: 'critical'}, {rule: 'doh_c2_traffic', severity: 'high'}, {rule: 'multi_layer_encryption', severity: 'medium'}]) }}"
+            },
+            {
+              "name": "target_systems",
+              "value": "all_endpoints"
+            }
+          ]
+        }
+      },
+      "id": "edr-block",
+      "name": "Deploy EDR Blocking Rules",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "table": "threat_intel",
+        "fields": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "threat_id": "BRICKSTORM",
+            "threat_type": "MALWARE",
+            "name": "BRICKSTORM APT Backdoor",
+            "severity": "CRITICAL",
+            "attribution": "China State-Sponsored",
+            "exploitation_status": "ACTIVE",
+            "target_systems": "VMware vSphere, Windows Servers",
+            "ioc_data": "={{ JSON.stringify({ indicators: ['DoH C2 traffic', 'VM snapshot theft', 'Rogue VMs', 'Multi-layer encryption'], c2_patterns: ['*.dns.google', '*.cloudflare-dns.com'] }) }}",
+            "recommended_actions": "Audit vSphere, isolate networks, rotate credentials, deploy EDR",
+            "advisory_source": "CISA/NSA/CCCS",
+            "advisory_date": "2025-12-04",
+            "last_updated": "={{ $now.toISOString() }}",
+            "agent_id": "a401e896-d617-4e97-8bbf-29f47e133c21"
+          }
+        },
+        "matchColumn": "threat_id",
+        "matchValue": "BRICKSTORM"
+      },
+      "id": "update-threat-db",
+      "name": "Update Threat Intelligence",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        200
+      ],
+      "credentials": {
+        "postgresApi": {
+          "id": "postgres-credentials",
+          "name": "PostgreSQL Database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://nvd.nist.gov/api/v2/cve/submit",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ source: 'CyberSentinel', threat_type: 'APT_Malware', name: 'BRICKSTORM', description: 'China state-sponsored APT backdoor targeting VMware vSphere and Windows', attribution: 'China', advisory: 'CISA/NSA/CCCS', advisory_date: '2025-12-04', targets: ['VMware vSphere', 'Windows Servers', 'Government', 'Critical Infrastructure'] }) }}",
+        "options": {}
+      },
+      "id": "report-threat-intel",
+      "name": "Report to Threat Intel Sharing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: BRICKSTORM Alert": {
+      "main": [
+        [
+          {
+            "node": "Create Critical Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Critical Incident": {
+      "main": [
+        [
+          {
+            "node": "Escalate to Leadership",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Escalate to Leadership": {
+      "main": [
+        [
+          {
+            "node": "Executive Alert Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Post Critical Alert to Slack",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create SIEM Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executive Alert Email": {
+      "main": [
+        [
+          {
+            "node": "PagerDuty Critical Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post Critical Alert to Slack": {
+      "main": [
+        []
+      ]
+    },
+    "PagerDuty Critical Alert": {
+      "main": [
+        [
+          {
+            "node": "Initiate VMware Investigation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Deploy EDR Blocking Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create SIEM Alert": {
+      "main": [
+        []
+      ]
+    },
+    "Initiate VMware Investigation": {
+      "main": [
+        [
+          {
+            "node": "Update Threat Intelligence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deploy EDR Blocking Rules": {
+      "main": [
+        [
+          {
+            "node": "Update Threat Intelligence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Threat Intelligence": {
+      "main": [
+        [
+          {
+            "node": "Report to Threat Intel Sharing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report to Threat Intel Sharing": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "workflowId": "cybersentinel-brickstorm-response",
+    "triggerId": "a1a6b29f-1834-4666-82d7-1163ce25f64c",
+    "agentId": "a401e896-d617-4e97-8bbf-29f47e133c21",
+    "version": "1.0.0",
+    "created": "2025-12-27T14:20:11Z",
+    "description": "Automated response workflow for BRICKSTORM China state-sponsored APT malware"
+  }
+}

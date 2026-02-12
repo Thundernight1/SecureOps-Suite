@@ -1,0 +1,816 @@
+{
+  "report_metadata": {
+    "report_id": "CTI-2025-12-27-001",
+    "generated_timestamp": "2025-12-27T14:20:11Z",
+    "report_period": "December 2025",
+    "classification": "OPERATIONAL",
+    "data_sources": [
+      "CVE Databases (NVD, CISA KEV)",
+      "Dark Web Monitoring",
+      "Threat Intelligence Feeds",
+      "Security Vendor Advisories",
+      "OSINT Monitoring"
+    ]
+  },
+  "executive_summary": {
+    "threat_landscape": "CRITICAL",
+    "key_findings": [
+      "December 2025 marked a surge in zero-day exploitation with CVSS 10.0 vulnerabilities actively exploited",
+      "AI-driven phishing campaigns increased 1,265% YoY with OAuth device-code flow abuse",
+      "Ransomware-as-a-Service (RaaS) platforms lowered barrier to entry for threat actors",
+      "State-sponsored APT groups rapidly exploiting React2Shell and Cisco AsyncOS vulnerabilities",
+      "Holiday season phishing and credential theft campaigns at peak intensity"
+    ],
+    "business_impact": "CRITICAL - Organizations face coordinated, multi-vector attacks combining zero-days, AI-enhanced social engineering, and supply chain exploitation"
+  },
+  "threats": [
+    {
+      "threat_id": "VULN-001",
+      "threatType": "VULNERABILITY",
+      "threat_name": "React2Shell (CVE-2025-55182)",
+      "severity": "CRITICAL",
+      "cvss_score": 10.0,
+      "affected_systems": [
+        "React 19.x",
+        "Next.js 15.x and 16.x with App Router",
+        "Web applications using React Server Components"
+      ],
+      "affected_industries": [
+        "Technology",
+        "SaaS",
+        "E-commerce",
+        "Financial Services"
+      ],
+      "description": "Unauthenticated remote code execution in React Server Components allowing attackers to execute arbitrary code with a single crafted HTTP request",
+      "attack_vector": "Network",
+      "attack_complexity": "Low",
+      "privileges_required": "None",
+      "user_interaction": "None",
+      "exploitation_status": "ACTIVELY EXPLOITED",
+      "threat_actors": [
+        "Earth Lamia",
+        "Jackpot Panda",
+        "Multiple China-nexus groups"
+      ],
+      "indicatorsOfCompromise": [
+        "HTTP POST requests to React RSC endpoints with malicious payloads",
+        "Reconnaissance commands: whoami, id, uname",
+        "Suspicious /tmp/ directory writes",
+        "Node.js process spawning unusual child processes",
+        "IP addresses: 206.237.3.150, 45.77.33.136, 143.198.92.82"
+      ],
+      "recommendedActions": [
+        "IMMEDIATE: Upgrade React to patched version (19.x+)",
+        "IMMEDIATE: Upgrade Next.js to 15.x+ or 16.x+ with patches",
+        "Implement WAF rules to detect React RSC exploitation attempts",
+        "Monitor for reconnaissance commands in application logs",
+        "Block known threat actor IP addresses at perimeter",
+        "Conduct code review for RSC implementations",
+        "Enable enhanced logging for HTTP POST requests to RSC endpoints"
+      ],
+      "n8nWorkflowId": "wf-react2shell-response-001",
+      "business_context": "CRITICAL - Affects modern web applications; exploitation enables full system compromise without authentication"
+    },
+    {
+      "threat_id": "VULN-002",
+      "threatType": "VULNERABILITY",
+      "threat_name": "Apache Tika XXE (CVE-2025-66516)",
+      "severity": "CRITICAL",
+      "cvss_score": 10.0,
+      "affected_systems": [
+        "Atlassian Confluence Data Center/Server",
+        "Atlassian Bamboo Data Center/Server",
+        "Atlassian Crowd Data Center/Server",
+        "Any application using Apache Tika library"
+      ],
+      "affected_industries": [
+        "Enterprise Software",
+        "Collaboration Platforms",
+        "Document Management"
+      ],
+      "description": "XML External Entity (XXE) injection vulnerability in Apache Tika dependency affecting multiple Atlassian products",
+      "attack_vector": "Network",
+      "exploitation_status": "ACTIVELY EXPLOITED",
+      "indicatorsOfCompromise": [
+        "XML file uploads with external entity declarations",
+        "Unusual file access patterns in Tika processing",
+        "Network connections to external DTD sources",
+        "Error messages referencing XXE or entity expansion"
+      ],
+      "recommendedActions": [
+        "IMMEDIATE: Update Atlassian products to patched versions",
+        "Disable XML external entity processing in Tika",
+        "Implement input validation for XML uploads",
+        "Monitor for XXE exploitation attempts in logs",
+        "Restrict outbound network connections from application servers"
+      ],
+      "n8nWorkflowId": "wf-tika-xxe-response-001",
+      "business_context": "CRITICAL - Affects enterprise collaboration platforms; XXE can lead to data exfiltration and RCE"
+    },
+    {
+      "threat_id": "VULN-003",
+      "threatType": "VULNERABILITY",
+      "threat_name": "Microsoft Office RCE (CVE-2025-62554, CVE-2025-62557)",
+      "severity": "CRITICAL",
+      "cvss_score": 8.4,
+      "affected_systems": [
+        "Microsoft Office Suite",
+        "Microsoft Outlook",
+        "Microsoft Access"
+      ],
+      "affected_industries": [
+        "All sectors"
+      ],
+      "description": "Remote code execution vulnerabilities in Microsoft Office components exploitable via malicious emails or links without user interaction",
+      "attack_vector": "Network",
+      "exploitation_status": "CONFIRMED EXPLOITATION",
+      "indicatorsOfCompromise": [
+        "Malicious Office documents with type confusion or use-after-free exploits",
+        "Suspicious email attachments with .docx, .xlsx, .accdb extensions",
+        "Office process spawning unusual child processes",
+        "Registry modifications related to Office security settings"
+      ],
+      "recommendedActions": [
+        "IMMEDIATE: Apply Microsoft December 2025 security patches",
+        "Deploy email gateway filtering for Office documents",
+        "Disable Office macros via Group Policy",
+        "Implement application whitelisting for Office processes",
+        "Monitor Office process execution for anomalies",
+        "Conduct user awareness training on malicious attachments"
+      ],
+      "n8nWorkflowId": "wf-office-rce-response-001",
+      "business_context": "CRITICAL - Widespread attack surface; affects all organizations using Microsoft Office"
+    },
+    {
+      "threat_id": "VULN-004",
+      "threatType": "VULNERABILITY",
+      "threat_name": "Cisco AsyncOS Zero-Day (CVE-2025-20393)",
+      "severity": "CRITICAL",
+      "cvss_score": 9.8,
+      "affected_systems": [
+        "Cisco Secure Email Gateway",
+        "Cisco Secure Email and Web Manager",
+        "Cisco AsyncOS Software"
+      ],
+      "affected_industries": [
+        "Enterprise Email Security",
+        "Government",
+        "Finance"
+      ],
+      "description": "Maximum-severity zero-day enabling arbitrary command execution with root privileges on Cisco email security appliances",
+      "attack_vector": "Network",
+      "exploitation_status": "ACTIVELY EXPLOITED BY APT UAT-9686",
+      "threat_actors": [
+        "APT UAT-9686 (China-linked)"
+      ],
+      "indicatorsOfCompromise": [
+        "Brute-force login attempts from 10,000+ unique IPs",
+        "Automated login attempts to GlobalProtect portals",
+        "Persistence mechanisms in appliance configuration",
+        "Unusual command execution in syslog",
+        "Suspicious file modifications in /etc/ directories"
+      ],
+      "recommendedActions": [
+        "IMMEDIATE: Apply Cisco security patches",
+        "URGENT: Restrict internet-exposed ports on email appliances",
+        "Implement strong authentication (MFA) for appliance access",
+        "Monitor for brute-force login attempts",
+        "Review appliance logs for unauthorized access",
+        "Implement network segmentation for email infrastructure",
+        "CISA deadline: Federal agencies must mitigate by 2025-12-24"
+      ],
+      "n8nWorkflowId": "wf-cisco-asyncos-response-001",
+      "business_context": "CRITICAL - Email security appliances are high-value targets; compromise enables email interception and lateral movement"
+    },
+    {
+      "threat_id": "PHISH-001",
+      "threatType": "PHISHING",
+      "threat_name": "OAuth Device Code Flow Abuse - Microsoft 365 Account Takeover",
+      "severity": "CRITICAL",
+      "affected_systems": [
+        "Microsoft 365 Cloud Services",
+        "Azure AD",
+        "Enterprise Email Systems"
+      ],
+      "affected_industries": [
+        "Government",
+        "Think Tanks",
+        "Higher Education",
+        "Transportation",
+        "All sectors"
+      ],
+      "description": "Large-scale phishing campaigns exploiting OAuth 2.0 device code authorization flow to compromise Microsoft 365 accounts, resulting in account takeover, data exfiltration, and lateral movement",
+      "threat_actors": [
+        "TA272",
+        "UNK_AcademicFlare (Russia-aligned)",
+        "Multiple unattributed groups"
+      ],
+      "campaign_timeline": "September 2025 - Present (escalating)",
+      "attack_chain": [
+        "1. Phishing email with device code authorization link",
+        "2. Victim visits malicious OAuth consent page",
+        "3. Attacker obtains device code and user code",
+        "4. Attacker exchanges codes for access token",
+        "5. Account takeover and data exfiltration"
+      ],
+      "indicatorsOfCompromise": [
+        "Phishing emails with OAuth device code links",
+        "Suspicious Microsoft 365 sign-in from unusual locations",
+        "Forwarding rules created in compromised mailboxes",
+        "Unusual cloud app permissions granted",
+        "Data exfiltration to external cloud storage",
+        "Lateral movement to other cloud services"
+      ],
+      "recommendedActions": [
+        "IMMEDIATE: Deploy conditional access policies blocking device code flow from untrusted locations",
+        "Enable MFA for all Microsoft 365 accounts",
+        "Implement email gateway filtering for OAuth phishing links",
+        "Monitor for suspicious OAuth consent requests",
+        "Review and revoke suspicious app permissions",
+        "Conduct user awareness training on OAuth phishing",
+        "Implement FIDO2 security keys for high-value accounts",
+        "Monitor mailbox forwarding rules for anomalies"
+      ],
+      "n8nWorkflowId": "wf-oauth-phishing-response-001",
+      "business_context": "CRITICAL - Cloud account compromise enables data theft, lateral movement, and persistence; affects government and enterprise sectors"
+    },
+    {
+      "threat_id": "PHISH-002",
+      "threatType": "PHISHING",
+      "threat_name": "Business Email Compromise (BEC) - Executive Impersonation",
+      "severity": "HIGH",
+      "threat_actors": [
+        "Scripted Sparrow"
+      ],
+      "affected_industries": [
+        "Finance",
+        "All sectors with finance teams"
+      ],
+      "description": "Large-scale BEC campaigns impersonating executive coaching firms, targeting finance teams with requests for ACH/wire transfers",
+      "campaign_scale": "496 confirmed engagements, millions of emails monthly",
+      "attack_chain": [
+        "1. Spoofed email from fake executive coaching firm",
+        "2. Impersonation of company executives",
+        "3. Request for urgent ACH or wire transfer",
+        "4. Use of 'mule' accounts for fund transfers"
+      ],
+      "indicatorsOfCompromise": [
+        "Emails from free email providers impersonating executives",
+        "Requests for urgent wire transfers",
+        "Unusual sender addresses with typosquatting",
+        "Pressure tactics and urgency language",
+        "Requests to bypass normal approval processes"
+      ],
+      "recommendedActions": [
+        "Implement email authentication (SPF, DKIM, DMARC)",
+        "Deploy advanced email filtering with AI-based anomaly detection",
+        "Implement payment approval workflows with multi-factor verification",
+        "Conduct user awareness training on BEC tactics",
+        "Verify wire transfer requests through out-of-band communication",
+        "Monitor for unusual payment patterns",
+        "Implement transaction limits and approval thresholds"
+      ],
+      "n8nWorkflowId": "wf-bec-response-001",
+      "business_context": "HIGH - Direct financial impact; affects all organizations with finance operations"
+    },
+    {
+      "threat_id": "MALWARE-001",
+      "threatType": "MALWARE",
+      "threat_name": "Akira Ransomware",
+      "severity": "CRITICAL",
+      "affected_systems": [
+        "Windows systems",
+        "Network-connected storage",
+        "Enterprise infrastructure"
+      ],
+      "affected_industries": [
+        "Healthcare",
+        "Finance",
+        "Technology",
+        "Manufacturing"
+      ],
+      "description": "Most prevalent ransomware strain in Q3 2025, responsible for 34% of observed attacks; employs double/triple extortion tactics",
+      "attack_vector": "Phishing, Vulnerability Exploitation, Supply Chain",
+      "indicatorsOfCompromise": [
+        "Akira ransomware file extensions: .akira",
+        "Ransom note files: AKIRA_RECOVERY_INSTRUCTIONS.txt",
+        "Registry modifications for persistence",
+        "Network reconnaissance activity (SMB scanning)",
+        "Lateral movement via PSExec or similar tools",
+        "Data exfiltration to attacker-controlled servers"
+      ],
+      "recommendedActions": [
+        "Implement segmentation to limit lateral movement",
+        "Deploy EDR (Endpoint Detection and Response) solutions",
+        "Maintain offline backups of critical data",
+        "Implement application whitelisting",
+        "Monitor for suspicious network activity",
+        "Disable unnecessary network services",
+        "Implement MFA for remote access",
+        "Conduct incident response tabletop exercises"
+      ],
+      "n8nWorkflowId": "wf-akira-ransomware-response-001",
+      "business_context": "CRITICAL - Widespread threat; double/triple extortion increases pressure on victims to pay"
+    },
+    {
+      "threat_id": "MALWARE-002",
+      "threatType": "MALWARE",
+      "threat_name": "Lumma Stealer (MaaS)",
+      "severity": "HIGH",
+      "affected_systems": [
+        "Windows systems",
+        "Browsers",
+        "Cryptocurrency wallets"
+      ],
+      "affected_industries": [
+        "Finance",
+        "Technology",
+        "All sectors"
+      ],
+      "description": "Infostealer malware operating as Malware-as-a-Service; targets PII, credentials, banking info, cookies, and cryptocurrency wallets",
+      "attack_vector": "Phishing, Malicious Downloads, Supply Chain",
+      "indicatorsOfCompromise": [
+        "Lumma C2 communication patterns",
+        "Browser cookie theft",
+        "Cryptocurrency wallet access attempts",
+        "Credential harvesting from browsers",
+        "Virtual environment detection evasion",
+        "Executable encryption for anti-analysis"
+      ],
+      "recommendedActions": [
+        "Deploy credential guard on Windows systems",
+        "Implement browser isolation for high-risk users",
+        "Monitor for suspicious browser process activity",
+        "Implement hardware-backed security keys for sensitive accounts",
+        "Monitor for data exfiltration to known C2 servers",
+        "Implement DNS filtering for known Lumma C2 domains",
+        "Conduct user awareness training on malware delivery"
+      ],
+      "n8nWorkflowId": "wf-lumma-stealer-response-001",
+      "business_context": "HIGH - Widespread MaaS platform; lowers barrier to entry for cybercriminals; targets financial and personal data"
+    },
+    {
+      "threat_id": "APT-001",
+      "threatType": "APT",
+      "threat_name": "Blind Eagle (APT-C-36)",
+      "severity": "HIGH",
+      "threat_actor_origin": "South America",
+      "affected_systems": [
+        "Government systems",
+        "Office suites",
+        "Web applications"
+      ],
+      "affected_industries": [
+        "Government",
+        "Finance",
+        "Petroleum",
+        "Manufacturing"
+      ],
+      "target_geography": [
+        "Colombia",
+        "Potentially expanding to other regions"
+      ],
+      "description": "Persistent regional espionage threat actor targeting Colombian government and commercial entities; employs advanced tradecraft including fileless execution and steganography",
+      "attack_chain": [
+        "1. Spear-phishing with credential dumping",
+        "2. Exploitation of vulnerabilities",
+        "3. Compromise of internal email accounts",
+        "4. Multi-stage fileless execution",
+        "5. Deployment of DCRAT via Caminho downloader",
+        "6. C2 via Discord and steganography"
+      ],
+      "indicatorsOfCompromise": [
+        "Caminho downloader artifacts",
+        "DCRAT malware signatures",
+        "Discord C2 communication",
+        "Steganographic image files",
+        "Compromised internal email accounts",
+        "Multi-stage PowerShell execution"
+      ],
+      "recommendedActions": [
+        "Implement email security controls to detect compromised internal accounts",
+        "Monitor for Discord C2 communication",
+        "Implement application whitelisting to prevent fileless execution",
+        "Monitor for steganographic image files",
+        "Implement EDR to detect DCRAT behavior",
+        "Conduct threat hunting for Caminho downloader",
+        "Implement network segmentation for government systems"
+      ],
+      "n8nWorkflowId": "wf-blind-eagle-response-001",
+      "business_context": "HIGH - Targeted espionage threat; affects government and critical infrastructure"
+    },
+    {
+      "threat_id": "APT-002",
+      "threatType": "APT",
+      "threat_name": "LongNosedGoblin (China-aligned)",
+      "severity": "HIGH",
+      "threat_actor_origin": "China",
+      "affected_systems": [
+        "Windows systems with Active Directory",
+        "Government networks"
+      ],
+      "affected_industries": [
+        "Government",
+        "Critical Infrastructure"
+      ],
+      "target_geography": [
+        "Southeast Asia",
+        "Japan"
+      ],
+      "description": "Newly discovered China-aligned APT group abusing Group Policy for malware deployment and lateral movement in government networks",
+      "attack_chain": [
+        "1. Initial compromise of government network",
+        "2. Abuse of Group Policy for malware deployment",
+        "3. Lateral movement across network",
+        "4. Deployment of cyberespionage tools"
+      ],
+      "indicatorsOfCompromise": [
+        "Suspicious Group Policy modifications",
+        "Malware deployment via Group Policy",
+        "Lateral movement via Group Policy",
+        "Cyberespionage tool artifacts",
+        "Unusual Active Directory activity"
+      ],
+      "recommendedActions": [
+        "Implement Group Policy security controls",
+        "Monitor for suspicious Group Policy modifications",
+        "Implement privileged access management (PAM)",
+        "Monitor for lateral movement via Group Policy",
+        "Conduct threat hunting for cyberespionage tools",
+        "Implement network segmentation for government systems",
+        "Implement EDR for government networks"
+      ],
+      "n8nWorkflowId": "wf-longnosed-goblin-response-001",
+      "business_context": "HIGH - Targeted cyberespionage threat; affects government and critical infrastructure in Southeast Asia and Japan"
+    },
+    {
+      "threat_id": "IOC-001",
+      "threatType": "IOC",
+      "threat_name": "Malicious IP Addresses - React2Shell Exploitation",
+      "severity": "CRITICAL",
+      "indicatorsOfCompromise": [
+        "206.237.3.150 (Earth Lamia, 2025-12-04)",
+        "45.77.33.136 (Jackpot Panda, 2025-12-04)",
+        "143.198.92.82 (Anonymization Network, 2025-12-04)",
+        "183.6.80.214 (Unattributed cluster, 2025-12-04)"
+      ],
+      "recommendedActions": [
+        "Block these IP addresses at perimeter firewalls",
+        "Monitor for connections from these IPs",
+        "Implement geo-blocking for high-risk regions",
+        "Monitor for similar exploitation patterns from other IPs"
+      ],
+      "n8nWorkflowId": "wf-ioc-blocking-001"
+    },
+    {
+      "threat_id": "IOC-002",
+      "threatType": "IOC",
+      "threat_name": "Cisco AsyncOS Brute-Force Attack IPs",
+      "severity": "CRITICAL",
+      "indicatorsOfCompromise": [
+        "10,000+ unique IPs attempting GlobalProtect portal login (2025-12-11)",
+        "1,273 IPs attempting Cisco SSL VPN brute-force (2025-12-12)",
+        "Common username/password combinations used"
+      ],
+      "recommendedActions": [
+        "Implement rate limiting on authentication endpoints",
+        "Block IPs after failed login attempts",
+        "Implement CAPTCHA for repeated failed attempts",
+        "Monitor for brute-force patterns",
+        "Implement MFA to prevent credential-based attacks"
+      ],
+      "n8nWorkflowId": "wf-brute-force-defense-001"
+    }
+  ],
+  "threat_actor_profiles": [
+    {
+      "actor_id": "TA-001",
+      "actor_name": "Earth Lamia",
+      "actor_type": "State-Sponsored APT",
+      "origin": "China",
+      "motivation": "Espionage, Intellectual Property Theft",
+      "known_tactics": [
+        "React2Shell exploitation",
+        "Supply chain attacks",
+        "Cloud infrastructure targeting"
+      ],
+      "known_infrastructure": [
+        "206.237.3.150"
+      ]
+    },
+    {
+      "actor_id": "TA-002",
+      "actor_name": "Jackpot Panda",
+      "actor_type": "State-Sponsored APT",
+      "origin": "China",
+      "motivation": "Espionage, Financial Gain",
+      "known_tactics": [
+        "React2Shell exploitation",
+        "Vulnerability exploitation",
+        "Lateral movement"
+      ],
+      "known_infrastructure": [
+        "45.77.33.136"
+      ]
+    },
+    {
+      "actor_id": "TA-003",
+      "actor_name": "TA272",
+      "actor_type": "Cybercriminal Group",
+      "motivation": "Financial Gain, Data Theft",
+      "known_tactics": [
+        "OAuth device code flow abuse",
+        "Microsoft 365 account takeover",
+        "Data exfiltration"
+      ]
+    },
+    {
+      "actor_id": "TA-004",
+      "actor_name": "Scripted Sparrow",
+      "actor_type": "Cybercriminal Group",
+      "motivation": "Financial Gain",
+      "known_tactics": [
+        "Business email compromise",
+        "Executive impersonation",
+        "Wire transfer fraud"
+      ],
+      "campaign_scale": "496 confirmed engagements"
+    }
+  ],
+  "n8n_workflow_templates": [
+    {
+      "workflow_id": "wf-react2shell-response-001",
+      "workflow_name": "React2Shell Exploitation Response",
+      "trigger": "CVE-2025-55182 Detection",
+      "steps": [
+        {
+          "step_id": 1,
+          "action": "Alert Security Team",
+          "description": "Send critical alert to security team via Slack/Email",
+          "tool": "Slack/Email Notification"
+        },
+        {
+          "step_id": 2,
+          "action": "Block Threat Actor IPs",
+          "description": "Add IPs to firewall blocklist",
+          "tool": "Firewall API"
+        },
+        {
+          "step_id": 3,
+          "action": "Isolate Affected Systems",
+          "description": "Isolate compromised systems from network",
+          "tool": "Network Isolation"
+        },
+        {
+          "step_id": 4,
+          "action": "Collect Forensic Evidence",
+          "description": "Collect logs and artifacts for analysis",
+          "tool": "SIEM/Log Collection"
+        },
+        {
+          "step_id": 5,
+          "action": "Initiate Incident Response",
+          "description": "Create incident ticket and assign to IR team",
+          "tool": "Ticketing System"
+        }
+      ]
+    },
+    {
+      "workflow_id": "wf-oauth-phishing-response-001",
+      "workflow_name": "OAuth Phishing Account Takeover Response",
+      "trigger": "Suspicious OAuth Consent Request Detection",
+      "steps": [
+        {
+          "step_id": 1,
+          "action": "Block OAuth Consent",
+          "description": "Revoke suspicious OAuth tokens",
+          "tool": "Azure AD API"
+        },
+        {
+          "step_id": 2,
+          "action": "Force Password Reset",
+          "description": "Force password reset for affected accounts",
+          "tool": "Azure AD API"
+        },
+        {
+          "step_id": 3,
+          "action": "Review Account Activity",
+          "description": "Review mailbox forwarding rules and app permissions",
+          "tool": "Microsoft 365 API"
+        },
+        {
+          "step_id": 4,
+          "action": "Notify User",
+          "description": "Notify user of account compromise",
+          "tool": "Email Notification"
+        },
+        {
+          "step_id": 5,
+          "action": "Implement MFA",
+          "description": "Enforce MFA on affected account",
+          "tool": "Azure AD API"
+        }
+      ]
+    },
+    {
+      "workflow_id": "wf-ransomware-response-001",
+      "workflow_name": "Ransomware Detection and Response",
+      "trigger": "Ransomware Signature Detection",
+      "steps": [
+        {
+          "step_id": 1,
+          "action": "Isolate System",
+          "description": "Immediately isolate infected system from network",
+          "tool": "Network Isolation"
+        },
+        {
+          "step_id": 2,
+          "action": "Alert IR Team",
+          "description": "Send critical alert to incident response team",
+          "tool": "Slack/Email/PagerDuty"
+        },
+        {
+          "step_id": 3,
+          "action": "Preserve Evidence",
+          "description": "Capture memory dump and disk image",
+          "tool": "Forensic Tools"
+        },
+        {
+          "step_id": 4,
+          "action": "Scan Network",
+          "description": "Scan network for lateral movement",
+          "tool": "Network Scanner"
+        },
+        {
+          "step_id": 5,
+          "action": "Activate Backup Recovery",
+          "description": "Prepare for recovery from clean backups",
+          "tool": "Backup Management"
+        }
+      ]
+    },
+    {
+      "workflow_id": "wf-ioc-blocking-001",
+      "workflow_name": "IOC Blocking and Monitoring",
+      "trigger": "New IOC Detection",
+      "steps": [
+        {
+          "step_id": 1,
+          "action": "Add to Firewall Blocklist",
+          "description": "Add malicious IPs to firewall rules",
+          "tool": "Firewall API"
+        },
+        {
+          "step_id": 2,
+          "action": "Add to DNS Blocklist",
+          "description": "Add malicious domains to DNS filter",
+          "tool": "DNS Filter API"
+        },
+        {
+          "step_id": 3,
+          "action": "Add to Email Filter",
+          "description": "Add IOCs to email gateway filter",
+          "tool": "Email Gateway API"
+        },
+        {
+          "step_id": 4,
+          "action": "Monitor for Connections",
+          "description": "Monitor logs for connections to IOCs",
+          "tool": "SIEM"
+        },
+        {
+          "step_id": 5,
+          "action": "Share with Community",
+          "description": "Share IOCs with threat intelligence community",
+          "tool": "TI Platform API"
+        }
+      ]
+    }
+  ],
+  "business_context_analysis": {
+    "false_positive_reduction": {
+      "strategy": "Context-aware threat assessment",
+      "implementation": [
+        "Correlate multiple data sources before alerting",
+        "Assess threat actor motivation and target alignment",
+        "Evaluate business impact and likelihood",
+        "Implement confidence scoring (0-100%)",
+        "Require multiple indicators before escalation"
+      ],
+      "example": "React2Shell exploitation detected but target is non-critical development system with no sensitive data = MEDIUM priority vs. production system = CRITICAL priority"
+    },
+    "industry_specific_risks": {
+      "healthcare": {
+        "primary_threats": [
+          "Ransomware (Akira, Qilin)",
+          "Data theft (Lumma Stealer)",
+          "Phishing (OAuth abuse)"
+        ],
+        "business_impact": "Patient safety, operational disruption, regulatory fines",
+        "recommended_focus": "Backup resilience, EDR deployment, MFA enforcement"
+      },
+      "finance": {
+        "primary_threats": [
+          "BEC attacks",
+          "Credential theft",
+          "Account takeover"
+        ],
+        "business_impact": "Direct financial loss, regulatory penalties, reputational damage",
+        "recommended_focus": "Payment verification workflows, MFA, transaction monitoring"
+      },
+      "government": {
+        "primary_threats": [
+          "APT espionage (Blind Eagle, LongNosedGoblin)",
+          "Critical infrastructure targeting",
+          "Supply chain attacks"
+        ],
+        "business_impact": "National security, classified data loss, operational disruption",
+        "recommended_focus": "Network segmentation, EDR, threat hunting"
+      },
+      "technology": {
+        "primary_threats": [
+          "React2Shell exploitation",
+          "Supply chain attacks",
+          "IP theft"
+        ],
+        "business_impact": "Product compromise, IP theft, customer trust loss",
+        "recommended_focus": "Code review, dependency scanning, supply chain security"
+      }
+    },
+    "seasonal_considerations": {
+      "december_2025_specifics": [
+        "Holiday phishing campaigns at peak intensity",
+        "Reduced security staffing (skeleton crews)",
+        "Increased user fatigue and reduced vigilance",
+        "Year-end financial pressure (BEC attacks)",
+        "Supply chain disruptions"
+      ],
+      "recommended_actions": [
+        "Increase monitoring during holiday period",
+        "Implement automated response workflows",
+        "Conduct pre-holiday security awareness training",
+        "Ensure backup staffing for critical systems",
+        "Implement additional email filtering"
+      ]
+    }
+  },
+  "metrics_and_kpis": {
+    "threat_landscape_metrics": {
+      "critical_vulnerabilities": 4,
+      "actively_exploited_vulnerabilities": 3,
+      "zero_day_vulnerabilities": 2,
+      "ransomware_variants_active": 2,
+      "apt_groups_active": 4,
+      "phishing_campaigns_detected": 3,
+      "malware_families_detected": 7
+    },
+    "attack_volume_trends": {
+      "phishing_increase_yoy": "1265%",
+      "malware_detections_daily": 500000,
+      "malware_increase_yoy": "7%",
+      "password_stealer_increase": "59%",
+      "spyware_increase": "51%",
+      "backdoor_increase": "6%"
+    },
+    "response_metrics": {
+      "mean_time_to_detect": "Varies by threat type",
+      "mean_time_to_respond": "Depends on automation",
+      "false_positive_rate": "To be determined by implementation",
+      "automation_coverage": "Depends on n8n workflow deployment"
+    }
+  },
+  "recommendations_summary": {
+    "immediate_actions_24_hours": [
+      "Apply patches for React2Shell (CVE-2025-55182)",
+      "Apply patches for Microsoft Office RCE (CVE-2025-62554, CVE-2025-62557)",
+      "Apply patches for Cisco AsyncOS (CVE-2025-20393)",
+      "Block known threat actor IPs at perimeter",
+      "Implement OAuth device code flow restrictions",
+      "Enable MFA for all cloud services"
+    ],
+    "short_term_actions_1_week": [
+      "Deploy EDR solutions to all endpoints",
+      "Implement email gateway filtering for phishing",
+      "Conduct user awareness training on phishing",
+      "Review and revoke suspicious app permissions",
+      "Implement network segmentation",
+      "Deploy WAF rules for React2Shell exploitation"
+    ],
+    "medium_term_actions_1_month": [
+      "Implement privileged access management (PAM)",
+      "Deploy SIEM for centralized logging",
+      "Conduct threat hunting for indicators of compromise",
+      "Implement backup and disaster recovery testing",
+      "Conduct security awareness training program",
+      "Implement supply chain security controls"
+    ],
+    "long_term_actions_ongoing": [
+      "Maintain threat intelligence feeds",
+      "Conduct regular security assessments",
+      "Implement continuous vulnerability management",
+      "Maintain incident response capabilities",
+      "Conduct tabletop exercises",
+      "Implement security metrics and KPIs"
+    ]
+  }
+}

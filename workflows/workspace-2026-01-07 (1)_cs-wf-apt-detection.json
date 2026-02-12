@@ -1,0 +1,346 @@
+{
+  "name": "CyberSentinel - APT Detection & Response",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTime": "0 */6 * * *",
+        "limit": 100
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "id": "trigger-schedule"
+    },
+    {
+      "parameters": {
+        "operation": "json",
+        "options": {}
+      },
+      "name": "Load APT IOCs",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ],
+      "id": "load-iocs"
+    },
+    {
+      "parameters": {
+        "query": "sources:threatfox.abuse.ch OR\nsources:malwarebazaar OR\nactor:\"Prince of Persia\" OR\nactor:\"Infy\" OR\nactor:\"APT-C-07\""
+      },
+      "name": "Threat Intelligence Feeds",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        500,
+        200
+      ],
+      "id": "threat-feeds"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.confidence }}",
+              "operation": "largerEqual",
+              "value2": "85"
+            }
+          ]
+        }
+      },
+      "name": "High Confidence Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ],
+      "id": "confidence-check"
+    },
+    {
+      "parameters": {
+        "operation": "json",
+        "options": {}
+      },
+      "name": "Parse APT Alert",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        900,
+        100
+      ],
+      "id": "parse-alert"
+    },
+    {
+      "parameters": {
+        "channel": "security-alerts",
+        "text": "=⚠️ **APT THREAT DETECTED** ⚠️\n\n**THREAT ACTOR**: {{ $json.actor }}\n**CAMPAIGN**: {{ $json.campaign }}\n**CONFIDENCE**: {{ $json.confidence }}%\n\n🎯 **TARGET SECTORS:**\n{{ $json.targetSectors }}\n\n🌍 **TARGET REGIONS:**\n{{ $json.targetRegions }}\n\n**MALWARE FAMILIES:**\n{{ $json.malwareFamilies }}\n\n**DETECTED IOCs:**\n• **IP Addresses:** {{ $json.iocIPs }}\n• **Domains:** {{ $json.iocDomains }}\n• **Hashes:** {{ $json.iocHashes }}\n\n**TTPs (MITRE ATT&CK):**\n{{ $json.mitreTTPs }}\n\n🔒 **IMMEDIATE ACTIONS REQUIRED**",
+        "attachments": []
+      },
+      "name": "Slack Alert - APT",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        100
+      ],
+      "id": "slack-apt"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "priority",
+              "value": "=P1 - CRITICAL"
+            }
+          ]
+        }
+      },
+      "options": {}
+    },
+    {
+      "name": "Create Jira Ticket",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        100
+      ],
+      "id": "jira-apt"
+    },
+    {
+      "parameters": {
+        "operation": "json",
+        "options": {}
+      },
+      "name": "Generate Firewall Rules",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        900,
+        250
+      ],
+      "id": "firewall-rules"
+    },
+    {
+      "parameters": {
+        "command": "sudo iptables -A INPUT -s {{ $json.blockIPs }} -j DROP 2>/dev/null || echo \"Firewall update initiated\""
+      },
+      "name": "Update Firewall",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        250
+      ],
+      "id": "update-firewall"
+    },
+    {
+      "parameters": {
+        "operation": "json",
+        "options": {}
+      },
+      "name": "Generate EDR Queries",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        900,
+        400
+      ],
+      "id": "edr-queries"
+    },
+    {
+      "parameters": {
+        "query": "file_hash:{{ $json.malwareHashes }} OR\nprocess_name:{{ $json.suspiciousProcesses }} OR\nnetwork_connection:{{ $json.c2Domains }}"
+      },
+      "name": "CrowdStrike Hunt",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1100,
+        400
+      ],
+      "id": "crowdstrike-hunt"
+    },
+    {
+      "parameters": {
+        "operation": "json",
+        "options": {}
+      },
+      "name": "Blocklist Update",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        300
+      ],
+      "id": "update-blocklist"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "huntStatus",
+              "value": "=COMPLETED"
+            }
+          ]
+        }
+      },
+      "options": {}
+    },
+    {
+      "name": "Update Investigation",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        300
+      ],
+      "id": "update-sheet"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load APT IOCs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Threat Intelligence Feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Threat Intelligence Feeds": {
+      "main": [
+        [
+          {
+            "node": "High Confidence Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High Confidence Check": {
+      "main": [
+        [
+          {
+            "node": "Parse APT Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate Firewall Rules",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate EDR Queries",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse APT Alert": {
+      "main": [
+        [
+          {
+            "node": "Slack Alert - APT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Alert - APT": {
+      "main": [
+        [
+          {
+            "node": "Create Jira Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Firewall Rules": {
+      "main": [
+        [
+          {
+            "node": "Update Firewall",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate EDR Queries": {
+      "main": [
+        [
+          {
+            "node": "CrowdStrike Hunt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CrowdStrike Hunt": {
+      "main": [
+        [
+          {
+            "node": "Blocklist Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Blocklist Update": {
+      "main": [
+        [
+          {
+            "node": "Update Investigation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "workflowId": "cs-wf-apt-detection",
+  "meta": {
+    "threatType": "APT",
+    "severity": "CRITICAL",
+    "threatName": "Multi-Actor APT Campaign",
+    "actors": [
+      "Prince of Persia",
+      "Earth Lamia",
+      "Jackpot Panda",
+      "Evasive Panda",
+      "Subtle Snail"
+    ],
+    "createdAt": "2025-12-27T14:20:11.968570+00:00",
+    "agentId": "a401e896-d617-4e97-8bbf-29f47e133c21",
+    "triggerId": "a1a6b29f-1834-4666-82d7-1163ce25f64c"
+  }
+}

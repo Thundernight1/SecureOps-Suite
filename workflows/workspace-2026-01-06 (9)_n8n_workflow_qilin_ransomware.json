@@ -1,0 +1,397 @@
+{
+  "name": "Qilin Ransomware Detection and Response",
+  "nodes": [
+    {
+      "name": "EDR Alert Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "parameters": {
+        "httpMethod": "post",
+        "path": "ransomware-qilin-alert",
+        "options": {}
+      }
+    },
+    {
+      "name": "Parse EDR Alert",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const alert = items[0].json;\n\n// Extract ransomware indicators\nconst threatData = {\n  threat_name: 'Qilin Ransomware',\n  threat_type: 'RANSOMWARE',\n  severity: 'CRITICAL',\n  source: 'EDR/SIEM Alert',\n  timestamp: new Date().toISOString(),\n  indicators: {\n    file_extensions: alert.file_extensions || ['.qilin', '.encrypted'],\n    processes: alert.processes || [],\n    file_paths: alert.file_paths || [],\n    registry_keys: alert.registry_keys || [],\n    network_signatures: alert.network_signatures || [],\n    user_accounts: alert.user_accounts || []\n  },\n  affected_hosts: alert.affected_hosts || [],\n  encryption_count: alert.encryption_count || 0,\n  ransom_note_found: alert.ransom_note_found || false\n};\n\nreturn [{json: threatData}];"
+      }
+    },
+    {
+      "name": "VirusTotal Hash Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        500,
+        100
+      ],
+      "parameters": {
+        "url": "=https://www.virustotal.com/api/v3/files/{{ $json.indicators.file_hashes[0] }}",
+        "options": {
+          "headers": {
+            "x-apikey": "={{ $node['VirusTotal Credentials'].json['apiKey'] }}"
+          }
+        }
+      }
+    },
+    {
+      "name": "NoMoreRansom Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.nomoreransom.org/crypt/infectioninfo.json",
+        "options": {}
+      }
+    },
+    {
+      "name": "Threat Score Calculation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const data = items[0].json;\n\nlet threatScore = 0;\nlet riskLevel = 'HIGH';\n\n// Base score for confirmed ransomware\nthreatScore += 200;\n\n// Increase based on encryption count\nif (data.encryption_count > 10) {\n  threatScore += 50;\n} else if (data.encryption_count > 0) {\n  threatScore += 30;\n}\n\n// Ransom note found is a strong indicator\nif (data.ransom_note_found) {\n  threatScore += 50;\n}\n\n// Check for backup destruction indicators\nif (data.indicators.processes.includes('vssadmin') || \n    data.indicators.processes.includes('wbadmin') ||\n    data.indicators.processes.includes('cipher')) {\n  threatScore += 30;\n}\n\n// Multiple hosts affected\nif (data.affected_hosts && data.affected_hosts.length > 1) {\n  threatScore += 40;\n}\n\n// Determine risk level\nif (threatScore >= 250) {\n  riskLevel = 'CRITICAL';\n} else if (threatScore >= 180) {\n  riskLevel = 'HIGH';\n} else if (threatScore >= 100) {\n  riskLevel = 'MEDIUM';\n}\n\nreturn [{\n  json: {\n    ...data,\n    threat_score: threatScore,\n    risk_level: riskLevel,\n    assessment_timestamp: new Date().toISOString()\n  }\n}];"
+      }
+    },
+    {
+      "name": "CRITICAL: Isolate Network",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        900,
+        50
+      ],
+      "parameters": {
+        "functionCode": "const data = items[0].json;\n\n// Only proceed if risk level is CRITICAL or HIGH\nconst criticalActions = [];\n\nif (['CRITICAL', 'HIGH'].includes(data.risk_level)) {\n  // Network isolation commands would be executed here\n  criticalActions.push({\n    action: 'network_isolation',\n    status: 'pending',\n    targets: data.affected_hosts || [],\n    method: 'switch_port_disable_or_network_segment'\n  });\n  \n  criticalActions.push({\n    action: 'account_disable',\n    status: 'pending',\n    targets: data.indicators.user_accounts || [],\n    reason: 'Compromise indicators detected'\n  });\n  \n  criticalActions.push({\n    action: 'service_stop',\n    status: 'pending',\n    targets: ['Ransomware detected - immediate containment required'],\n    method: 'EDR_isolation_api'\n  });\n}\n\nreturn [{\n  json: {\n    ...data,\n    critical_actions_required: criticalActions,\n    auto_approved_actions: data.riskLevel === 'CRITICAL' ? ['network_isolation', 'account_disable'] : []\n  }\n}];"
+      }
+    },
+    {
+      "name": "Create SIEM Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['SIEM Integration'].json['url'] }}/api/alerts",
+        "sendHeaders": true,
+        "sendBody": true,
+        "jsonBody": "={{ { \n  alert_type: 'ransomware',\n  severity: $json.risk_level,\n  title: 'Qilin Ransomware Attack Detected',\n  description: 'Active ransomware attack requiring immediate response',\n  indicators: $json.indicators,\n  affected_hosts: $json.affected_hosts,\n  encryption_count: $json.encryption_count,\n  timestamp: $json.assessment_timestamp,\n  source: 'CyberSentinel Automated Response'\n} }}",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $node['SIEM Integration'].json['apiKey'] }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Slack - Critical Channel",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ],
+      "parameters": {
+        "channel": "={{ $node['Slack Configuration'].json['critical_channel'] }}",
+        "text": "=🚨🔥 *RANSOMWARE ATTACK DETECTED*\n\n*Qilin Ransomware Alert*\nSeverity: {{ $json.risk_level }}\nRisk Score: {{ $json.threat_score }}\n\n*Current Status:*\n- Affected Hosts: {{ $json.affected_hosts.length }}\n- Files Encrypted: {{ $json.encryption_count }}\n- Ransom Note Found: {{ $json.ransom_note_found }}\n\n*Immediate Actions:*\n1. 🔴 DO NOT SHUTDOWN AFFECTED SYSTEMS\n2. 🔴 DISCONNECT FROM NETWORK IMMEDIATELY\n3. 🔴 PRESERVE EVIDENCE (memory dump, screenshots)\n4. 📞 NOTIFY INCIDENT RESPONSE TEAM\n\n*Affected Systems:*\n{{ $json.affected_hosts.join(', ') }}\n\n*Process Indicators:*\n{{ $json.indicators.processes.join(', ') }}\n\n_🚨 ALERT GENERATED: {{ $json.assessment_timestamp }}_",
+        "attachments": [],
+        "blocks": []
+      }
+    },
+    {
+      "name": "Trigger SOAR Playbook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['SOAR Platform'].json['url'] }}/api/playbooks/ransomware-response/execute",
+        "sendBody": true,
+        "jsonBody": "={{ {\n  playbook_name: 'ransomware_response_major',\n  alert_id: 'RANSOM-' + Date.now(),\n  severity: $json.risk_level,\n  affected_hosts: $json.affected_hosts,\n  indicators: $json.indicators,\n  automation_level: $json.riskLevel === 'CRITICAL' ? 'full' : 'manual_approval',\n  playbooks_to_execute: [\n    'isolate_endpoint',\n    'preserve_evidence',\n    'notify_stakeholders',\n    'activate_ir_team'\n  ]\n} }}"
+      }
+    },
+    {
+      "name": "Create Jira Incident",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        200
+      ],
+      "parameters": {
+        "project": "={{ $node['Jira Configuration'].json['incident_project'] }}",
+        "summary": "🚨 CRITICAL: Qilin Ransomware Attack - Immediate Response Required",
+        "issueType": "Incident",
+        "description": "=**RANSOMWARE INCIDENT - IMMEDIATE ACTION REQUIRED**\n\n*Incident Details:*\n- Threat: Qilin Ransomware\n- Severity: {{ $json.risk_level }}\n- Risk Score: {{ $json.threat_score }}\n- Detection Time: {{ $json.assessment_timestamp }}\n\n*Current Status:*\n- Affected Hosts: {{ $json.affected_hosts.length }}\n- Files Encrypted: {{ $json.encryption_count }}\n- Ransom Note Present: {{ $json.ransom_note_found }}\n\n*Immediate Actions Required:*\n\n☐ 1. Isolate affected systems from network\n☐ 2. Preserve forensic evidence (memory dump, disk image)\n☐ 3. Identify patient zero and attack vector\n☐ 4. Determine scope of encryption\n☐ 5. Check for data exfiltration\n☐ 6. Review backup integrity\n☐ 7. Engage incident response team\n☐ 8. Prepare communication to leadership\n\n*Indicators of Compromise:*\n- Processes: {{ $json.indicators.processes.join(', ') }}\n- File Paths: {{ $json.indicators.file_paths.join(', ') }}\n- Registry Keys: {{ $json.indicators.registry_keys.join(', ') }}\n\n*Command & Control:*\n- {{ $json.indicators.network_signatures.join(', ') }}\n\n---\n_Generated by CyberSentinel Automated Response_",
+        "priority": "Highest",
+        "labels": [
+          "ransomware",
+          "critical",
+          "incident",
+          "qilin"
+        ]
+      }
+    },
+    {
+      "name": "Executive Notification",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        300
+      ],
+      "parameters": {
+        "to": "={{ $node['Email Configuration'].json['executive_team'] }}",
+        "subject": "🚨 CRITICAL INCIDENT: Ransomware Attack Detected - Immediate Action Required",
+        "body": "=CRITICAL SECURITY INCIDENT NOTIFICATION\n\nCyberSentinel has detected a active ransomware attack.\n\n*Incident Summary:*\n- Threat: Qilin Ransomware\n- Severity: {{ $json.risk_level }}\n- Systems Affected: {{ $json.affected_hosts.length }}\n- Estimated Impact: Critical\n\n*Immediate Executive Actions:*\n1. Authorize network isolation of affected systems\n2. Activate incident response team\n3. Prepare stakeholder communication\n4. Review cyber insurance coverage\n5. Prepare legal and PR notifications\n\n*Current Status:*\nOur automated systems have initiated incident response procedures. \nThe incident response team has been notified and is actively responding.\n\n*Estimated Time to Resolution:*\nPending assessment (24-72 hours typical for major incidents)\n\n*Business Impact Assessment:*\nPending detailed analysis\n\nFor real-time updates, monitor the incident management dashboard.\n\n---\nThis is an automated notification from CyberSentinel Security Operations.\nTime: {{ $json.assessment_timestamp }}"
+      }
+    },
+    {
+      "name": "Block C2 - Firewall",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['Firewall API'].json['url'] }}/api/block-ioc-batch",
+        "sendBody": true,
+        "jsonBody": "={{ {\n  ioc_type: 'ransomware_c2',\n  indicators: $json.indicators.network_signatures,\n  source: 'CyberSentinel',\n  reason: 'Qilin ransomware C2 communication',\n  priority: 'critical',\n  expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()\n} }}"
+      }
+    },
+    {
+      "name": "Update EDR Blocklist",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['EDR API'].json['url'] }}/api/threats/block",
+        "sendBody": true,
+        "jsonBody": "={{ {\n  threat_name: 'Qilin',\n  threat_type: 'ransomware',\n  indicators: {\n    file_hashes: $json.indicators.file_hashes,\n    processes: $json.indicators.processes,\n    registry_keys: $json.indicators.registry_keys\n  },\n  action: 'block_and_quarantine',\n  scope: 'organization'\n} }}"
+      }
+    },
+    {
+      "name": "Log Incident Response",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['Log Storage'].json['url'] }}/api/incidents",
+        "sendBody": true,
+        "jsonBody": "={{ {\n  incident_type: 'ransomware_attack',\n  threat_name: 'Qilin',\n  severity: $json.risk_level,\n  threat_score: $json.threat_score,\n  affected_systems: $json.affected_hosts,\n  ioc_count: {\n    files: $json.indicators.file_hashes.length,\n    processes: $json.indicators.processes.length,\n    network: $json.indicators.network_signatures.length\n  },\n  actions_taken: [\n    'EDR alert received',\n    'Threat assessment completed',\n    'SIEM alert created',\n    'Slack notification sent',\n    'SOAR playbook triggered',\n    'Jira incident created',\n    'Executive notification sent',\n    'C2 blocked (firewall)',\n    'IOCs blocked (EDR)'\n  ],\n  critical_actions_required: $json.critical_actions_required,\n  timestamp: new Date().toISOString(),\n  status: 'active'\n} }}"
+      }
+    }
+  ],
+  "connections": {
+    "EDR Alert Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse EDR Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse EDR Alert": {
+      "main": [
+        [
+          {
+            "node": "VirusTotal Hash Check",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "NoMoreRansom Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VirusTotal Hash Check": {
+      "main": [
+        [
+          {
+            "node": "Threat Score Calculation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NoMoreRansom Check": {
+      "main": [
+        [
+          {
+            "node": "Threat Score Calculation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Threat Score Calculation": {
+      "main": [
+        [
+          {
+            "node": "CRITICAL: Isolate Network",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create SIEM Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Slack - Critical Channel",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Trigger SOAR Playbook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CRITICAL: Isolate Network": {
+      "main": [
+        [
+          {
+            "node": "Create Jira Incident",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Executive Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create SIEM Alert": {
+      "main": [
+        [
+          {
+            "node": "Block C2 - Firewall",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Critical Channel": {
+      "main": [
+        []
+      ]
+    },
+    "Trigger SOAR Playbook": {
+      "main": [
+        [
+          {
+            "node": "Block C2 - Firewall",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update EDR Blocklist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Jira Incident": {
+      "main": [
+        [
+          {
+            "node": "Block C2 - Firewall",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update EDR Blocklist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executive Notification": {
+      "main": [
+        []
+      ]
+    },
+    "Block C2 - Firewall": {
+      "main": [
+        [
+          {
+            "node": "Log Incident Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update EDR Blocklist": {
+      "main": [
+        [
+          {
+            "node": "Log Incident Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Incident Response": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

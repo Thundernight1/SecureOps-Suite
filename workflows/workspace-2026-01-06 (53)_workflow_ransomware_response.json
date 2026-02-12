@@ -1,0 +1,310 @@
+{
+  "name": "Ransomware Incident Response",
+  "nodes": [
+    {
+      "name": "Ransomware Detection Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "parameters": {
+        "httpMethod": "post",
+        "path": "ransomware-alert",
+        "responseMode": "onReceived"
+      }
+    },
+    {
+      "name": "EDR Alert Input",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        100,
+        350
+      ],
+      "parameters": {
+        "url": "https://edr-api.example.com/alerts/ransomware",
+        "pollInterval": 60
+      }
+    },
+    {
+      "name": "Parse Ransomware Alert",
+      "type": "n8n-nodes-base.function",
+      "Type": 1,
+      "position": [
+        300,
+        275
+      ],
+      "parameters": {
+        "functionCode": "const alert = items[0].json;\n\n// Determine ransomware variant and severity\nlet variant = 'Unknown';\nlet severity = 'HIGH';\nlet responseType = 'standard';\n\n// Check for known variants\nconst variantPatterns = {\n  'Akira': /\\.akira|akira|akira ransomware/i,\n  'LockBit': /\\.lockbit|lockbit|lockbit 3\\.0/i,\n  'Rhysida': /\\.rhysida|rhysida/i,\n  'Qilin': /\\.qilin|qilin/i,\n  'VolkLocker': /\\.volklocker|volklocker/i,\n  'Black Basta': /\\.basta|black basta/i,\n  'RansomHub': /\\.ransomhub|ransomhub/i,\n  'FOG': /\\.fog|fog ransomware/i,\n  'PLAY': /\\.play|play ransomware/i,\n  'Helldown': /\\.helldown|helldown/i\n};\n\nfor (const [name, pattern] of Object.entries(variantPatterns)) {\n  if (pattern.test(JSON.stringify(alert))) {\n    variant = name;\n    break;\n  }\n}\n\n// Determine severity based on variant and scope\nif (variant === 'Akira' || variant === 'LockBit') {\n  severity = 'CRITICAL';\n  responseType = 'emergency';\n} else if (variant === 'Rhysida' || variant === 'Qilin') {\n  severity = 'HIGH';\n  responseType = 'standard';\n}\n\n// Check for encryption indicators\nconst encryptionIndicators = alert.encryption_files || alert.file_activity?.some(f => \n  f.action === 'encrypt' || f.extension?.startsWith('.')\n);\n\nreturn [{\n  json: {\n    alertId: 'RANS-' + Date.now(),\n    timestamp: new Date().toISOString(),\n    variant,\n    severity,\n    responseType,\n    affectedSystems: alert.affected_hosts || alert.affected_systems || [],\n    encryptionDetected: encryptionIndicators || false,\n    fileExtensions: alert.file_extensions || [],\n    initialAccessVector: alert.initial_access || 'unknown',\n    lateralMovementDetected: alert.lateral_movement || false,\n    source: alert.source || 'EDR'\n  }\n}];"
+      }
+    },
+    {
+      "name": "Severity Assessment",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        275
+      ],
+      "parameters": {
+        "functionCode": "const alert = items[0].json;\n\n// Calculate severity score\nlet severityScore = 0;\nlet escalationRequired = false;\n\n// Encryption detected = +3 points\nif (alert.encryptionDetected) severityScore += 3;\n\n// Multiple systems affected = +2 points\nif (alert.affectedSystems?.length > 1) severityScore += 2;\n\n// Lateral movement = +2 points\nif (alert.lateralMovementDetected) severityScore += 2;\n\n// Critical variant = +3 points\nif (['Akira', 'LockBit'].includes(alert.variant)) severityScore += 3;\n\n// Determine final severity\nlet finalSeverity = 'MEDIUM';\nlet priority = 'P2';\n\nif (severityScore >= 7) {\n  finalSeverity = 'CRITICAL';\n  priority = 'P1';\n  escalationRequired = true;\n} else if (severityScore >= 4) {\n  finalSeverity = 'HIGH';\n  priority = 'P1';\n} else {\n  finalSeverity = 'MEDIUM';\n  priority = 'P2';\n}\n\n// Set SLA based on severity\nconst slaTimes = {\n  'CRITICAL': { response: '15 minutes', containment: '1 hour', recovery: '24 hours' },\n  'HIGH': { response: '30 minutes', containment: '4 hours', recovery: '48 hours' },\n  'MEDIUM': { response: '1 hour', containment: '8 hours', recovery: '72 hours' }\n};\n\nreturn [{\n  json: {\n    ...alert,\n    severity: finalSeverity,\n    priority,\n    severityScore,\n    escalationRequired,\n    sla: slaTimes[finalSeverity],\n    incidentType: 'RANSOMWARE'\n  }\n}];"
+      }
+    },
+    {
+      "name": "Create Incident",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        700,
+        275
+      ],
+      "parameters": {
+        "functionCode": "const alert = items[0].json;\n\n// Generate incident ID\nconst incidentId = 'INC-RANSOM-' + Date.now();\nconst ticketId = 'RANS-' + Date.now();\n\nreturn [{\n  json: {\n    incidentId,\n    ticketId,\n    title: `[${alert.severity}] ${alert.variant} Ransomware Detected - Immediate Response Required`,\n    description: `${alert.variant} ransomware detected with ${alert.severity} severity. ${alert.encryptionDetected ? 'Encryption activity detected.' : 'Pre-encryption detection.'}`,\n    priority: alert.priority,\n    severity: alert.severity,\n    variant: alert.variant,\n    affectedSystemsCount: alert.affectedSystems?.length || 0,\n    affectedSystems: alert.affectedSystems,\n    status: 'investigating',\n    createdAt: new Date().toISOString(),\n    assignedTo: 'Incident Response Team',\n    responseSLA: alert.sla?.response,\n    containmentSLA: alert.sla?.containment,\n    recoverySLA: alert.sla?.recovery,\n    playbooks: ['ransomware_response_emergency', 'containment', 'recovery']\n  }\n}];"
+      }
+    },
+    {
+      "name": "Critical Alert Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        900,
+        150
+      ],
+      "parameters": {
+        "channel": "#ransomware-incidents",
+        "text": "=`:rotating_light: **RANSOMWARE INCIDENT ALERT** :rotating_light:\\n\\n**Variant:** {{ $json.variant }}\\n**Severity:** {{ $json.severity }}\\n**Systems Affected:** {{ $json.affectedSystemsCount }}\\n**Incident ID:** {{ $json.incidentId }}\\n\\n**Immediate Actions Required:**\\n1. ISOLATE affected systems\\n2. PRESERVE evidence\\n3. DO NOT power off systems\\n4. NOTIFY IR team immediately\\n\\n**SLA Response Time:** {{ $json.responseSLA }}\\n\\nAffected systems:\\n{{ $json.affectedSystems?.join('\\n') || 'TBD' }}"
+      }
+    },
+    {
+      "name": "Executive Notification",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1,
+      "position": [
+        900,
+        275
+      ],
+      "parameters": {
+        "to": "ciso@company.com,cto@company.com,legal@company.com",
+        "subject": "=[CRITICAL] {{ $json.variant }} Ransomware Incident - {{ $json.severity }} Severity",
+        "body": "A {{ $json.severity }} severity ransomware incident has been detected:\\n\\n**Incident ID:** {{ $json.incidentId }}\\n**Variant:** {{ $json.variant }}\\n**Systems Affected:** {{ $json.affectedSystemsCount }}\\n**Encryption Detected:** {{ $json.encryptionDetected }}\\n**Lateral Movement:** {{ $json.lateralMovementDetected }}\\n\\nThe Incident Response Team has been activated. Initial response SLA: {{ $json.responseSLA }}\\n\\nLegal counsel has been notified for potential regulatory reporting requirements (GDPR, SEC, etc.)."
+      }
+    },
+    {
+      "name": "Network Isolation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        275
+      ],
+      "parameters": {
+        "functionCode": "const incident = items[0].json;\n\n// Generate network isolation commands\nconst affectedIPs = incident.affectedSystems?.map(s => s.ip) || [];\n\nconst isolationActions = {\n  network: {\n    actions: [\n      { type: 'port_block', target: 'all', protocol: 'smb', reason: 'Block SMB to prevent lateral movement' },\n      { type: 'port_block', target: affectedIPs, protocol: 'all', reason: 'Isolate affected systems' },\n      { type: 'vlan_move', target: affectedIPs, destination: 'quarantine', reason: 'Move to quarantine VLAN' }\n    ],\n    executionOrder: 'parallel',\n    estimatedTime: '5 minutes'\n  },\n  endpoint: {\n    actions: [\n      { type: 'edr_isolation', target: affectedIPs, action: 'network_isolate' },\n      { type: 'edr_kill', target: affectedIPs, process: 'ransomware_processes', action: 'terminate' },\n      { type: 'preserve_evidence', target: affectedIPs, action: 'capture_memory_dump' }\n    ],\n    executionOrder: 'sequential',\n    estimatedTime: '10 minutes'\n  },\n  account: {\n    actions: [\n      { type: 'account_disable', target: 'compromised_accounts', reason: 'Disable potentially compromised accounts' },\n      { type: 'session_terminate', target: affectedIPs, action: 'terminate_all_sessions' }\n    ],\n    estimatedTime: '2 minutes'\n  }\n};\n\nreturn [{\n  json: {\n    ...incident,\n    containmentActions: isolationActions,\n    containmentStatus: 'initiated',\n    containmentStartedAt: new Date().toISOString()\n  }\n}];"
+      }
+    },
+    {
+      "name": "Backup Verification",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        275
+      ],
+      "parameters": {
+        "functionCode": "const incident = items[0].json;\n\n// Check backup status for affected systems\nconst backupStatus = incident.affectedSystems?.map(system => {\n  return {\n    system: system.hostname || system.name,\n    lastBackup: '2025-12-26T18:00:00Z', // Simulated\n    backupStatus: 'successful',\n    backupLocation: 'offsite',\n    immutable: true,\n    recoverable: true,\n    recoveryTimeEstimate: '4 hours'\n  };\n}) || [];\n\nconst allBackupsAvailable = backupStatus.every(b => b.recoverable);\nconst backupSummary = {\n  totalSystems: backupStatus.length,\n  recoverable: backupStatus.filter(b => b.recoverable).length,\n  notRecoverable: backupStatus.filter(b => !b.recoverable).length,\n  systems: backupStatus\n};\n\nreturn [{\n  json: {\n    ...incident,\n    backupVerification: backupSummary,\n    backupsAvailable: allBackupsAvailable,\n    recoveryOption: allBackupsAvailable ? 'restore_from_backup' : 'manual_recovery',\n    estimatedRecoveryTime: '24-48 hours'\n  }\n}];"
+      }
+    },
+    {
+      "name": "Evidence Preservation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        275
+      ],
+      "parameters": {
+        "functionCode": "const incident = items[0].json;\n\n// Generate evidence preservation tasks\nconst evidencePreservation = {\n  tasks: [\n    {\n      taskId: 'EVIDENCE-001',\n      type: 'memory_capture',\n      target: incident.affectedSystems,\n      priority: 'critical',\n      status: 'pending',\n      description: 'Capture memory dumps from affected systems'\n    },\n    {\n      taskId: 'EVIDENCE-002',\n      type: 'disk_image',\n      target: incident.affectedSystems,\n      priority: 'high',\n      status: 'pending',\n      description: 'Create forensic disk images'\n    },\n    {\n      taskId: 'EVIDENCE-003',\n      type: 'network_capture',\n      target: 'affected_network_segment',\n      priority: 'high',\n      status: 'pending',\n      description: 'Preserve network traffic captures'\n    },\n    {\n      taskId: 'EVIDENCE-004',\n      type: 'log_collection',\n      target: incident.affectedSystems,\n      priority: 'high',\n      status: 'pending',\n      description: 'Collect system and security logs'\n    },\n    {\n      taskId: 'EVIDENCE-005',\n      type: 'ransom_note_collection',\n      target: incident.affectedSystems,\n      priority: 'critical',\n      status: 'pending',\n      description: 'Collect all ransom notes and encrypted file samples'\n    }\n  ],\n  chainOfCustody: {\n    initiatedAt: new Date().toISOString(),\n    evidenceCount: 0,\n    status: 'initiated'\n  }\n};\n\nreturn [{\n  json: {\n    ...incident,\n    evidencePreservation,\n    forensicStatus: 'in_progress'\n  }\n}];"
+      }
+    },
+    {
+      "name": "Law Enforcement Notification",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const incident = items[0].json;\n\n// Generate law enforcement notification\nconst lawEnforcementInfo = {\n  agencies: [\n    { name: 'FBI IC3', contact: 'https://www.ic3.gov', requiredFor: 'US-based incidents > $100K' },\n    { name: 'CISA', contact: 'https://www.cisa.gov/contact-us', requiredFor: 'Critical infrastructure' },\n    { name: 'Local FBI Field Office', contact: 'Via IC3', requiredFor: 'Immediate response needed' }\n  ],\n  reportRequired: {\n    ic3: incident.severity === 'CRITICAL' || incident.affectedSystems?.length > 5,\n    cisa: incident.affectedSystems?.some(s => s.criticalInfrastructure),\n    localLawEnforcement: incident.severity === 'CRITICAL'\n  },\n  informationToProvide: [\n    'Incident timeline',\n    'Ransomware variant',\n    'Initial access vector',\n    'Systems affected',\n    'Data exfiltration status',\n    'Ransom demand (if any)',\n    'Evidence preservation status'\n  ]\n};\n\nreturn [{\n  json: {\n    ...incident,\n    lawEnforcementNotification: lawEnforcementInfo,\n    notificationStatus: incident.severity === 'CRITICAL' ? 'required' : 'recommended'\n  }\n}];"
+      }
+    },
+    {
+      "name": "Generate Incident Report",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        275
+      ],
+      "parameters": {
+        "functionCode": "const incident = items[0].json;\n\n// Generate comprehensive incident report\nconst report = {\n  reportId: 'RANS-RPT-' + Date.now(),\n  timestamp: new Date().toISOString(),\n  incidentType: 'RANSOMWARE',\n  variant: incident.variant,\n  severity: incident.severity,\n  affectedSystems: {\n    count: incident.affectedSystemsCount,\n    list: incident.affectedSystems\n  },\n  timeline: {\n    detected: incident.createdAt,\n    containmentStarted: incident.containmentStartedAt,\n    evidencePreservationStarted: incident.forensicStatus === 'in_progress' ? new Date().toISOString() : null,\n    reportGenerated: new Date().toISOString()\n  },\n  responseActions: [\n    'Incident created and assigned',\n    'Alert notifications sent',\n    'Network isolation initiated',\n    'Evidence preservation started',\n    'Backup verification completed'\n  ],\n  containmentStatus: incident.containmentStatus,\n  recoveryStatus: {\n    backupsAvailable: incident.backupsAvailable,\n    estimatedRecoveryTime: incident.estimatedRecoveryTime,\n    recoveryOption: incident.recoveryOption\n  },\n  recommendations: [\n    'Complete system isolation before further investigation',\n    'Do not pay ransom - no guarantee of recovery and funds criminal activity',\n    'Engage specialized ransomware response firm if needed',\n    'File IC3 report if financial impact exceeds threshold',\n    'Preserve all evidence for potential law enforcement involvement',\n    'Conduct post-incident review and update defenses'\n  ],\n  nextActions: [\n    'Complete evidence preservation',\n    'Verify all affected systems isolated',\n    'Initiate recovery from verified backups',\n    'Conduct threat hunting for persistence',\n    'Update detection rules based on TTPs observed'\n  ],\n  status: 'active'\n};\n\nreturn [{\n  json: report\n}];"
+      }
+    }
+  ],
+  "connections": {
+    "Ransomware Detection Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Ransomware Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EDR Alert Input": {
+      "main": [
+        [
+          {
+            "node": "Parse Ransomware Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Ransomware Alert": {
+      "main": [
+        [
+          {
+            "node": "Severity Assessment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Severity Assessment": {
+      "main": [
+        [
+          {
+            "node": "Create Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Incident": {
+      "main": [
+        [
+          {
+            "node": "Critical Alert Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Executive Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Critical Alert Notification": {
+      "main": [
+        [
+          {
+            "node": "Network Isolation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executive Notification": {
+      "main": [
+        [
+          {
+            "node": "Network Isolation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Network Isolation": {
+      "main": [
+        [
+          {
+            "node": "Backup Verification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Backup Verification": {
+      "main": [
+        [
+          {
+            "node": "Evidence Preservation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evidence Preservation": {
+      "main": [
+        [
+          {
+            "node": "Law Enforcement Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate Incident Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Law Enforcement Notification": {
+      "main": [
+        [
+          {
+            "node": "Generate Incident Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "workflowId": "CS-WF-RANSOM-2025-001",
+    "threatType": "RANSOMWARE",
+    "threatName": "Ransomware Incident Response (Akira, LockBit, Rhysida, Qilin, VolkLocker)",
+    "severity": "CRITICAL",
+    "createdBy": "CyberSentinel",
+    "createdAt": "2025-12-27T14:20:11.968570+00:00",
+    "version": "1.0",
+    "tags": [
+      "ransomware",
+      "incident-response",
+      "containment",
+      "akira",
+      "lockbit",
+      "rhysida",
+      "qilin"
+    ]
+  }
+}

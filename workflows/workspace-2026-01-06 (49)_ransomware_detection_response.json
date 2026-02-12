@@ -1,0 +1,1108 @@
+{
+  "name": "Ransomware Detection and Response - Akira, Qilin, Gentlemen",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "value": 15
+            }
+          ]
+        }
+      },
+      "id": "ransomware-scheduler",
+      "name": "Ransomware Monitor",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://raw.githubusercontent.com/socradar-io/Threat-Intelligence-Feeds/main/ransomware_groups.json",
+        "options": {}
+      },
+      "id": "ransomware-feed",
+      "name": "Ransomware Threat Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://ransomware.live/dashboard.php?format=json",
+        "options": {}
+      },
+      "id": "ransomware-live",
+      "name": "Ransomware Live Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        300,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://www.virustotal.com/api/v3/intelligence/hunting_rules",
+        "options": {
+          "authentication": "header"
+        }
+      },
+      "id": "vt-hunting",
+      "name": "VirusTotal Hunting",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        300,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.ransomware_group }}",
+              "operation": "contains",
+              "value2": "Akira"
+            }
+          ]
+        }
+      },
+      "id": "check-akira",
+      "name": "Check Akira",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.ransomware_group }}",
+              "operation": "contains",
+              "value2": "Qilin"
+            }
+          ]
+        }
+      },
+      "id": "check-qilin",
+      "name": "Check Qilin",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.ransomware_group }}",
+              "operation": "contains",
+              "value2": "Gentlemen"
+            }
+          ]
+        }
+      },
+      "id": "check-gentlemen",
+      "name": "Check Gentlemen",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.ransomware_group }}",
+              "operation": "contains",
+              "value2": "Black Shrantac"
+            }
+          ]
+        }
+      },
+      "id": "check-blackshrantac",
+      "name": "Check Black Shrantac",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        650
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.ransomware_group }}",
+              "operation": "contains",
+              "value2": "Weaxor"
+            }
+          ]
+        }
+      },
+      "id": "check-weaxor",
+      "name": "Check Weaxor",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.file_extension }}",
+              "operation": "contains",
+              "value2": ".akira"
+            }
+          ]
+        }
+      },
+      "id": "akira-extension",
+      "name": "Akira Extension Pattern",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.file_extension }}",
+              "operation": "contains",
+              "value2": ".locked"
+            }
+          ]
+        }
+      },
+      "id": "qilin-extension",
+      "name": "Qilin Extension Pattern",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.target_industry }}",
+              "operation": "contains",
+              "value2": "manufacturing"
+            }
+          ]
+        }
+      },
+      "id": "manuf-target",
+      "name": "Manufacturing Target",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.target_industry }}",
+              "operation": "contains",
+              "value2": "healthcare"
+            }
+          ]
+        }
+      },
+      "id": "healthcare-target",
+      "name": "Healthcare Target",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        650
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.target_industry }}",
+              "operation": "contains",
+              "value2": "government"
+            }
+          ]
+        }
+      },
+      "id": "gov-target",
+      "name": "Government Target",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "method": "post",
+        "url": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ JSON.stringify({ text: \"🔴 RANSOMWARE ALERT: \" + $json.ransomware_group + \"\\nTarget: \" + $json.target_industry + \"\\nCampaign: \" + $json.campaign_name + \"\\nIOCs: \" + JSON.stringify($json.indicators_of_compromise) }) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "slack-ransomware",
+      "name": "Ransomware Slack Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "to": "={{ $env.SECURITY_TEAM_EMAIL }}",
+        "subject": "={{ \"🔴 RANSOMWARE ALERT: \" + $json.ransomware_group + \" Campaign Detected\" }}",
+        "body": "={{ \"RANSOMWARE THREAT DETECTED:\\n\\nGroup: \" + $json.ransomware_group + \"\\nCampaign: \" + $json.campaign_name + \"\\nTarget Industry: \" + $json.target_industry + \"\\nAttack Vector: \" + $json.attack_vector + \"\\n\\nIndicators of Compromise:\\n\" + JSON.stringify($json.indicators_of_compromise, null, 2) + \"\\n\\nRecommended Actions:\\n1. BLOCK all IOCs at perimeter\\n2. SCAN for indicators on all systems\\n3. VERIFY backup integrity\\n4. PREPARE incident response team\\n5. NOTIFY executive leadership\" }}",
+        "options": {}
+      },
+      "id": "email-ransomware",
+      "name": "Ransomware Email Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        900,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.target_industry }}",
+              "operation": "equal",
+              "value2": "healthcare"
+            }
+          ]
+        }
+      },
+      "id": "healthcare-critical",
+      "name": "Healthcare Critical Path",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        900,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.target_industry }}",
+              "operation": "equal",
+              "value2": "critical_infrastructure"
+            }
+          ]
+        }
+      },
+      "id": "critical-infra",
+      "name": "Critical Infrastructure",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        900,
+        650
+      ]
+    },
+    {
+      "parameters": {
+        "method": "post",
+        "url": "={{ $env.SPLUNK_HEC_URL }}",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ \"Splunk \" + $env.SPLUNK_TOKEN }}"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "event",
+              "value": "={{ JSON.stringify({ threat_type: \"ransomware\", threat_group: $json.ransomware_group, severity: \"CRITICAL\", target_industry: $json.target_industry, indicators: $json.indicators_of_compromise }) }}"
+            },
+            {
+              "name": "sourcetype",
+              "value": "cyber:ransomware"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "splunk-ransomware",
+      "name": "Ingest to SIEM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value": "={{ $json.block_at_perimeter }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "block-iocs",
+      "name": "Block IOCs at Perimeter",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "method": "post",
+        "url": "={{ $env.FIREWALL_API_URL }}/rules",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ \"Bearer \" + $env.FIREWALL_TOKEN }}"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "action",
+              "value": "block"
+            },
+            {
+              "name": "source_ip",
+              "value": "={{ JSON.stringify($json.indicators_of_compromise.ips) }}"
+            },
+            {
+              "name": "domain",
+              "value": "={{ JSON.stringify($json.indicators_of_compromise.domains) }}"
+            },
+            {
+              "name": "hash",
+              "value": "={{ JSON.stringify($json.indicators_of_compromise.hashes) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "firewall-block",
+      "name": "Update Firewall Rules",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "post",
+        "url": "={{ $env.EDR_API_URL }}/v1/threats",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.EDR_API_KEY }}"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "threat_name",
+              "value": "={{ $json.ransomware_group }}"
+            },
+            {
+              "name": "threat_type",
+              "value": "ransomware"
+            },
+            {
+              "name": "severity",
+              "value": "critical"
+            },
+            {
+              "name": "description",
+              "value": "={{ $json.campaign_description }}"
+            },
+            {
+              "name": "file_patterns",
+              "value": "={{ JSON.stringify($json.file_extension_patterns) }}"
+            },
+            {
+              "name": "behaviors",
+              "value": "={{ JSON.stringify($json.attack_behaviors) }}"
+            },
+            {
+              "name": "recommended_actions",
+              "value": "={{ JSON.stringify([\"Isolate affected systems immediately\", \"Preserve forensic evidence\", \"Verify backup integrity\", \"Do NOT pay ransom\", \"Engage incident response team\"]) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "edr-ransomware",
+      "name": "Update EDR Detection",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1300,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "method": "post",
+        "url": "={{ $env.SERVICENOW_API_URL }}/api/now/table/incident",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ \"Basic \" + $env.SERVICENOW_AUTH }}"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "short_description",
+              "value": "={{ \"🚨 CRITICAL: \" + $json.ransomware_group + \" Ransomware Campaign Detected\" }}"
+            },
+            {
+              "name": "description",
+              "value": "={{ \"RANSOMWARE ALERT\\n\\nGroup: \" + $json.ransomware_group + \"\\nCampaign: \" + $json.campaign_name + \"\\nTarget: \" + $json.target_industry + \"\\n\\nThis is a CRITICAL severity alert requiring immediate action.\\n\\nImmediate Actions Required:\\n1. Alert incident response team\\n2. Block all IOCs at perimeter\\n3. Verify backup integrity\\n4. Prepare for potential containment actions\\n5. Document all actions taken\" }}"
+            },
+            {
+              "name": "urgency",
+              "value": "1"
+            },
+            {
+              "name": "impact",
+              "value": "1"
+            },
+            {
+              "name": "priority",
+              "value": "1"
+            },
+            {
+              "name": "category",
+              "value": "Incident"
+            },
+            {
+              "name": "subcategory",
+              "value": "Malware - Ransomware"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "servicenow-incident",
+      "name": "Create Incident Ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1300,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ \"python3 /opt/scripts/run_yara_scan.py --rules /opt/rules/ransomware/\" + $json.ransomware_group + \".yar --output json\" }}"
+      },
+      "id": "yara-scan",
+      "name": "YARA Scan",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ \"python3 /opt/scripts/check_endpoint_indicators.py --hashes '\" + JSON.stringify($json.indicators_of_compromise.hashes) + \"' --output json\" }}"
+      },
+      "id": "endpoint-check",
+      "name": "Endpoint Indicator Check",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ \"python3 /opt/scripts/network_hunt.py --ioc '\" + JSON.stringify($json.indicators_of_compromise) + \"' --output json\" }}"
+      },
+      "id": "network-hunt",
+      "name": "Network Traffic Hunt",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value": "={{ $json.healthcare_organization }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "healthcare-escalate",
+      "name": "Healthcare Escalation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "threatType",
+              "value": "RANSOMWARE"
+            },
+            {
+              "name": "severity",
+              "value": "CRITICAL"
+            },
+            {
+              "name": "threatGroup",
+              "value": "={{ $json.ransomware_group }}"
+            },
+            {
+              "name": "affectedSystems",
+              "value": "={{ $json.target_industry }}"
+            },
+            {
+              "name": "attackVector",
+              "value": "={{ $json.attack_vector }}"
+            },
+            {
+              "name": "indicatorsOfCompromise",
+              "value": "={{ JSON.stringify($json.indicators_of_compromise) }}"
+            },
+            {
+              "name": "filePatterns",
+              "value": "={{ JSON.stringify($json.file_extension_patterns) }}"
+            },
+            {
+              "name": "recommendedActions",
+              "value": "={{ JSON.stringify([\"Isolate affected systems immediately\", \"Preserve forensic evidence\", \"Verify backup integrity\", \"Do NOT pay ransom\", \"Engage incident response team\", \"Block all IOCs at perimeter\", \"Scan all endpoints for indicators\", \"Monitor network traffic for C2 communication\"]) }}"
+            }
+          ]
+        }
+      },
+      "id": "ransomware-output",
+      "name": "Ransomware Intel Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Ransomware Monitor": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Threat Feed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Ransomware Live Feed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "VirusTotal Hunting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ransomware Threat Feed": {
+      "main": [
+        [
+          {
+            "node": "Check Akira",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Qilin",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Gentlemen",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Black Shrantac",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check Weaxor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ransomware Live Feed": {
+      "main": [
+        [
+          {
+            "node": "Akira Extension Pattern",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Qilin Extension Pattern",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Manufacturing Target",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Healthcare Target",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Government Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Akira": {
+      "main": [
+        [
+          {
+            "node": "Akira Extension Pattern",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Qilin": {
+      "main": [
+        [
+          {
+            "node": "Qilin Extension Pattern",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Gentlemen": {
+      "main": [
+        [
+          {
+            "node": "Manufacturing Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Black Shrantac": {
+      "main": [
+        [
+          {
+            "node": "Healthcare Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Weaxor": {
+      "main": [
+        [
+          {
+            "node": "Government Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Akira Extension Pattern": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Ransomware Email Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Healthcare Critical Path",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qilin Extension Pattern": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Manufacturing Target": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Healthcare Target": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Healthcare Critical Path",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Government Target": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Critical Infrastructure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ransomware Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Email Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Ingest to SIEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ransomware Email Alert": {
+      "main": [
+        [
+          {
+            "node": "Ingest to SIEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Healthcare Critical Path": {
+      "main": [
+        [
+          {
+            "node": "Create Incident Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Critical Infrastructure": {
+      "main": [
+        [
+          {
+            "node": "Create Incident Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ingest to SIEM": {
+      "main": [
+        [
+          {
+            "node": "Block IOCs at Perimeter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block IOCs at Perimeter": {
+      "main": [
+        [
+          {
+            "node": "Update Firewall Rules",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update EDR Detection",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Incident Ticket",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "YARA Scan",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Endpoint Indicator Check",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Network Traffic Hunt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Firewall Rules": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Intel Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update EDR Detection": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Intel Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Incident Ticket": {
+      "main": [
+        [
+          {
+            "node": "Healthcare Escalation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "YARA Scan": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Intel Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Endpoint Indicator Check": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Intel Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Network Traffic Hunt": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Intel Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Healthcare Escalation": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Intel Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ransomware Intel Output": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": true,
+  "id": "ransomware-response-workflow-2025-12-27",
+  "meta": {
+    "instanceId": "cybersentinel-002"
+  }
+}

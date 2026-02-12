@@ -1,0 +1,327 @@
+{
+  "name": "CyberSentinel - Ransomware Response Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "post",
+        "path": "cybersentinel/ransomware-detected",
+        "options": {}
+      },
+      "id": "edr-webhook",
+      "name": "EDRWebhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const data = items[0].json;\nconst output = {\n  ransomware_detected: true,\n  variant: data.ransomware_variant || 'unknown',\n  encryption_extension: data.file_extension || 'unknown',\n  affected_systems: data.affected_hosts || [],\n  affected_users: data.affected_users || [],\n  first_detection: data.first_seen || new Date().toISOString(),\n  spread_status: data.spreading || 'unknown',\n  file_count: data.encrypted_file_count || 0,\n  ransom_note_content: data.ransom_note || null,\n  is_double_extortion: data.data_exfiltration || false\n};\nreturn [{json: output}];"
+      },
+      "id": "analyze-ransomware",
+      "name": "AnalyzeRansomware",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.spread_status }}",
+              "operation": "equal",
+              "value2": "active"
+            }
+          ]
+        }
+      },
+      "id": "initiate-containment",
+      "name": "InitiateContainment",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const hosts = items[0].json.affected_systems;\n// Network isolation via NAC/SDN\nconst actions = hosts.map((host, index) => ({\n  action: 'network_isolate',\n  host_id: host.host_id || host,\n  host_name: host.hostname || 'unknown',\n  method: '802.1x_port_disable',\n  vlan: 'quarantine',\n  timestamp: new Date().toISOString(),\n  automated: true,\n  reason: 'Ransomware containment'\n}));\nreturn actions.map(a => ({json: a}));"
+      },
+      "id": "network-isolation",
+      "name": "NetworkIsolation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const data = items[0].json;\nconst users = data.affected_users;\n// Disable potentially compromised accounts\nconst output = {\n  action: 'disable_accounts',\n  reason: 'Ransomware containment',\n  timestamp: new Date().toISOString(),\n  disabled_accounts: users.map(u => ({\n    username: u,\n    status: 'disabled',\n    reason: 'Potential ransomware-related compromise'\n  })),\n  mfa_reset: true,\n  session_termination: true\n};\nreturn [{json: output}];"
+      },
+      "id": "disable-user-accounts",
+      "name": "DisableUserAccounts",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Stop file synchronization services\nconst output = {\n  action: 'stop_sync_services',\n  services: [\n    { name: 'OneDrive', action: 'disable' },\n    { name: 'Dropbox', action: 'disable' },\n    { name: 'Google Drive', action: 'disable' },\n    { name: 'Box', action: 'disable' },\n    { name: 'iCloud', action: 'disable' }\n  ],\n  timestamp: new Date().toISOString(),\n  automated: true,\n  reason: 'Prevent ransomware spread via cloud sync'\n};\nreturn [{json: output}];"
+      },
+      "id": "stop-file-sync",
+      "name": "StopFileSync",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const data = items[0].json;\nconst ticket = {\n  title: `[CRITICAL] Ransomware Attack Detected - ${data.variant}`,\n  description: `RANSOMWARE INCIDENT REPORT\\n\\nVariant: ${data.variant}\\nEncryption Extension: ${data.encryption_extension}\\nAffected Systems: ${(data.affected_systems || []).map(s => s.hostname || s).join(', ')}\\nFirst Detection: ${data.first_detection}\\nFiles Encrypted: ${data.file_count}\\nSpreading: ${data.spread_status}\\nData Exfiltration: ${data.is_double_extortion || false}\\n\\nRANSOMWARE NOTE:\\n${data.ransom_note_content || 'Not available'}`,\n  severity: 'P1',\n  category: 'Ransomware Incident',\n  assigned_team: 'Incident Response',\n  sla_minutes: 5,\n  ransomware_variant: data.variant,\n  double_extortion: data.is_double_extortion\n};\nreturn [{json: ticket}];"
+      },
+      "id": "create-incident",
+      "name": "CreateIncident",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "projectKey": "SEC",
+        "issueType": "Incident",
+        "fields": {
+          "summary": "={{ $json.title }}",
+          "description": "={{ $json.description }}",
+          "priority": {
+            "name": "Highest"
+          },
+          "labels": [
+            "cybersentinel",
+            "ransomware",
+            "critical",
+            "incident-response"
+          ]
+        }
+      },
+      "id": "create-jira-ticket",
+      "name": "CreateJiraTicket",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "channel": "#incident-response",
+        "text": "=🚨 *CRITICAL: RANSOMWARE INCIDENT* 🚨\\n\\n🦠 Variant: \\`{{ $json.variant }}\\n📁 Extension: \\`{{ $json.encryption_extension }}\\n🖥️ Affected: {{ ($json.affected_systems || []).map(s => s.hostname || s).join(', ') }}\\n📊 Files Encrypted: {{ $json.file_count || 'Unknown' }}\\n\\n⚠️ *IMMEDIATE ACTION REQUIRED*\\n✅ Network isolation initiated\\n✅ User accounts disabled\\n✅ File sync stopped\\n\\n_Incident response team activated. Do NOT power off affected systems._\\n_Do NOT communicate with threat actors._\\n_Do NOT pay ransom without executive approval._",
+        "options": {}
+      },
+      "id": "activate-ir-team",
+      "name": "ActivateIRTeam",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const hosts = items[0].json.affected_systems;\n// Check backup status\nconst output = {\n  action: 'backup_status_check',\n  affected_systems: hosts.length,\n  last_backup_status: 'VERIFY_REQUIRED',\n  recommendation: 'Do NOT pay ransom. Restore from verified offline backups.',\n  backup_types: ['offline', 'cloud', 'replicated'],\n  timestamp: new Date().toISOString()\n};\nreturn [{json: output}];"
+      },
+      "id": "backup-status-check",
+      "name": "BackupStatusCheck",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "fromEmail": "security-alerts@company.com",
+        "toEmail": "ciso@company.com,ceo@company.com,cfo@company.com",
+        "subject": "🚨 CRITICAL: Ransomware Incident Detected - {{ $json.variant }}",
+        "text": "=A ransomware incident has been detected requiring immediate executive attention.\\n\\nINCIDENT SUMMARY:\\n━━━━━━━━━━━━━━━━━━━━\\n• Variant: {{ $json.variant }}\\n• Extension: {{ $json.encryption_extension }}\\n• Systems Affected: {{ ($json.affected_systems || []).length }}\\n• First Detection: {{ $json.first_detection }}\\n• Spread Status: {{ $json.spread_status }}\\n• Double Extortion: {{ $json.is_double_extortion || false }}\\n\\nCONTAINMENT ACTIONS:\\n━━━━━━━━━━━━━━━━━━━━\\n✅ Network isolation initiated\\n✅ Compromised accounts disabled\\n✅ File synchronization services stopped\\n✅ Incident response team activated\\n✅ Incident ticket created\\n\\nCRITICAL GUIDANCE:\\n━━━━━━━━━━━━━━━━━━━━\\n❌ DO NOT communicate with threat actors\\n❌ DO NOT pay ransom without Board approval\\n❌ DO NOT power off affected systems (forensics)\\n✅ Restore from verified offline backups\\n✅ Document all actions taken\\n\\nEstimated recovery time: 24-72 hours\\nEstimated financial impact: TBD\\n\\nSecurity Team is actively responding. Next update in 1 hour.",
+        "options": {}
+      },
+      "id": "executive-briefing",
+      "name": "ExecutiveBriefing",
+      "type": "n8n-nodes-base.email",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const data = items[0].json;\n// Log to SIEM for correlation\nconst event = {\n  event_type: 'ransomware_detection',\n  event_category: 'security',\n  severity: 'critical',\n  source: 'cybersentinel',\n  ransomware_variant: data.variant,\n  encryption_extension: data.encryption_extension,\n  affected_systems_count: (data.affected_systems || []).length,\n  affected_users_count: (data.affected_users || []).length,\n  spreading: data.spread_status === 'active',\n  double_extortion: data.is_double_extortion || false,\n  timestamp: new Date().toISOString(),\n  automated_response: true\n};\nreturn [{json: event}];"
+      },
+      "id": "log-to-siem",
+      "name": "LogToSIEM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "EDRWebhook": {
+      "main": [
+        [
+          {
+            "node": "AnalyzeRansomware",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AnalyzeRansomware": {
+      "main": [
+        [
+          {
+            "node": "InitiateContainment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "InitiateContainment": {
+      "main": [
+        [
+          {
+            "node": "NetworkIsolation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "DisableUserAccounts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "StopFileSync",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NetworkIsolation": {
+      "main": [
+        [
+          {
+            "node": "CreateIncident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DisableUserAccounts": {
+      "main": [
+        [
+          {
+            "node": "CreateIncident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "StopFileSync": {
+      "main": [
+        [
+          {
+            "node": "CreateIncident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CreateIncident": {
+      "main": [
+        [
+          {
+            "node": "CreateJiraTicket",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "LogToSIEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CreateJiraTicket": {
+      "main": [
+        [
+          {
+            "node": "ActivateIRTeam",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "BackupStatusCheck",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ActivateIRTeam": {
+      "main": [
+        [
+          {
+            "node": "ExecutiveBriefing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "workflow_id": "CS-WF-003",
+    "agent_id": "a401e896-d617-4e97-8bbf-29f47e133c21",
+    "trigger_id": "a1a6b29f-1834-4666-82d7-1163ce25f64c",
+    "version": "1.0",
+    "created": "2025-12-31T12:00:00Z",
+    "threat_type": "RANSOMWARE",
+    "threat_name": "Ransomware Generic Response"
+  }
+}

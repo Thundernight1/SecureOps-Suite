@@ -1,0 +1,355 @@
+{
+  "name": "CyberSentinel - React2Shell (CVE-2025-55182) Response Workflow",
+  "onError": "stopWorkflow",
+  "settings": {
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": 3600,
+    "errorWorkflow": "error-handler-workflow"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "pollTime": "3600000",
+        "pollUnit": "milliseconds",
+        "options": {}
+      },
+      "id": "cve-monitor-trigger",
+      "name": "CVE Monitor Trigger",
+      "type": "n8n-nodes-base.interval",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "url": "https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=CVE-2025-55182",
+        "options": {}
+      },
+      "id": "nvd-api-check",
+      "name": "Check NVD for CVE Updates",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ],
+      "disabled": false,
+      "continueOnFail": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "NVD API",
+          "id": "nvd-api-key",
+          "type": "httpHeaderAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://www.cisa.gov/api/known-exploited-vulnerabilities",
+        "options": {}
+      },
+      "id": "cisa-kev-check",
+      "name": "Check CISA KEV Catalog",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ],
+      "disabled": false,
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.vulnerabilities[0].cveID }}",
+              "operation": "equal",
+              "value2": "CVE-2025-55182"
+            }
+          ]
+        },
+        "combineOperation": "any"
+      },
+      "id": "cve-match-condition",
+      "name": "Check if CVE-2025-55182",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        250
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "message": "=🚨 ALERT: React2Shell (CVE-2025-55182) Detected\n\nTimestamp: {{ $now }}\nCVE: CVE-2025-55182\nCVSS: 10.0 (CRITICAL)\n\nRecommended Actions:\n1. Upgrade React to 19.2.1+ immediately\n2. If upgrade not possible, disable React Server Components\n3. Deploy WAF rules to block suspicious RSC patterns\n4. Monitor Node.js processes for anomalies\n\nThreat Actor Activity:\n- Earth Lamia (206.237.3.150)\n- Jackpot Panda (45.77.33.136)\n\nIOCs:\n- Suspicious shell scripts in /tmp/\n- Unexpected Node.js process behavior\n\nReference: https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+        "additionalFields": {}
+      },
+      "id": "slack-alert",
+      "name": "Send Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        700,
+        150
+      ],
+      "disabled": false,
+      "credentials": {
+        "slackApi": {
+          "name": "Slack Alert Channel",
+          "id": "slack-alerts",
+          "type": "slackApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "to": "security-team@company.com",
+        "subject": "🚨 CRITICAL: React2Shell (CVE-2025-55182) Vulnerability Alert",
+        "emailFormat": "html",
+        "body": "= <h2>🚨 CRITICAL SECURITY ALERT</h2>\n<p><strong>CVE:</strong> CVE-2025-55182 (React2Shell)</p>\n<p><strong>Severity:</strong> CRITICAL (CVSS 10.0)</p>\n<p><strong>Status:</strong> Actively Exploited</p>\n\n<h3>Affected Systems</h3>\n<ul>\n<li>React 19.0.0 - 19.2.0</li>\n<li>Next.js 15.x/16.x with App Router</li>\n<li>Node.js applications using React Server Components</li>\n</ul>\n\n<h3>Immediate Actions Required</h3>\n<ol>\n<li><strong>URGENT:</strong> Upgrade React to version 19.2.1 or later</li>\n<li>Deploy WAF rules to block suspicious RSC patterns</li>\n<li>Monitor for Node.js process anomalies</li>\n<li>Review web server logs for suspicious React component requests</li>\n</ol>\n\n<h3>Known Threat Actor Activity</h3>\n<ul>\n<li>Earth Lamia (China-nexus)</li>\n<li>Jackpot Panda (China-nexus)</li>\n</ul>\n\n<p>Reference: <a href=\"https://aws.amazon.com/blogs/security/china-nexus-cyber-threat-groups-rapidly-exploit-react2shell-vulnerability-cve-2025-55182/\">AWS Threat Intelligence Report</a></p>",
+        "attachments": []
+      },
+      "id": "email-alert",
+      "name": "Send Email Alert",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1.3,
+      "position": [
+        700,
+        250
+      ],
+      "disabled": false,
+      "credentials": {
+        "smtp": {
+          "name": "SMTP Server",
+          "id": "smtp-server",
+          "type": "smtp"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "incident",
+        "operation": "create",
+        "title": "=React2Shell (CVE-2025-55182) - Critical Vulnerability Response",
+        "description": "=React2Shell RCE vulnerability detected with active exploitation.\n\nCVSS: 10.0\nStatus: Actively Exploited\n\nImmediate patching required.",
+        "labels": [
+          "critical",
+          "vulnerability",
+          "cve-2025-55182",
+          "react",
+          "rce"
+        ],
+        "additionalFields": {}
+      },
+      "id": "create-jira-ticket",
+      "name": "Create Jira Ticket",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        700,
+        350
+      ],
+      "disabled": false,
+      "credentials": {
+        "jiraApi": {
+          "name": "Jira Instance",
+          "id": "jira-instance",
+          "type": "jiraApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "cisa-match",
+      "name": "Check CISA KEV Match",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        350
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "operation": "execute",
+        "command": "=echo 'React2Shell Alert: $(date)' >> /var/log/security-alerts.log",
+        "shell": "bash"
+      },
+      "id": "log-alert",
+      "name": "Log Alert to Syslog",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        900,
+        150
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "threat_intel_db",
+        "columns": {
+          "threat_id": "CS-2025-0001",
+          "threat_type": "VULNERABILITY",
+          "name": "React2Shell Remote Code Execution",
+          "cve": "CVE-2025-55182",
+          "severity": "CRITICAL",
+          "cvss_score": 10,
+          "status": "ACTIVE",
+          "created_at": "={{ new Date().toISOString() }}",
+          "updated_at": "={{ new Date().toISOString() }}",
+          "indicators": "206.237.3.150, 45.77.33.136, /tmp/pwned.txt"
+        },
+        "additionalFields": {}
+      },
+      "id": "log-to-database",
+      "name": "Log to Threat Intel DB",
+      "type": "n8n-nodes-base.n8nSql",
+      "typeVersion": 1,
+      "position": [
+        900,
+        250
+      ],
+      "disabled": false
+    }
+  ],
+  "connections": {
+    "CVE Monitor Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check NVD for CVE Updates",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check CISA KEV Catalog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check NVD for CVE Updates": {
+      "main": [
+        [
+          {
+            "node": "Check if CVE-2025-55182",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check CISA KEV Catalog": {
+      "main": [
+        [
+          {
+            "node": "Check CISA KEV Match",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if CVE-2025-55182": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Email Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Jira Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check CISA KEV Match": {
+      "main": [
+        [
+          {
+            "node": "Send Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Jira Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Log Alert to Syslog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email Alert": {
+      "main": [
+        [
+          {
+            "node": "Log to Threat Intel DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Jira Ticket": {
+      "main": [
+        [
+          {
+            "node": "Log to Threat Intel DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "createdAt": "2025-12-27T14:20:11.968570+00:00",
+  "updatedAt": "2025-12-27T14:20:11.968570+00:00",
+  "meta": {
+    "agent_id": "a401e896-d617-4e97-8bbf-29f47e133c21",
+    "trigger_id": "a1a6b29f-1834-4666-82d7-1163ce25f64c",
+    "workflow_type": "automated_threat_response",
+    "threat_category": "vulnerability",
+    "priority": "CRITICAL"
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "n8nWorkflowId": "cybersentinel-react2shell-001",
+  "name": "React2Shell CVE-2025-55182 Response",
+  "nodes": [
+    {
+      "name": "WebhookTrigger",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "httpMethod": "post",
+        "path": "cve-react2shell",
+        "options": {}
+      },
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "name": "ExtractCVEData",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "const cveData = items[0].json;\nreturn [{\n  json: {\n    cveId: 'CVE-2025-55182',\n    severity: 'CRITICAL',\n    cvss: 10.0,\n    description: 'React Server Components RCE',\n    affectedSystems: ['React 19.x', 'Next.js 15.x/16.x App Router'],\n    exploitationStatus: 'actively_exploited',\n    cisaKEV: true,\n    patchDeadline: '2025-12-26'\n  }\n}];"
+      },
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "name": "CheckAffectedAssets",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "method": "GET",
+        "url": "={{$node['ExtractCVEData'].json[\"assetInventoryApi\"]}}",
+        "options": {}
+      },
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "name": "SendCriticalAlert",
+      "type": "n8n-nodes-base.slack",
+      "parameters": {
+        "channel": "#security-alerts",
+        "text": "=🚨 CRITICAL: React2Shell Zero-Day Detected\nCVE: CVE-2025-55182\nCVSS: 10.0\nStatus: Actively Exploited\n\n⚠️ IMMEDIATE ACTIONS REQUIRED:\n• Identify all React 19.x and Next.js 15.x/16.x systems\n• Apply emergency patches immediately\n• Block external web traffic to affected servers if patching delayed\n\nAffected Assets: {{$node['CheckAffectedAssets'].json[\"count\"]}} systems detected"
+      },
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "name": "CreateTicket",
+      "type": "n8n-nodes-base.jira",
+      "parameters": {
+        "projectKey": "SEC",
+        "issueType": "Incident",
+        "summary": "CRITICAL: React2Shell Zero-Day (CVE-2025-55182) - Immediate Response Required",
+        "description": "=**Threat Classification:** VULNERABILITY | CRITICAL\n\n**CVE Details:**\n- ID: CVE-2025-55182\n- CVSS Score: 10.0\n- Type: Remote Code Execution\n- Status: Actively Exploited\n- CISA KEV: Yes\n\n**Impact:**\nUnauthenticated attackers can execute arbitrary code via crafted HTTP requests to React Server Components.\n\n**Affected Systems:**\n{{$node['CheckAffectedAssets'].json[\"systems\"]}}\n\n**Recommended Actions:**\n1. Immediate patch deployment\n2. Emergency WAF rules for detection\n3. Network segmentation review\n4. Threat hunting for IOC indicators",
+        "priority": 1
+      },
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "name": "BlockIOCs",
+      "type": "n8n-nodes-base.firewall",
+      "parameters": {
+        "action": "block",
+        "iocs": [
+          "183.6.80.214",
+          "206.237.3.150",
+          "45.77.33.136",
+          "143.198.92.82"
+        ]
+      },
+      "position": [
+        900,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "WebhookTrigger": {
+      "main": [
+        [
+          "ExtractCVEData"
+        ]
+      ]
+    },
+    "ExtractCVEData": {
+      "main": [
+        [
+          "CheckAffectedAssets"
+        ]
+      ]
+    },
+    "CheckAffectedAssets": {
+      "main": [
+        [
+          "SendCriticalAlert"
+        ],
+        [
+          "CreateTicket"
+        ],
+        [
+          "BlockIOCs"
+        ]
+      ]
+    }
+  }
+}

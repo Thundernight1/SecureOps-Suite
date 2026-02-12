@@ -1,0 +1,204 @@
+{
+  "name": "APT Threat Response - China-Iran Nexus",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.threatintel.io/v1/apt/campaign",
+        "authentication": "preDefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": {
+          "threatType": "APT",
+          "groups": [
+            "Prince of Persia (Infy)",
+            "Evasive Panda (Daggerfly)",
+            "Earth Lamia",
+            "Jackpot Panda",
+            "Blind Eagle (APT-C-36)"
+          ],
+          "severity": "HIGH",
+          "status": "active",
+          "campaigns": [
+            {
+              "name": "React2Shell Exploitation",
+              "attribution": "China-nexus",
+              "targets": [
+                "React/Next.js servers"
+              ],
+              "ioc": [
+                "206.237.3.150",
+                "45.77.33.136",
+                "143.198.92.82"
+              ]
+            },
+            {
+              "name": "MgBot DNS Poisoning",
+              "attribution": "Evasive Panda",
+              "targets": [
+                "Turkey",
+                "China",
+                "India"
+              ],
+              "vector": "DNS poisoning"
+            },
+            {
+              "name": "Telegram C2 Operations",
+              "attribution": "Prince of Persia",
+              "targets": [
+                "Europe",
+                "Middle East"
+              ]
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "APT Intel Collection",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        280,
+        300
+      ],
+      "id": "apt-intel-1"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "channel": "apt-alerts",
+        "text": "=🎯 APT THREAT ALERT: State-Sponsored Activity Detected\n\nTHREAT ACTORS ACTIVE:\n🇨🇳 China-Nexus: Earth Lamia, Jackpot Panda, Evasive Panda\n🇮🇷 Iran-Nexus: Prince of Persia (Infy)\n🌎 LATAM: Blind Eagle (APT-C-36)\n\nSEVERITY: HIGH\nSTATUS: Active Campaign - Multiple Groups\n\nDETECTED ACTIVITY:\n1. React2Shell Exploitation (CVE-2025-55182)\n   - Attributed to: Earth Lamia, Jackpot Panda\n   - IOCs: 206.237.3.150, 45.77.33.136, 143.198.92.82\n\n2. MgBot Backdoor via DNS Poisoning\n   - Attributed to: Evasive Panda\n   - Targets: Turkey, China, India\n\n3. Telegram C2 Operations\n   - Attributed to: Prince of Persia/Infy\n   - Bot: @ttestro1bot, Operator: @ehsan8999100\n\n4. Latin America Espionage\n   - Attributed to: Blind Eagle (APT-C-36)\n   - Targets: Colombian government, critical infrastructure\n\nRECOMMENDED ACTIONS:\n1. Block listed IP addresses immediately\n2. Monitor DNS queries for suspicious responses\n3. Inspect Telegram traffic for C2 indicators\n4. Hunt for MgBot artifacts in memory\n5. Review SharePoint/enterprise app logs\n\nn8nWorkflowId: wf-apt-threat-response",
+        "options": {}
+      },
+      "name": "APT Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        300
+      ],
+      "id": "apt-slack-1"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "to": "threat-intel@company.com",
+        "subject": "🎯 APT Alert: China & Iran State-Sponsored Campaign",
+        "text": "=ADVANCED PERSISTENT THREAT (APT) INTELLIGENCE REPORT\n\nTHREAT SEVERITY: HIGH\nINTELLIGENCE SOURCE: CyberSentinel Autonomous Monitoring\n\nEXECUTIVE SUMMARY:\nMultiple state-sponsored APT groups are actively targeting enterprise environments. Immediate attention required.\n\nACTIVE THREAT ACTORS:\n\n1. CHINA-NEXUS GROUPS:\n   • Earth Lamia - React2Shell exploitation\n   • Jackpot Panda - Multi-vulnerability exploitation\n   • Evasive Panda (Daggerfly, Bronze Highland) - DNS poisoning, MgBot backdoor\n   \n2. IRAN-NEXUS GROUPS:\n   • Prince of Persia (Infy) - Telegram-based C2 operations\n   • Active: @ehsan8999100 operator on Telegram\n\n3. LATAM THREAT:\n   • Blind Eagle (APT-C-36) - Colombian government targeting\n\nINDICATORS OF COMPROMISE (IOCs):\nNetwork:\n• 206.237.3.150 (Earth Lamia)\n• 45.77.33.136 (Jackpot Panda)\n• 143.198.92.82 (Anonymization)\n\nInfrastructure:\n• @ttestro1bot (Telegram bot)\n• @ehsan8999100 (Operator account)\n\nTactics (MITRE ATT&CK):\n• T1055 - Process Injection\n• T1059 - Command and Scripting Interpreter\n• T1071 - Application Layer Protocol\n• T1562 - Impair Defenses\n\nRESPONSE ACTIONS:\n1. BLOCK all listed IP addresses at perimeter\n2. ENABLE enhanced DNS monitoring\n3. DEPLOY SIEM rules for Telegram C2 patterns\n4. INITIATE threat hunting for MgBot artifacts\n5. ESCALATE to IR team for coordinated response\n\nClassified: TLP:AMBER",
+        "options": {}
+      },
+      "name": "Intel Team Email",
+      "type": "n8n-nodes-base.emailReadWrite",
+      "typeVersion": 2,
+      "position": [
+        720,
+        300
+      ],
+      "id": "intel-email-1"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "ticketType": "apt_incident",
+        "title": "=APT Activity: State-Sponsored Threat - Escalate to IR",
+        "description": "=Multiple APT groups detected. Coordinate response with IR team.",
+        "options": {}
+      },
+      "name": "Create APT Ticket",
+      "type": "n8n-nodes-base.jiraSoftware",
+      "typeVersion": 3,
+      "position": [
+        940,
+        300
+      ],
+      "id": "apt-ticket-1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "HIGH",
+              "operation": "equal"
+            }
+          ]
+        }
+      },
+      "name": "APT Severity Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ],
+      "id": "apt-severity-check-1"
+    }
+  ],
+  "connections": {
+    "APT Intel Collection": {
+      "main": [
+        [
+          {
+            "node": "APT Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "APT Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Intel Team Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Intel Team Email": {
+      "main": [
+        [
+          {
+            "node": "Create APT Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "APT Severity Check": {
+      "main": [
+        [
+          {
+            "node": "APT Intel Collection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateId": "apt-response",
+    "cyberSentinel": true,
+    "triggerId": "a1a6b29f-1834-4666-82d7-1163ce25f64c",
+    "agentId": "a401e896-d617-4e97-8bbf-29f47e133c21",
+    "scheduledTime": "2025-12-27T14:20:11.968570+00:00"
+  }
+}

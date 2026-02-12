@@ -1,0 +1,360 @@
+{
+  "name": "CyberSentinel - Gogs RCE Zero-Day Response",
+  "nodes": [
+    {
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        100,
+        200
+      ],
+      "parameters": {
+        "path": "cybersentinel-gogs-rce-alert",
+        "options": {}
+      }
+    },
+    {
+      "name": "Parse Alert",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        300,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const alert = items[0].json;\n\nconst indicators = {\n  cve: 'CVE-2025-8110',\n  threatType: 'VULNERABILITY',\n  severity: 'CRITICAL',\n  cvss: 9.8,\n  scale: '700+ compromised instances'\n};\n\nreturn [{\n  json: {\n    ...alert,\n    processedAt: new Date().toISOString(),\n    workflowId: 'wf-gogs-rce-response-003',\n    indicators: indicators\n  }\n}];"
+      }
+    },
+    {
+      "name": "Check Gogs Inventory",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        500,
+        200
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{$node[\"Config\"].json[\"cmdbApiUrl\"]}}/api/gogs-instances",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{\"Bearer \" + $node[\"Config\"].json[\"cmdbToken\"]}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Create SIEM Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        700,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Config\"].json[\"siemWebhookUrl\"]}}",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "alert_type",
+              "value": "VULNERABILITY"
+            },
+            {
+              "name": "severity",
+              "value": "CRITICAL"
+            },
+            {
+              "name": "title",
+              "value": "Gogs Zero-Day RCE (CVE-2025-8110) - Actively Exploited"
+            },
+            {
+              "name": "cve",
+              "value": "CVE-2025-8110"
+            },
+            {
+              "name": "description",
+              "value": "Gogs self-hosted Git service RCE - 700+ instances compromised"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Isolate Affected Systems",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        700,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Config\"].json[\"networkApiUrl\"]}}/isolate",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{\"Bearer \" + $node[\"Config\"].json[\"networkToken\"]}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "reason",
+              "value": "Gogs Zero-Day RCE (CVE-2025-8110) detected"
+            },
+            {
+              "name": "asset_type",
+              "value": "gogs_server"
+            },
+            {
+              "name": "action",
+              "value": "network_isolation"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Create Jira Ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        700,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Config\"].json[\"jiraApiUrl\"]}}/rest/api/3/issue",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{\"Basic \" + Buffer.from($node[\"Config\"].json[\"jiraEmail\"] + \":\" + $node[\"Config\"].json[\"jiraApiToken\"]).toString(\"base64\")}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "={{JSON.stringify({\n  project: { key: \"SEC\" },\n  summary: \"[CRITICAL] Gogs Zero-Day RCE (CVE-2025-8110) - Immediate Action\",\n  description: \"CVE-2025-8110 - Gogs Self-Hosted Git RCE (CVSS 9.8)\\n\\nStatus: Actively Exploited - 700+ instances compromised\\n\\nRequired Actions:\\n1. Patch Gogs immediately if patch available\\n2. Isolate affected Gogs servers\\n3. Audit repositories for malicious symlinks/hooks\\n4. Review file system for unauthorized writes\\n5. Rotate all Gogs user credentials\\n6. Implement WAF rules for path traversal\\n7. Enable file system logging on Gogs servers\\n\\nImpact: Source code compromise, CI/CD pipeline infection, credential theft\",\n  issuetype: { name: \"Bug\" },\n  priority: { name: \"Highest\" }\n})}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Deploy WAF Rules",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        900,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Config\"].json[\"wafApiUrl\"]}}/rules",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{\"Bearer \" + $node[\"Config\"].json[\"wafApiToken\"]}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "name",
+              "value": "Gogs RCE Path Traversal Protection"
+            },
+            {
+              "name": "action",
+              "value": "block"
+            },
+            {
+              "name": "conditions",
+              "value": "={{JSON.stringify([{\"type\": \"path_pattern\", \"pattern\": \"\\\\.\\\\.\\\\/\"}, {\"type\": \"path_pattern\", \"pattern\": \"\\\\.\\\\.\\\\%2F\"}, {\"type\": \"path_pattern\", \"pattern\": \"symlink\"}])}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Audit Gogs Repositories",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        900,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Config\"].json[\"gogsApiUrl\"]}}/audit/repositories",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{\"Bearer \" + $node[\"Config\"].json[\"gogsToken\"]}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Rotate Credentials",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        900,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Config\"].json[\"iamApiUrl\"]}}/rotate/gogs",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{\"Bearer \" + $node[\"Config\"].json[\"iamToken\"]}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "reason",
+              "value": "Gogs Zero-Day RCE (CVE-2025-8110)"
+            },
+            {
+              "name": "action",
+              "value": "force_rotate"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Send Slack Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1100,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Config\"].json[\"slackWebhookUrl\"]}}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "blocks",
+              "value": "={{JSON.stringify([{\n  type: \"header\",\n  text: { type: \"plain_text\", text: \"🚨 CRITICAL: Gogs Zero-Day RCE\" }\n}, {\n  type: \"section\",\n  fields: [\n    { type: \"mrkdwn\", text: \"*CVE:*\\nCVE-2025-8110\" },\n    { type: \"mrkdwn\", text: \"*Severity:*\\nCRITICAL (CVSS 9.8)\" },\n    { type: \"mrkdwn\", text: \"*Status:*\\n700+ Instances Compromised\" },\n    { type: \"mrkdwn\", text: \"*Action:*\\nIsolating Systems\" }\n  ]\n}, {\n  type: \"section\",\n  text: { type: \"mrkdwn\", text: \"*Immediate Actions:*\\n• Patch Gogs servers\\n• Isolate from network\\n• Audit repositories\\n• Rotate credentials\" }\n}])}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Config",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "functionCode": "return [{\n  json: {\n    siemWebhookUrl: process.env.SIEM_WEBHOOK_URL || \"\",\n    cmdbApiUrl: process.env.CMDB_API_URL || \"\",\n    cmdbToken: process.env.CMDB_TOKEN || \"\",\n    networkApiUrl: process.env.NETWORK_API_URL || \"\",\n    networkToken: process.env.NETWORK_TOKEN || \"\",\n    jiraApiUrl: process.env.JIRA_API_URL || \"\",\n    jiraEmail: process.env.JIRA_EMAIL || \"\",\n    jiraApiToken: process.env.JIRA_API_TOKEN || \"\",\n    wafApiUrl: process.env.WAF_API_URL || \"\",\n    wafApiToken: process.env.WAF_API_TOKEN || \"\",\n    gogsApiUrl: process.env.GOGS_API_URL || \"\",\n    gogsToken: process.env.GOGS_TOKEN || \"\",\n    iamApiUrl: process.env.IAM_API_URL || \"\",\n    iamToken: process.env.IAM_TOKEN || \"\",\n    slackWebhookUrl: process.env.SLACK_WEBHOOK_URL || \"\"\n  }\n}];"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Alert": {
+      "main": [
+        [
+          {
+            "node": "Check Gogs Inventory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Gogs Inventory": {
+      "main": [
+        [
+          {
+            "node": "Create SIEM Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Isolate Affected Systems",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Jira Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Parse Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

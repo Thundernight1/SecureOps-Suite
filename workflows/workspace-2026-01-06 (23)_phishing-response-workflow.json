@@ -1,0 +1,218 @@
+{
+  "name": "CyberSentinel - AI-Powered Phishing Response Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "urls": [
+          "https://pushsecurity.com/blog/2025-top-phishing-trends",
+          "https://blog.checkpoint.com/research/from-fake-deals-to-phishing-the-most-effective-christmas-scams-of-2025/",
+          "https://www.darktrace.com/blog/phishing-attacks-surge-by-620-in-the-lead-up-to-black-friday"
+        ],
+        "options": {}
+      },
+      "name": "Monitor Phishing Feeds",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "value": "={\n  \"campaigns\": [{\n    \"name\": \"Declaration Trap\",\n    \"type\": \"Crypto Drainer\",\n    \"target\": \"Dutch residents\",\n    \"impersonation\": \"European Tax Authorities\",\n    \"status\": \"ACTIVE\"\n  }, {\n    \"name\": \"Calendly Campaign\",\n    \"type\": \"Malvertising\",\n    \"target\": \"Google Ads Manager MCC Accounts\",\n    \"vector\": \"Calendly-themed emails\",\n    \"status\": \"ACTIVE\"\n  }, {\n    \"name\": \"AI-Enhanced Delivery Phishing\",\n    \"type\": \"Smishing/Phishing\",\n    \"target\": \"Global\",\n    \"impersonation\": \"Royal Mail, FedEx, UPS, DPD\",\n    \"technique\": \"AI-generated deepfake messages\",\n    \"status\": \"ACTIVE\"\n  }, {\n    \"name\": \"Holiday Thematic Phishing\",\n    \"type\": \"Holiday/Invoice Fraud\",\n    \"target\": \"Retail, E-commerce\",\n    \"technique\": \"Christmas-themed lures, fake deals\",\n    \"status\": \"ACTIVE\",\n    \"volume\": \"33,500+ Christmas-themed phishing emails detected\"\n  }, {\n    \"name\": \"Google Cloud Automation Abuse\",\n    \"type\": \"Enterprise Phishing\",\n    \"target\": \"Enterprise users\",\n    \"technique\": \"Abuse of trusted Google Cloud automation\",\n    \"status\": \"ACTIVE\"\n  }, {\n    \"name\": \"Water Saci LLM Campaign\",\n    \"type\": \"AI-Automated Phishing\",\n    \"target\": \"Brazilian organizations\",\n    \"attribution\": \"Brazilian Water Saci group\",\n    \"technique\": \"LLM for multilingual phishing, banking trojans\",\n    \"status\": \"ACTIVE\"\n  }]\n}",
+        "key": "phishingIntel"
+      },
+      "name": "Analyze Phishing Campaigns",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "prompt": "Analyze the following phishing campaign for threat indicators and extract:\n1. Sender patterns\n2. URL patterns\n3. Email content patterns\n4. Landing page indicators\n5. Recommended detection rules\n\nCampaign: {{ $json.name }}\nType: {{ $json.type }}\nTarget: {{ $json.target }}\nTechnique: {{ $json.technique }}\n\nProvide structured output for automated detection and response."
+      },
+      "name": "AI Threat Analysis",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "value": "={{ $json.detectionRules }}",
+        "key": "emailFilters"
+      },
+      "name": "Generate Detection Rules",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "table": "phishing_campaigns",
+        "fields": {
+          "campaign_name": "={{ $json.name }}",
+          "threat_type": "PHISHING",
+          "campaign_type": "={{ $json.type }}",
+          "target": "={{ $json.target }}",
+          "impersonation_target": "={{ $json.impersonation }}",
+          "attack_vector": "={{ $json.vector || $json.technique }}",
+          "status": "={{ $json.status }}",
+          "ai_analysis": "={{ JSON.stringify($json.aiAnalysis) }}",
+          "workflow_id": "PHISHING-AI-RESPONSE-2025",
+          "created_at": "={{ now }}"
+        }
+      },
+      "name": "Log Campaign",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "subject": "PHISHING ALERT: {{ $json.name }} Campaign Detected",
+        "body": "=<h2>Phishing Campaign Alert</h2>\n<p><strong>Campaign:</strong> {{ $json.name }}</p>\n<p><strong>Type:</strong> {{ $json.type }}</p>\n<p><strong>Target:</strong> {{ $json.target }}</p>\n<p><strong>Technique:</strong> {{ $json.technique }}</p>\n<h3>Attack Details:</h3>\n<p>{{ $json.impersonation ? `Impersonates: ${$json.impersonation}` : '' }}</p>\n<h3>Recommended Actions:</h3>\n<ol><li>Enable advanced email filtering for identified patterns</li><li>Deploy browser warnings for known malicious domains</li><li>Conduct targeted user awareness training</li><li>Implement DMARC, DKIM, SPF validation</li><li>Enable URL sandboxing for suspicious links</li><li>Monitor for credential stuffing attempts</li></ol>\n<h3>Detection Rules:</h3>\n<pre>{{ $json.detectionRules }}</pre>\n<h3>AI Analysis:</h3>\n<pre>{{ $json.aiAnalysis }}</pre>",
+        "attachments": "={{ $binary }}"
+      },
+      "name": "Alert Security Team",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "#phishing-alerts",
+        "text": "🎣 PHISHING ALERT: {{ $json.name }}\n\nType: {{ $json.type }}\nTarget: {{ $json.target }}\nTechnique: {{ $json.technique }}\n\nDetection rules deployed. Check email for full analysis."
+      },
+      "name": "Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "value": "={\n  \"emailRules\": [{\n    \"name\": \"Block suspicious senders\",\n    \"condition\": \"Header From matches known impersonation patterns\"\n  }, {\n    \"name\": \"Quarantine holiday themes\",\n    \"condition\": \"Subject contains 'Christmas', 'Black Friday', 'deal' AND attachment is executable\"\n  }, {\n    \"name\": \"Sandbox URLs\",\n    \"condition\": \"URL domain not in allowlist\"\n  }],\n  \"userTraining\": [{\n    \"topic\": \"Holiday phishing awareness\",\n    \"priority\": \"HIGH\"\n  }, {\n    \"topic\": \"Smishing detection\",\n    \"priority\": \"MEDIUM\"\n  }, {\n    \"topic\": \"AI-generated content identification\",\n    \"priority\": \"MEDIUM\"\n  }]\n}",
+        "key": "defensiveMeasures"
+      },
+      "name": "Generate Defensive Measures",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        700,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "table": "phishing_defense_measures",
+        "fields": {
+          "campaign_id": "={{ $json.id }}",
+          "email_rules": "={{ JSON.stringify($json.emailRules) }}",
+          "user_training": "={{ JSON.stringify($json.userTraining) }}",
+          "workflow_id": "PHISHING-AI-RESPONSE-2025",
+          "created_at": "={{ now }}"
+        }
+      },
+      "name": "Deploy Defenses",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Monitor Phishing Feeds": {
+      "main": [
+        [
+          {
+            "node": "Analyze Phishing Campaigns",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Phishing Campaigns": {
+      "main": [
+        [
+          {
+            "node": "AI Threat Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Threat Analysis": {
+      "main": [
+        [
+          {
+            "node": "Generate Detection Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Detection Rules": {
+      "main": [
+        [
+          {
+            "node": "Log Campaign",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Campaign": {
+      "main": [
+        [
+          {
+            "node": "Alert Security Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Security Team": {
+      "main": [
+        [
+          {
+            "node": "Deploy Defenses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "id": "PHISHING-AI-RESPONSE-2025"
+}

@@ -1,0 +1,330 @@
+{
+  "name": "CyberSentinel - Ransomware Detection and Response",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": "scheduled"
+      },
+      "name": "Scheduled Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "id": "ransomware-scheduled-trigger"
+    },
+    {
+      "parameters": {
+        "functionCode": "\n// Ransomware group database with IOCs\nconst ransomwareDatabase = [\n  {\n    name: 'Akira',\n    type: 'RaaS',\n    status: 'ACTIVE',\n    prevalence: '34% (Most prevalent Q3 2025)',\n    firstSeen: '2023-01-01',\n    lastActivity: '2025-12-01',\n    attackVector: ['VPN exploitation', 'Phishing', 'Credential stuffing'],\n    targetIndustries: ['Manufacturing', 'Technology', 'Healthcare'],\n    targetRegions: ['United States', 'Germany', 'UK', 'Canada'],\n    encryptionExtension: '.akira',\n    ransomNote: ['README.txt', 'README.akira'],\n    doubleExtortion: true,\n    esxiTargeting: true,\n    iocs: {\n      processPatterns: [\n        'vssadmin.exe Delete /ShadowCopyAll',\n        'vssadmin.exe Delete Shadows /All /Quiet',\n        'cipher.exe /w:C:\\\\\\\\',\n        'bcdedit /set {current} recoveryenabled No',\n        'wbadmin delete catalog -quiet'\n      ],\n      filePatterns: [\n        '*_readme.txt',\n        '*_readme.akira',\n        '*.akira extension'\n      ],\n      networkPatterns: [\n        'Lateral movement via SMB/RDP',\n        'Data exfiltration before encryption',\n        'Tor exit node connections'\n      ]\n    },\n    severity: 'CRITICAL'\n  },\n  {\n    name: 'Qilin',\n    type: 'RaaS',\n    status: 'ACTIVE',\n    prevalence: '10%',\n    firstSeen: '2022-06-01',\n    lastActivity: '2025-12-01',\n    attackVector: ['VPN', 'RDP', 'Phishing'],\n    targetIndustries: ['Finance', 'Healthcare', 'Manufacturing'],\n    doubleExtortion: true,\n    iocs: {\n      fileExtension: '.qilin',\n      ransomNote: 'README_QILIN.txt'\n    },\n    severity: 'HIGH'\n  },\n  {\n    name: 'CoinbaseCartel',\n    type: 'RaaS',\n    status: 'ACTIVE',\n    firstSeen: '2024-01-01',\n    lastActivity: '2025-12-06',\n    attackVector: ['Ransomware deployment'],\n    targetIndustries: ['Technology', 'Semiconductors'],\n    notableVictims: ['Renesas Electronics'],\n    severity: 'HIGH'\n  },\n  {\n    name: 'LockBit',\n    type: 'RaaS',\n    status: 'DISRUPTED',\n    firstSeen: '2019-09-01',\n    lastActivity: '2024-02',\n    attackVector: ['RDP', 'VPN', 'Phishing'],\n    doubleExtortion: true,\n    severity: 'MEDIUM',\n    note: 'Disrupted by Operation Cronos, may have residual activity'\n  },\n  {\n    name: 'Clop/Cl0p',\n    type: 'RaaS',\n    status: 'ACTIVE',\n    firstSeen: '2019-02-01',\n    lastActivity: '2025-12-01',\n    attackVector: ['MFA fatigue', 'VPN', 'Supply chain'],\n    targetIndustries: ['Enterprise', 'Technology', 'Healthcare'],\n    notableCampaigns: ['Oracle EBS exploitation'],\n    doubleExtortion: true,\n    severity: 'HIGH'\n  }\n];\n\nreturn ransomwareDatabase.map(r => ({ json: r }));\n"
+      },
+      "name": "Ransomware Database",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ],
+      "id": "node-ransomware-database"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "returnAll": true,
+        "table": "endpoint_telemetry"
+      },
+      "name": "Query Endpoint Telemetry",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        300,
+        400
+      ],
+      "id": "node-endpoint-telemetry",
+      "credentials": {
+        "postgres": {
+          "id": "postgres-credentials",
+          "name": "PostgreSQL Database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "\nconst ransomwareDB = $('Ransomware Database').all().map(n => n.json);\nconst telemetry = $('Query Endpoint Telemetry').all().map(n => n.json);\nconst detections = [];\n\n// Detection patterns for ransomware activity\nconst detectionPatterns = [\n  {\n    ransomware: 'Akira',\n    patterns: [\n      { indicator: /vssadmin.*delete.*shadow/i, weight: 0.5, description: 'Shadow copy deletion attempt' },\n      { indicator: /cipher.*\\/w:/i, weight: 0.4, description: 'Data wiping attempt' },\n      { indicator: /bcdedit.*recoveryenabled.*no/i, weight: 0.4, description: 'Recovery disabled' },\n      { indicator: /\\.akira$/i, weight: 0.6, description: 'Akira encrypted file' },\n      { indicator: /readme.*\\.txt$/i, weight: 0.3, description: 'Potential ransom note' },\n      { indicator: /stop.*vmware.*esxi/i, weight: 0.3, description: 'ESXi process termination' }\n    ]\n  },\n  {\n    ransomware: 'Qilin',\n    patterns: [\n      { indicator: /\\.qilin$/i, weight: 0.6, description: 'Qilin encrypted file' },\n      { indicator: /readme_qilin/i, weight: 0.5, description: 'Qilin ransom note' },\n      { indicator: /powershell.*-enc.*base64/i, weight: 0.3, description: 'Encoded PowerShell payload' }\n    ]\n  },\n  {\n    ransomware: 'General Ransomware',\n    patterns: [\n      { indicator: /taskkill.*\\/f.*\\/im.*avp/i, weight: 0.4, description: 'Killing AV processes' },\n      { indicator: /net.*stop.*WindowsDefender/i, weight: 0.3, description: 'Disabling Defender' },\n      { indicator: /sc.*stop.*MsMpEngine/i, weight: 0.3, description: 'Disabling AV engine' },\n      { indicator: /icacls.*\\/grant.*f/i, weight: 0.3, description: 'Taking ownership' },\n      { indicator: /takeown.*\\/f.*\\/r/i, weight: 0.3, description: 'Ownership acquisition' },\n      { indicator: /\\\\$rand.*\\.txt$/i, weight: 0.4, description: 'Suspicious text file' },\n      { indicator: /how.to.restore.*your.files/i, weight: 0.5, description: 'Ransom note text' }\n    ]\n  },\n  {\n    ransomware: 'Clop',\n    patterns: [\n      { indicator: /clop.*readme/i, weight: 0.5, description: 'Clop ransom note' },\n      { indicator: /\\.clop$/i, weight: 0.6, description: 'Clop encrypted file' },\n      { indicator: /mfa.*fatigue/i, weight: 0.3, description: 'MFA fatigue attack pattern' }\n    ]\n  }\n];\n\n// Scan telemetry for ransomware indicators\nfor (const event of telemetry) {\n  const eventString = JSON.stringify(event).toLowerCase();\n  \n  for (const rule of detectionPatterns) {\n    let totalWeight = 0;\n    let matchedPatterns = [];\n    \n    for (const pattern of rule.patterns) {\n      if (pattern.indicator.test(eventString)) {\n        totalWeight += pattern.weight;\n        matchedPatterns.push(pattern.description);\n      }\n    }\n    \n    if (totalWeight >= 0.5) {\n      const ransomwareInfo = ransomwareDB.find(r => r.name === rule.ransomware);\n      const isEarlyStage = totalWeight < 0.7;\n      \n      detections.push({\n        detectionId: `RANSOM-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,\n        timestamp: new Date().toISOString(),\n        ransomwareType: rule.ransomware,\n        ransomwareGroup: ransomwareInfo?.name || 'Unknown',\n        confidence: Math.min(totalWeight, 1.0),\n        attackPhase: isEarlyStage ? 'EARLY' : 'ACTIVE_ENCRYPTION',\n        matchedPatterns: matchedPatterns,\n        originalEvent: event,\n        severity: ransomwareInfo?.severity || 'HIGH',\n        falsePositiveAnalysis: {\n          riskLevel: 'LOW',\n          potentialFalsePositives: [\n            'Legitimate backup operations using vssadmin',\n            'Scheduled disk optimization using cipher',\n            'Normal system administration scripts'\n          ],\n          validationChecks: [\n            'Verify against scheduled backup jobs',\n            'Check for legitimate disk cleanup operations',\n            'Cross-reference with change management system'\n          ]\n        },\n        businessContext: {\n          affectedSystems: determineAffectedSystems(event),\n          estimatedImpact: determineBusinessImpact(ransomwareInfo, isEarlyStage),\n          recoveryTime: ransomwareInfo?.doubleExtortion ? 'Weeks' : 'Days',\n          dataTheftRisk: ransomwareInfo?.doubleExtortion ? 'HIGH' : 'MEDIUM'\n        },\n        recommendedActions: generateRansomwareResponse(ransomwareInfo, isEarlyStage),\n        enrichmentData: {\n          knownIoCs: ransomwareInfo?.iocs || {},\n          attackVectors: ransomwareInfo?.attackVector || [],\n          targetIndustries: ransomwareInfo?.targetIndustries || [],\n          doubleExtortion: ransomwareInfo?.doubleExtortion || false\n        }\n      });\n    }\n  }\n}\n\nreturn detections.map(d => ({ json: d }));\n\nfunction determineAffectedSystems(event) {\n  const systems = [];\n  if (event.hostname?.includes('ESXi') || event.process_name?.includes('vmware')) {\n    systems.push('VMware ESXi');\n  }\n  if (event.os_platform === 'windows') {\n    systems.push('Windows Endpoints');\n  }\n  if (event.os_platform === 'linux') {\n    systems.push('Linux Servers');\n  }\n  if (event.department === 'file_server') {\n    systems.push('File Servers');\n  }\n  return systems;\n}\n\nfunction determineBusinessImpact(ransomwareInfo, isEarlyStage) {\n  if (!ransomwareInfo) return 'Unknown - requires investigation';\n  \n  const baseImpact = ransomwareInfo.severity === 'CRITICAL' ? 'CRITICAL' : 'HIGH';\n  \n  if (isEarlyStage) {\n    return `${baseImpact} - Early detection allows containment`;\n  }\n  \n  if (ransomwareInfo.doubleExtortion) {\n    return `${baseImpact} - Data theft AND encryption confirmed`;\n  }\n  \n  return `${baseImpact} - Active encryption in progress`;\n}\n\nfunction generateRansomwareResponse(ransomwareInfo, isEarlyStage) {\n  const actions = [];\n  \n  if (isEarlyStage) {\n    actions.push({\n      priority: 'IMMEDIATE',\n      action: 'Isolate affected systems from network',\n      rationale: 'Prevent lateral movement and further encryption'\n    });\n    actions.push({\n      priority: 'IMMEDIATE', \n      action: 'Block outbound traffic to Tor/exfiltration IPs',\n      rationale: 'Prevent data exfiltration'\n    });\n  } else {\n    actions.push({\n      priority: 'CRITICAL',\n      action: 'DECIDE: Pay ransom OR Restore from backups',\n      rationale: 'Active encryption detected - immediate decision required'\n    });\n    actions.push({\n      priority: 'CRITICAL',\n      action: 'Engage incident response team immediately',\n      rationale: 'Full ransomware attack in progress'\n    });\n  }\n  \n  actions.push({\n    priority: 'HIGH',\n    action: 'Preserve forensic evidence',\n    rationale: 'Memory dumps, disk images, network logs needed'\n  });\n  \n  actions.push({\n    priority: 'HIGH',\n    action: 'Check backup integrity',\n    rationale: 'Determine recovery options and backup status'\n  });\n  \n  if (ransomwareInfo?.doubleExtortion) {\n    actions.push({\n      priority: 'HIGH',\n      action: 'Monitor for data leak site posts',\n      rationale: 'Double extortion - data may be published'\n    });\n  }\n  \n  return actions;\n}\n"
+      },
+      "name": "Ransomware Detection Engine",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ],
+      "id": "node-ransomware-detection"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.attackPhase }}",
+              "operation": "equal",
+              "value2": "ACTIVE_ENCRYPTION"
+            }
+          ]
+        }
+      },
+      "name": "Active Encryption Detection",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ],
+      "id": "node-active-encryption-filter"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "table": "ransomware_alerts",
+        "columns": {
+          "detection_id": "={{ $json.detectionId }}",
+          "ransomware_type": "={{ $json.ransomwareType }}",
+          "ransomware_group": "={{ $json.ransomwareGroup }}",
+          "confidence": "={{ $json.confidence }}",
+          "severity": "={{ $json.severity }}",
+          "attack_phase": "={{ $json.attackPhase }}",
+          "matched_patterns": "={{ JSON.stringify($json.matchedPatterns) }}",
+          "false_positive_analysis": "={{ JSON.stringify($json.falsePositiveAnalysis) }}",
+          "business_context": "={{ JSON.stringify($json.businessContext) }}",
+          "recommended_actions": "={{ JSON.stringify($json.recommendedActions) }}",
+          "enrichment_data": "={{ JSON.stringify($json.enrichmentData) }}",
+          "original_event": "={{ JSON.stringify($json.originalEvent) }}",
+          "created_at": "={{ $json.timestamp }}",
+          "status": "NEW",
+          "escalation_level": "={{ $json.attackPhase === 'ACTIVE_ENCRYPTION' ? 1 : 2 }}"
+        }
+      },
+      "name": "Create Ransomware Alert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ],
+      "id": "node-create-ransomware-alert",
+      "credentials": {
+        "postgres": {
+          "id": "postgres-credentials",
+          "name": "PostgreSQL Database"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "critical-alerts",
+        "text": "=🚨 **RANSOMWARE ALERT - ACTIVE ENCRYPTION** 🚨\\n\\n**Ransomware:** {{ $json.ransomwareGroup }}\\n**Group:** {{ $json.ransomwareType }}\\n**Confidence:** {{ Math.round($json.confidence * 100) }}%\\n**Status:** {{ $json.attackPhase }}\\n**Severity:** {{ $json.severity }}\\n\\n**Detected Activity:**\\n{{ $json.matchedPatterns?.join('\\n') }}\\n\\n**Business Impact:**\\n{{ $json.businessContext?.estimatedImpact }}\\nAffected: {{ $json.businessContext?.affectedSystems?.join(', ') }}\\nData Theft Risk: {{ $json.businessContext?.dataTheftRisk }}\\n\\n**IMMEDIATE ACTIONS REQUIRED:**\\n{{ $json.recommendedActions?.map(a => `[${a.priority}] ${a.action}`).join('\\n') }}\\n\\n🔴 *CRITICAL - Activate incident response plan NOW*",
+        "attachments": []
+      },
+      "name": "Critical Alert to SOC",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        150
+      ],
+      "id": "node-soc-critical-alert",
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credentials",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "executive-briefing",
+        "text": "=⚠️ **EXECUTIVE ALERT: Potential Ransomware Incident**\\n\\n**Situation:** {{ $json.ransomwareGroup }} ransomware activity detected\\n**Severity:** {{ $json.severity }}\\n**Time:** {{ $json.timestamp }}\\n\\n**What We Know:**\\n• Active encryption detected on {{ $json.businessContext?.affectedSystems?.join(', ') }}\\n• Potential data theft: {{ $json.businessContext?.dataTheftRisk }}\\n• Recovery time estimate: {{ $json.businessContext?.recoveryTime }}\\n\\n**Immediate Actions:**\\n• SOC team engaged\\n• IR team mobilizing\\n• Systems being isolated\\n\\n**Next Update:** Within 30 minutes\\n\\n_CyberSentinel Alert System_",
+        "attachments": []
+      },
+      "name": "Executive Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        300
+      ],
+      "id": "node-executive-alert",
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credentials",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "to": "ciso@company.com,soc-lead@company.com,it-director@company.com",
+        "subject": "=🚨 CRITICAL: {{ $json.ransomwareGroup }} Ransomware Active - Immediate Response Required",
+        "body": "=RANSOMWARE INCIDENT ALERT\\n==========================\\n\\nDETECTION DETAILS:\\n-----------------\\nRansomware Group: {{ $json.ransomwareGroup }}\\nType: {{ $json.ransomwareType }}\\nConfidence: {{ Math.round($json.confidence * 100) }}%\\nAttack Phase: {{ $json.attackPhase }}\\nSeverity: {{ $json.severity }}\\nDetection ID: {{ $json.detectionId }}\\n\\nDETECTED ACTIVITY:\\n------------------\\n{{ $json.matchedPatterns?.join('\\n') }}\\n\\nBUSINESS IMPACT:\\n----------------\\nEstimated Impact: {{ $json.businessContext?.estimatedImpact }}\\nAffected Systems: {{ $json.businessContext?.affectedSystems?.join(', ') }}\\nRecovery Time Estimate: {{ $json.businessContext?.recoveryTime }}\\nData Theft Risk: {{ $json.businessContext?.dataTheftRisk }}\\n\\nRECOMMENDED ACTIONS:\\n--------------------\\n{{ $json.recommendedActions?.map(a => `[${a.priority}] ${a.action}: ${a.rationale}`).join('\\n\\n') }}\\n\\nFALSE POSITIVE VALIDATION:\\n-------------------------\nRisk Level: {{ $json.falsePositiveAnalysis?.riskLevel }}\\nPotential False Positives:\\n{{ $json.falsePositiveAnalysis?.potentialFalsePositives?.join('\\n') || 'None identified' }}\\n\\nValidation Checks:\\n{{ $json.falsePositiveAnalysis?.validationChecks?.join('\\n') }}\\n\\nTHREAT INTELLIGENCE:\\n--------------------\\nAttack Vectors: {{ $json.enrichmentData?.attackVectors?.join(', ') }}\\nTarget Industries: {{ $json.enrichmentData?.targetIndustries?.join(', ') }}\\nDouble Extortion: {{ $json.enrichmentData?.doubleExtortion ? 'YES - HIGH RISK' : 'No' }}\\n\\n---\\nCyberSentinel Ransomware Detection\\n{{ $json.timestamp }}"
+      },
+      "name": "Email Executive Team",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        450
+      ],
+      "id": "node-email-executive",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "gmail-credentials",
+          "name": "Gmail OAuth2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "\nconst items = $input.all();\nconst summary = {\n  reportDate: new Date().toISOString(),\n  scanPeriod: 'Last 24 hours',\n  ransomwareGroupsMonitored: 5,\n  detectionSummary: {\n    totalAlerts: items.length,\n    byGroup: {},\n    byPhase: { EARLY: 0, ACTIVE_ENCRYPTION: 0 },\n    bySeverity: { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0 }\n  },\n  falsePositiveMetrics: {\n    falsePositivesIdentified: 0,\n    validationChecksRun: 0\n  },\n  businessImpactSummary: {\n    systemsAtRisk: 0,\n    doubleExtortionCases: 0,\n    earlyStageDetections: 0\n  },\n  recommendations: []\n};\n\nfor (const item of items) {\n  const alert = item.json;\n  \n  // Group by ransomware\n  if (!summary.detectionSummary.byGroup[alert.ransomwareGroup]) {\n    summary.detectionSummary.byGroup[alert.ransomwareGroup] = 0;\n  }\n  summary.detectionSummary.byGroup[alert.ransomwareGroup]++;\n  \n  // By phase\n  summary.detectionSummary.byPhase[alert.attackPhase]++;\n  \n  // By severity\n  summary.detectionSummary.bySeverity[alert.severity]++;\n  \n  // Business impact\n  if (alert.attackPhase === 'ACTIVE_ENCRYPTION') {\n    summary.businessImpactSummary.doubleExtortionCases += \n      alert.enrichmentData?.doubleExtortion ? 1 : 0;\n  }\n  if (alert.attackPhase === 'EARLY') {\n    summary.businessImpactSummary.earlyStageDetections++;\n  }\n  summary.businessImpactSummary.systemsAtRisk += \n    alert.businessContext?.affectedSystems?.length || 0;\n  \n  // False positive tracking\n  if (alert.falsePositiveAnalysis?.potentialFalsePositives) {\n    summary.falsePositiveMetrics.falsePositivesIdentified += \n      alert.falsePositiveAnalysis.potentialFalsePositives.length;\n    summary.falsePositiveMetrics.validationChecksRun += \n      alert.falsePositiveAnalysis.validationChecks?.length || 0;\n  }\n}\n\n// Generate recommendations\nif (summary.detectionSummary.byPhase.ACTIVE_ENCRYPTION > 0) {\n  summary.recommendations.push({\n    priority: 'CRITICAL',\n    recommendation: 'Activate full incident response plan',\n    rationale: `${summary.detectionSummary.byPhase.ACTIVE_ENCRYPTION} active encryption events detected`\n  });\n}\n\nif (summary.businessImpactSummary.earlyStageDetections > 0) {\n  summary.recommendations.push({\n    priority: 'HIGH',\n    recommendation: 'Investigate early-stage detections',\n    rationale: `${summary.businessImpactSummary.earlyStageDetections} early-stage detections allowed proactive response`\n  });\n}\n\nif (summary.detectionSummary.byGroup['Akira'] > 0) {\n  summary.recommendations.push({\n    priority: 'HIGH',\n    recommendation: 'Enhanced monitoring for Akira indicators',\n    rationale: 'Akira is the most prevalent ransomware variant (34% of attacks)'\n  });\n}\n\nsummary.recommendations.push({\n  priority: 'MEDIUM',\n  recommendation: 'Verify backup integrity across all systems',\n  rationale: 'Ensure recovery capability in case of successful attack'\n});\n\nreturn [{ json: summary }];\n"
+      },
+      "name": "Generate Ransomware Summary",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        300
+      ],
+      "id": "node-ransomware-summary"
+    }
+  ],
+  "connections": {
+    "Scheduled Trigger": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Database",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Query Endpoint Telemetry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ransomware Database": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Detection Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Endpoint Telemetry": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Detection Engine",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Ransomware Detection Engine": {
+      "main": [
+        [
+          {
+            "node": "Active Encryption Detection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Active Encryption Detection": {
+      "main": [
+        [
+          {
+            "node": "Create Ransomware Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Critical Alert to SOC",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Executive Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email Executive Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Ransomware Alert": {
+      "main": [
+        [
+          {
+            "node": "Generate Ransomware Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Critical Alert to SOC": {
+      "main": [
+        [
+          {
+            "node": "Generate Ransomware Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executive Notification": {
+      "main": [
+        [
+          {
+            "node": "Generate Ransomware Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Executive Team": {
+      "main": [
+        [
+          {
+            "node": "Generate Ransomware Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "workflowId": "cybersentinel-ransomware-detect-001",
+  "meta": {
+    "version": "1.0.0",
+    "lastUpdated": "2025-12-28T14:20:11.968570+00:00",
+    "author": "CyberSentinel Agent",
+    "description": "Ransomware detection with early-stage identification and business context"
+  }
+}

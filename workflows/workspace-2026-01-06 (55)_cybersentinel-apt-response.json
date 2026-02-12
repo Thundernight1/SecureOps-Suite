@@ -1,0 +1,939 @@
+{
+  "name": "CyberSentinel APT Response",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": {
+            "field": "hours",
+            "hoursInterval": 4
+          }
+        }
+      },
+      "id": "apt-monitor",
+      "name": "APT Monitor",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "APT",
+          "severity": "CRITICAL",
+          "threatName": "LongNosedGoblin - New China-Aligned APT",
+          "threatActor": "LongNosedGoblin",
+          "attribution": {
+            "country": "China",
+            "type": "State-aligned"
+          },
+          "firstIdentified": "December 2025",
+          "targetGeography": [
+            "Southeast Asia",
+            "Japan"
+          ],
+          "targetIndustries": [
+            "Government",
+            "Public Sector",
+            "Critical Infrastructure"
+          ],
+          "attackVector": "Group Policy Abuse",
+          "indicatorsOfCompromise": [
+            {
+              "ioc": "NosyHistorian",
+              "type": "Malware",
+              "description": "Browser history collector for targeting decisions"
+            },
+            {
+              "ioc": "NosyDoor",
+              "type": "Backdoor",
+              "description": "Custom backdoor for persistent access"
+            },
+            {
+              "ioc": "OneDrive/Google Drive C2",
+              "type": "C2 Method",
+              "description": "Cloud storage for command and control"
+            },
+            {
+              "ioc": "Group Policy deployment",
+              "type": "Technique",
+              "description": "Malware deployed via GPO across network"
+            },
+            {
+              "ioc": "Windows Active Directory",
+              "type": "Target",
+              "description": "Primary attack surface for lateral movement"
+            }
+          ],
+          "recommendedActions": [
+            "Audit Group Policy changes from past 30 days",
+            "Deploy detection for NosyHistorian browser collection",
+            "Block unauthorized cloud storage C2 to OneDrive/Google Drive",
+            "Review Group Policy deployment logs for anomalies",
+            "Enable enhanced logging on Active Directory",
+            "Hunt for NosyDoor backdoor in enterprise environment",
+            "Implement network segmentation for critical systems"
+          ],
+          "mitreMapping": [
+            "TA0002 - Execution",
+            "TA0003 - Persistence (Group Policy)",
+            "TA0004 - Privilege Escalation",
+            "TA0005 - Defense Evasion",
+            "TA0011 - Command and Control"
+          ]
+        }
+      },
+      "id": "process-longnosedgoblin",
+      "name": "Process LongNosedGoblin",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "APT",
+          "severity": "HIGH",
+          "threatName": "BlindEagle (APT-C-36) Active Campaign",
+          "threatActor": "BlindEagle",
+          "attribution": {
+            "country": "Colombia",
+            "type": "Suspected state-aligned"
+          },
+          "targetGeography": [
+            "Colombia",
+            "South America"
+          ],
+          "targetIndustries": [
+            "Government",
+            "Ministry of Commerce",
+            "Public Sector",
+            "Finance"
+          ],
+          "attackVector": "Multi-Stage Fileless Attack",
+          "indicatorsOfCompromise": [
+            {
+              "ioc": "Compromised internal email",
+              "type": "Initial Access",
+              "description": "Abused internal email accounts for malware delivery"
+            },
+            {
+              "ioc": "Caminho downloader",
+              "type": "Malware",
+              "description": "Downloader for subsequent payloads"
+            },
+            {
+              "ioc": "Enhanced DCRAT",
+              "type": "Malware",
+              "description": "Remote access trojan with enhanced capabilities"
+            },
+            {
+              "ioc": "Discord CDN",
+              "type": "C2 Infrastructure",
+              "description": "Payload hosting on Discord content delivery"
+            },
+            {
+              "ioc": "Steganographic images",
+              "type": "Evasion",
+              "description": "Malware embedded in images"
+            },
+            {
+              "ioc": "Qilin ransomware deployment",
+              "type": "Second Stage",
+              "description": "Deploys Qilin post-compromise"
+            }
+          ],
+          "recommendedActions": [
+            "Investigate all compromised internal email accounts",
+            "Block Discord CDN for external communications",
+            "Scan for Caminho and DCRAT artifacts",
+            "Implement email authentication (DMARC, DKIM, SPF)",
+            "Hunt for steganographic payloads in image files",
+            "Monitor for Qilin indicators if compromise suspected"
+          ],
+          "mitreMapping": [
+            "TA0001 - Initial Access (Phishing)",
+            "TA0002 - Execution",
+            "TA0003 - Persistence",
+            "TA0005 - Defense Evasion (Steganography)",
+            "TA0011 - Command and Control"
+          ]
+        }
+      },
+      "id": "process-blindeagle",
+      "name": "Process BlindEagle",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "APT",
+          "severity": "HIGH",
+          "threatName": "Infy (Prince of Persia) Resurgence",
+          "threatActor": "Infy",
+          "attribution": {
+            "country": "Iran",
+            "type": "State-sponsored"
+          },
+          "firstActivity": "December 2004",
+          "lastObserved": "December 2025",
+          "targetGeography": [
+            "Sweden",
+            "Netherlands",
+            "Turkey",
+            "Europe",
+            "Middle East"
+          ],
+          "targetIndustries": [
+            "Government",
+            "Finance",
+            "Defense",
+            "Energy"
+          ],
+          "attackVector": "Long-term Persistence",
+          "indicatorsOfCompromise": [
+            {
+              "ioc": "Historical malware artifacts",
+              "type": "Persistence",
+              "description": "Legacy Infy malware components dating back years"
+            },
+            {
+              "ioc": "Long-term network beaconing",
+              "type": "C2",
+              "description": "Extended periods of silent data exfiltration"
+            },
+            {
+              "ioc": "Iranian C2 infrastructure",
+              "type": "C2",
+              "description": "Data exfiltration to Iranian servers"
+            },
+            {
+              "ioc": "Stolen credentials",
+              "type": "Initial Access",
+              "description": "Long-standing credential compromise"
+            }
+          ],
+          "recommendedActions": [
+            "Hunt for historical Infy artifacts in environment",
+            "Review long-term persistence mechanisms",
+            "Block known Iranian threat actor infrastructure",
+            "Enable enhanced logging for APT detection",
+            "Conduct historical log review (months back)",
+            "Reset credentials for potentially compromised accounts",
+            "Engage forensic team for deep investigation"
+          ],
+          "mitreMapping": [
+            "TA0003 - Persistence",
+            "TA0004 - Privilege Escalation",
+            "TA0009 - Collection",
+            "TA0010 - Exfiltration"
+          ]
+        }
+      },
+      "id": "process-infy",
+      "name": "Process Infy",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        300,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "APT",
+          "severity": "HIGH",
+          "threatName": "SideWinder Evasive Campaign",
+          "threatActor": "SideWinder",
+          "attribution": {
+            "country": "India",
+            "type": "State-sponsored"
+          },
+          "targetGeography": [
+            "South Asia",
+            "Central Asia"
+          ],
+          "targetIndustries": [
+            "Government",
+            "Defense",
+            "Critical Infrastructure",
+            "Research"
+          ],
+          "attackVector": "Spear-phishing with Evasion",
+          "indicatorsOfCompromise": [
+            {
+              "ioc": "Spear-phishing emails",
+              "type": "Initial Access",
+              "description": "Targeted emails with malicious attachments"
+            },
+            {
+              "ioc": "Anti-analysis features",
+              "type": "Defense Evasion",
+              "description": "Malware with sophisticated evasion"
+            },
+            {
+              "ioc": "Custom malware families",
+              "type": "Malware",
+              "description": "Proprietary tooling with anti-detection"
+            },
+            {
+              "ioc": "Reconnaissance activity",
+              "type": "Reconnaissance",
+              "description": "Targeted victim profiling before attacks"
+            }
+          ],
+          "recommendedActions": [
+            "Enhance email security for government networks",
+            "Deploy advanced threat detection for spear-phishing",
+            "Implement anti-evasion detection rules",
+            "Hunt for SideWinder custom malware signatures",
+            "Share IOCs with threat intelligence community",
+            "Conduct targeted threat hunting in high-value systems"
+          ],
+          "mitreMapping": [
+            "TA0001 - Initial Access",
+            "TA0002 - Execution",
+            "TA0005 - Defense Evasion",
+            "TA0043 - Reconnaissance"
+          ]
+        }
+      },
+      "id": "process-sidewinder",
+      "name": "Process SideWinder",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        300,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "APT",
+          "severity": "CRITICAL",
+          "threatName": "MuddyWater Iranian APT Activity",
+          "threatActor": "MuddyWater",
+          "attribution": {
+            "country": "Iran",
+            "type": "State-sponsored"
+          },
+          "targetGeography": [
+            "Middle East",
+            "Europe",
+            "North America"
+          ],
+          "targetIndustries": [
+            "Government",
+            "Telecom",
+            "Technology",
+            "Finance"
+          ],
+          "attackVector": "Living-off-the-Land (LOTL)",
+          "indicatorsOfCompromise": [
+            {
+              "ioc": "Connection proxy abuse",
+              "type": "C2",
+              "description": "Proxied C2 through compromised systems"
+            },
+            {
+              "ioc": "Credential dumping",
+              "type": "Credential Access",
+              "description": "LSASS, memory, registry credential theft"
+            },
+            {
+              "ioc": "Spear-phishing campaigns",
+              "type": "Initial Access",
+              "description": "Targeted phishing with malicious documents"
+            },
+            {
+              "ioc": "Custom loaders",
+              "type": "Malware",
+              "description": "Modular malware for flexible operations"
+            },
+            {
+              "ioc": "Compromised credentials",
+              "type": "Initial Access",
+              "description": "Exploited weak credentials and exposed services"
+            }
+          ],
+          "recommendedActions": [
+            "Deploy enhanced credential dumping detection",
+            "Monitor for PowerShell and WMI abuse",
+            "Block suspicious proxy connections",
+            "Implement strict credential policies",
+            "Enable comprehensive logging on critical systems",
+            "Hunt for MuddyWater custom loaders"
+          ],
+          "mitreMapping": [
+            "TA0005 - Defense Evasion (LOTL)",
+            "TA0006 - Credential Access",
+            "TA0007 - Discovery",
+            "TA0011 - Command and Control"
+          ]
+        }
+      },
+      "id": "process-muddywater",
+      "name": "Process MuddyWater",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        300,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "APT",
+          "severity": "CRITICAL",
+          "threatName": "China Nexus Groups - Active Exploitation",
+          "threatActors": [
+            {
+              "name": "Earth Lamia",
+              "type": "China state-aligned"
+            },
+            {
+              "name": "Jackpot Panda",
+              "type": "China state-aligned"
+            },
+            {
+              "name": "APT41",
+              "type": "China state-aligned"
+            },
+            {
+              "name": "UNC5174",
+              "type": "China state-aligned"
+            },
+            {
+              "name": "Linen Typhoon (APT27)",
+              "type": "China state-aligned"
+            },
+            {
+              "name": "Violet Typhoon (APT31)",
+              "type": "China state-aligned"
+            },
+            {
+              "name": "Salt Typhoon",
+              "type": "China state-aligned"
+            },
+            {
+              "name": "Storm-2603",
+              "type": "Hybrid China-aligned"
+            }
+          ],
+          "currentActivity": {
+            "CVE-2025-55182": {
+              "exploited": true,
+              "description": "React2Shell vulnerability exploitation",
+              "groups": [
+                "Earth Lamia",
+                "Jackpot Panda"
+              ]
+            },
+            "UAT-9686": {
+              "exploited": true,
+              "description": "Cisco zero-day exploitation",
+              "tools": [
+                "ReverseSSH/AquaTunnel",
+                "Chisel",
+                "AquaPurge"
+              ]
+            }
+          },
+          "indicatorsOfCompromise": [
+            {
+              "ioc": "183.6.80.214",
+              "type": "IP",
+              "description": "React2Shell exploitation IP",
+              "firstSeen": "2025-12-04"
+            },
+            {
+              "ioc": "ReverseSSH/AquaTunnel",
+              "type": "Tool",
+              "description": "Tunneling tool used by APT41/UNC5174"
+            },
+            {
+              "ioc": "Chisel",
+              "type": "Tool",
+              "description": "Fast TCP/UDP tunnel over HTTP"
+            },
+            {
+              "ioc": "AquaPurge",
+              "type": "Tool",
+              "description": "Log cleaning utility"
+            },
+            {
+              "ioc": "Group Policy abuse",
+              "type": "Technique",
+              "description": "Used for lateral movement"
+            },
+            {
+              "ioc": "Cloud storage C2",
+              "type": "Technique",
+              "description": "OneDrive/Google Drive for C2"
+            }
+          ],
+          "recommendedActions": [
+            "Block known China nexus IP ranges at perimeter",
+            "Deploy detection for tunneling tools (ReverseSSH, Chisel)",
+            "Monitor for log clearing activity (AquaPurge)",
+            "Audit Group Policy for unauthorized changes",
+            "Block unauthorized cloud storage for C2",
+            "Patch React2Shell immediately",
+            "Monitor Cisco appliances for UAT-9686 exploitation"
+          ],
+          "mitreMapping": [
+            "TA0001 - Initial Access",
+            "TA0002 - Execution",
+            "TA0003 - Persistence",
+            "TA0004 - Privilege Escalation",
+            "TA0005 - Defense Evasion",
+            "TA0011 - Command and Control"
+          ]
+        }
+      },
+      "id": "process-china-nexus",
+      "name": "Process China Nexus Groups",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "APT",
+          "severity": "HIGH",
+          "threatName": "Telecom Sector APT Targeting",
+          "targetGeography": "Global",
+          "targetIndustries": [
+            "Telecommunications",
+            "ISP",
+            "Mobile Operators"
+          ],
+          "attackVectors": [
+            "APT intrusions for long-term espionage",
+            "Supply chain compromise",
+            "DDoS disruption",
+            "SIM fraud"
+          ],
+          "indicatorsOfCompromise": [
+            {
+              "ioc": "Stealthy network access",
+              "type": "Behavior",
+              "description": "Long-term persistent access to operator networks"
+            },
+            {
+              "ioc": "Supply chain compromise",
+              "type": "Initial Access",
+              "description": "Compromised vendors as attack vector"
+            },
+            {
+              "ioc": "Network positioning",
+              "type": "Objective",
+              "description": "Leverage privileged position for intercept"
+            }
+          ],
+          "recommendedActions": [
+            "Enhance monitoring on telecom network infrastructure",
+            "Audit third-party vendor security posture",
+            "Implement supply chain security controls",
+            "Deploy anomaly detection for network traffic",
+            "Enable comprehensive logging on core infrastructure",
+            "Conduct regular security assessments"
+          ],
+          "additionalContext": "Kaspersky warns telecom threats from 2025 will carry into 2026 as 5G and new technologies add risk"
+        }
+      },
+      "id": "process-telecom-apt",
+      "name": "Process Telecom APT",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "THREAT_ACTOR",
+          "severity": "HIGH",
+          "threatName": "State-Sponsored Threat Landscape 2025",
+          "actors": {
+            "China": {
+              "status": "Most active and persistent",
+              "targets": [
+                "US government",
+                "Critical infrastructure",
+                "Defense",
+                "Technology"
+              ],
+              "groups": [
+                "Linen Typhoon",
+                "Violet Typhoon",
+                "Salt Typhoon",
+                "APT41",
+                "Earth Lamia",
+                "Jackpot Panda",
+                "LongNosedGoblin"
+              ]
+            },
+            "Russia": {
+              "status": "Active in cyber operations",
+              "targets": [
+                "Ukraine",
+                "NATO countries",
+                "Critical infrastructure"
+              ],
+              "groups": [
+                "Sandworm",
+                "Fancy Bear",
+                "Cozy Bear"
+              ]
+            },
+            "Iran": {
+              "status": "Increasing sophistication",
+              "targets": [
+                "Middle East",
+                "Europe",
+                "North America"
+              ],
+              "groups": [
+                "Infy",
+                "MuddyWater",
+                "APT33"
+              ]
+            },
+            "North Korea": {
+              "status": "Focus on financial gain",
+              "targets": [
+                "Financial institutions",
+                "Crypto exchanges",
+                "Defense contractors"
+              ],
+              "groups": [
+                "Lazarus",
+                "Kimsuky"
+              ]
+            }
+          },
+          "recommendedActions": [
+            "Implement nation-state APT detection rules",
+            "Deploy enhanced monitoring for critical sectors",
+            "Share threat intelligence with ISACs",
+            "Conduct regular threat assessments",
+            "Engage with government cyber agencies (CISA, NSA)",
+            "Prepare incident response for nation-state attacks"
+          ]
+        }
+      },
+      "id": "process-state-sponsored",
+      "name": "Process State-Sponsored Landscape",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        500,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "MALWARE",
+          "severity": "HIGH",
+          "threatName": "CastleRAT - Advanced RAT",
+          "threatActor": "Unknown",
+          "malwareType": "Remote Access Trojan",
+          "affectedSystems": [
+            "Windows workstations",
+            "Enterprise endpoints"
+          ],
+          "indicatorsOfCompromise": [
+            {
+              "ioc": "Masked browser re-launching",
+              "type": "Behavior",
+              "description": "Quietly re-launching browsers for persistence"
+            },
+            {
+              "ioc": "Subtle data exchange",
+              "type": "C2",
+              "description": "Low-visibility data exfiltration"
+            },
+            {
+              "ioc": "Browser history scanning",
+              "type": "Recon",
+              "description": "Gather browser history to target credentials"
+            },
+            {
+              "ioc": "Low-visibility tooling",
+              "type": "Characteristics",
+              "description": "Designed to avoid detection"
+            }
+          ],
+          "recommendedActions": [
+            "Monitor for unusual browser restart patterns",
+            "Deploy endpoint detection for browser manipulation",
+            "Hunt for CastleRAT in enterprise environment",
+            "Block unknown browser process spawning"
+          ]
+        }
+      },
+      "id": "process-castlerat",
+      "name": "Process CastleRAT",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        500,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "INCIDENT",
+          "severity": "CRITICAL",
+          "threatName": "APT Incident Response Playbook",
+          "playbook": {
+            "purpose": "Guide for responding to nation-state APT incidents",
+            "phases": [
+              {
+                "phase": 1,
+                "name": "Detection & Analysis",
+                "timeframe": "0-30 minutes",
+                "actions": [
+                  "Confirm APT indicators (not commodity malware)",
+                  "Identify scope of compromise",
+                  "Document all IOCs immediately",
+                  "Engage incident response team",
+                  "Notify leadership"
+                ]
+              },
+              {
+                "phase": 2,
+                "name": "Containment",
+                "timeframe": "30 min - 4 hours",
+                "actions": [
+                  "Isolate affected systems (preserve evidence)",
+                  "Block C2 at network perimeter",
+                  "Reset credentials for affected accounts",
+                  "Disable compromised service accounts",
+                  "Preserve forensic images"
+                ]
+              },
+              {
+                "phase": 3,
+                "name": "Eradication",
+                "timeframe": "4-24 hours",
+                "actions": [
+                  "Remove all malware and persistence mechanisms",
+                  "Patch exploited vulnerabilities",
+                  "Search for lateral movement indicators",
+                  "Review all privileged access",
+                  "Secure backup integrity"
+                ]
+              },
+              {
+                "phase": 4,
+                "name": "Recovery",
+                "timeframe": "24-72 hours",
+                "actions": [
+                  "Restore from verified clean backups",
+                  "Verify system integrity",
+                  "Monitor for reinfection",
+                  "Gradually restore network access"
+                ]
+              },
+              {
+                "phase": 5,
+                "name": "Post-Incident",
+                "timeframe": "1-4 weeks",
+                "actions": [
+                  "Complete forensic analysis",
+                  "Document attribution findings",
+                  "Share IOCs with threat intel community",
+                  "Report to law enforcement if required",
+                  "Update security controls"
+                ]
+              }
+            ]
+          },
+          "specialConsiderations": {
+            "attribution": "Document for law enforcement engagement",
+            "legal": "Preserve evidence chain of custody",
+            "communication": "Coordinate with government agencies",
+            "intelligence": "Share IOCs to help others"
+          }
+        }
+      },
+      "id": "process-apt-incident",
+      "name": "Process APT Incident Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        500,
+        600
+      ]
+    }
+  ],
+  "connections": {
+    "APT Monitor": {
+      "main": [
+        [
+          {
+            "node": "Process LongNosedGoblin",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Process BlindEagle",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Process Infy",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Process SideWinder",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Process MuddyWater",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process LongNosedGoblin": {
+      "main": [
+        [
+          {
+            "node": "Process China Nexus Groups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process BlindEagle": {
+      "main": [
+        [
+          {
+            "node": "Process Telecom APT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Infy": {
+      "main": [
+        [
+          {
+            "node": "Process State-Sponsored Landscape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process SideWinder": {
+      "main": [
+        [
+          {
+            "node": "Process CastleRAT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process MuddyWater": {
+      "main": [
+        [
+          {
+            "node": "Process APT Incident Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process China Nexus Groups": {
+      "main": [
+        [
+          {
+            "node": "Process Telecom APT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Telecom APT": {
+      "main": [
+        [
+          {
+            "node": "Process State-Sponsored Landscape",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process State-Sponsored Landscape": {
+      "main": [
+        [
+          {
+            "node": "Process CastleRAT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process CastleRAT": {
+      "main": [
+        [
+          {
+            "node": "Process APT Incident Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

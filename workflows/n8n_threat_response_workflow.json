@@ -1,0 +1,586 @@
+{
+  "name": "CyberSentinel - Automated Threat Response Orchestration",
+  "description": "Automated threat intelligence collection, analysis, and response workflow for December 2025 threat landscape",
+  "active": true,
+  "nodes": [
+    {
+      "parameters": {
+        "triggerType": "webhook",
+        "webhookUrl": "/webhook/threat-detection",
+        "httpMethod": "POST"
+      },
+      "name": "Threat Detection Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "condition": "if",
+              "value1": "{{ $json.severity }}",
+              "operation": "equals",
+              "value2": "CRITICAL"
+            }
+          ]
+        }
+      },
+      "name": "Severity Assessment",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        450,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "#security-alerts",
+        "text": "🚨 CRITICAL THREAT DETECTED\n\nThreat Type: {{ $json.threatType }}\nSeverity: {{ $json.severity }}\nAffected Systems: {{ $json.affectedSystems.join(', ') }}\nRecommended Actions: {{ $json.recommendedActions[0] }}\n\nFull Report: {{ $json.threat_id }}",
+        "username": "CyberSentinel"
+      },
+      "name": "Alert Security Team - Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        650,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "{{ $env.FIREWALL_API_URL }}",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{ $env.FIREWALL_API_KEY }}"
+        },
+        "body": {
+          "action": "block",
+          "ips": "{{ $json.indicatorsOfCompromise.filter(ioc => ioc.match(/^\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}$/)) }}",
+          "reason": "{{ $json.threat_id }} - {{ $json.threat_name }}",
+          "duration": "permanent"
+        }
+      },
+      "name": "Block Malicious IPs - Firewall",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        650,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "url": "{{ $env.DNS_FILTER_API_URL }}",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{ $env.DNS_FILTER_API_KEY }}"
+        },
+        "body": {
+          "action": "block",
+          "domains": "{{ $json.indicatorsOfCompromise.filter(ioc => ioc.includes('.')) }}",
+          "reason": "{{ $json.threat_id }} - {{ $json.threat_name }}"
+        }
+      },
+      "name": "Block Malicious Domains - DNS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        650,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "url": "{{ $env.EMAIL_GATEWAY_API_URL }}",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{ $env.EMAIL_GATEWAY_API_KEY }}"
+        },
+        "body": {
+          "action": "add_filter",
+          "filter_type": "{{ $json.threatType }}",
+          "indicators": "{{ $json.indicatorsOfCompromise }}",
+          "reason": "{{ $json.threat_id }} - {{ $json.threat_name }}"
+        }
+      },
+      "name": "Update Email Gateway Filters",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        650,
+        550
+      ]
+    },
+    {
+      "parameters": {
+        "url": "{{ $env.SIEM_API_URL }}",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{ $env.SIEM_API_KEY }}"
+        },
+        "body": {
+          "event_type": "threat_detection",
+          "threat_id": "{{ $json.threat_id }}",
+          "threat_name": "{{ $json.threat_name }}",
+          "severity": "{{ $json.severity }}",
+          "indicators": "{{ $json.indicatorsOfCompromise }}",
+          "timestamp": "{{ $now.toISOString() }}"
+        }
+      },
+      "name": "Log to SIEM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        850,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "{{ $env.TICKETING_API_URL }}",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{ $env.TICKETING_API_KEY }}"
+        },
+        "body": {
+          "title": "{{ $json.threat_id }} - {{ $json.threat_name }}",
+          "description": "Threat Type: {{ $json.threatType }}\nSeverity: {{ $json.severity }}\nAffected Systems: {{ $json.affectedSystems.join(', ') }}\nRecommended Actions: {{ $json.recommendedActions.join('\\n') }}",
+          "priority": "{{ $json.severity === 'CRITICAL' ? 'P1' : $json.severity === 'HIGH' ? 'P2' : 'P3' }}",
+          "assignee": "security-team"
+        }
+      },
+      "name": "Create Incident Ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        850,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "url": "{{ $env.THREAT_INTEL_PLATFORM_URL }}",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{ $env.THREAT_INTEL_API_KEY }}"
+        },
+        "body": {
+          "threat_id": "{{ $json.threat_id }}",
+          "threat_name": "{{ $json.threat_name }}",
+          "threat_type": "{{ $json.threatType }}",
+          "severity": "{{ $json.severity }}",
+          "indicators": "{{ $json.indicatorsOfCompromise }}",
+          "threat_actors": "{{ $json.threat_actors }}",
+          "affected_industries": "{{ $json.affected_industries }}",
+          "timestamp": "{{ $now.toISOString() }}"
+        }
+      },
+      "name": "Share with Threat Intel Platform",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        850,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "condition": "if",
+              "value1": "{{ $json.threatType }}",
+              "operation": "equals",
+              "value2": "RANSOMWARE"
+            }
+          ]
+        }
+      },
+      "name": "Is Ransomware?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "{{ $env.NETWORK_ISOLATION_API_URL }}",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{ $env.NETWORK_ISOLATION_API_KEY }}"
+        },
+        "body": {
+          "action": "isolate",
+          "systems": "{{ $json.affectedSystems }}",
+          "reason": "{{ $json.threat_id }} - Ransomware detected"
+        }
+      },
+      "name": "Isolate Affected Systems",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1250,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "{{ $env.BACKUP_API_URL }}",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{ $env.BACKUP_API_KEY }}"
+        },
+        "body": {
+          "action": "prepare_recovery",
+          "systems": "{{ $json.affectedSystems }}",
+          "reason": "{{ $json.threat_id }} - Ransomware recovery preparation"
+        }
+      },
+      "name": "Prepare Backup Recovery",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1250,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "condition": "if",
+              "value1": "{{ $json.threatType }}",
+              "operation": "equals",
+              "value2": "PHISHING"
+            }
+          ]
+        }
+      },
+      "name": "Is Phishing?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1050,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "url": "{{ $env.AZURE_AD_API_URL }}",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{ $env.AZURE_AD_API_KEY }}"
+        },
+        "body": {
+          "action": "force_password_reset",
+          "users": "{{ $json.affected_users }}",
+          "reason": "{{ $json.threat_id }} - Phishing attack detected"
+        }
+      },
+      "name": "Force Password Reset - Azure AD",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1250,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "url": "{{ $env.AZURE_AD_API_URL }}",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{ $env.AZURE_AD_API_KEY }}"
+        },
+        "body": {
+          "action": "enforce_mfa",
+          "users": "{{ $json.affected_users }}",
+          "reason": "{{ $json.threat_id }} - Phishing attack detected"
+        }
+      },
+      "name": "Enforce MFA - Azure AD",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1250,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "url": "{{ $env.NOTIFICATION_API_URL }}",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{ $env.NOTIFICATION_API_KEY }}"
+        },
+        "body": {
+          "notification_type": "email",
+          "recipients": "{{ $json.affected_users }}",
+          "subject": "Security Alert: Your account may have been compromised",
+          "body": "We detected suspicious activity on your account. Please reset your password immediately and enable MFA."
+        }
+      },
+      "name": "Notify Affected Users",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1250,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "url": "{{ $env.REPORTING_API_URL }}",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{ $env.REPORTING_API_KEY }}"
+        },
+        "body": {
+          "report_type": "threat_intelligence",
+          "threat_id": "{{ $json.threat_id }}",
+          "threat_name": "{{ $json.threat_name }}",
+          "severity": "{{ $json.severity }}",
+          "business_context": "{{ $json.business_context }}",
+          "recommendations": "{{ $json.recommendedActions }}",
+          "timestamp": "{{ $now.toISOString() }}"
+        }
+      },
+      "name": "Generate Executive Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1450,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Threat Detection Webhook": {
+      "main": [
+        [
+          {
+            "node": "Severity Assessment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Severity Assessment": {
+      "main": [
+        [
+          {
+            "node": "Alert Security Team - Slack",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Block Malicious IPs - Firewall",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Block Malicious Domains - DNS",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Email Gateway Filters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Security Team - Slack": {
+      "main": [
+        [
+          {
+            "node": "Log to SIEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block Malicious IPs - Firewall": {
+      "main": [
+        [
+          {
+            "node": "Log to SIEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block Malicious Domains - DNS": {
+      "main": [
+        [
+          {
+            "node": "Log to SIEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Email Gateway Filters": {
+      "main": [
+        [
+          {
+            "node": "Log to SIEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to SIEM": {
+      "main": [
+        [
+          {
+            "node": "Create Incident Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Incident Ticket": {
+      "main": [
+        [
+          {
+            "node": "Share with Threat Intel Platform",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Share with Threat Intel Platform": {
+      "main": [
+        [
+          {
+            "node": "Is Ransomware?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Phishing?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Ransomware?": {
+      "main": [
+        [
+          {
+            "node": "Isolate Affected Systems",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Backup Recovery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Isolate Affected Systems": {
+      "main": [
+        [
+          {
+            "node": "Generate Executive Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Backup Recovery": {
+      "main": [
+        [
+          {
+            "node": "Generate Executive Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Phishing?": {
+      "main": [
+        [
+          {
+            "node": "Force Password Reset - Azure AD",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Enforce MFA - Azure AD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Force Password Reset - Azure AD": {
+      "main": [
+        [
+          {
+            "node": "Notify Affected Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enforce MFA - Azure AD": {
+      "main": [
+        [
+          {
+            "node": "Notify Affected Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Affected Users": {
+      "main": [
+        [
+          {
+            "node": "Generate Executive Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "timezone": "UTC"
+  },
+  "staticData": null,
+  "tags": [
+    "threat-intelligence",
+    "incident-response",
+    "automation",
+    "cybersecurity"
+  ]
+}

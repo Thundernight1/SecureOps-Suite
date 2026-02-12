@@ -1,0 +1,766 @@
+{
+  "name": "CyberSentinel Ransomware Response",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": {
+            "field": "minutes",
+            "minutesInterval": 15
+          }
+        }
+      },
+      "id": "ransomware-monitor",
+      "name": "Ransomware Monitor",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "RANSOMWARE",
+          "severity": "CRITICAL",
+          "threatName": "Qilin RaaS Active Campaign",
+          "threatActor": "Qilin",
+          "attackVector": "Ransomware-as-a-Service",
+          "targetIndustries": [
+            "Manufacturing (+35%)",
+            "Healthcare (+43%)",
+            "Technology",
+            "Finance"
+          ],
+          "targetGeography": [
+            "Singapore",
+            "Korea",
+            "France",
+            "Global"
+          ],
+          "indicatorsOfCompromise": [
+            "Files with .qilin extension",
+            "Ransom notes: README_README.txt",
+            "31,200 TB data exfiltration reported",
+            "Double extortion: encryption + data theft",
+            "Targeted spear-phishing delivery",
+            "RDP compromise for initial access"
+          ],
+          "recommendedActions": [
+            "IMMEDIATE: Disconnect infected systems from network",
+            "Engage incident response team within 1 hour",
+            "Identify patient zero and attack timeline",
+            "Preserve forensic evidence before containment",
+            "Do NOT pay ransom - contact law enforcement",
+            "Verify backup integrity before restoration",
+            "Reset all compromised credentials"
+          ],
+          "businessImpact": {
+            "dataLoss": "HIGH",
+            "financialLoss": "CRITICAL",
+            "reputationalDamage": "HIGH",
+            "operationalDisruption": "CRITICAL"
+          }
+        }
+      },
+      "id": "process-qilin-threat",
+      "name": "Process Qilin Threat",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "RANSOMWARE",
+          "severity": "HIGH",
+          "threatName": "Gentlemen Ransomware Expansion",
+          "threatActor": "Gentlemen",
+          "attackVector": "Ransomware",
+          "targetIndustries": [
+            "Manufacturing",
+            "Healthcare",
+            "Critical Infrastructure"
+          ],
+          "indicatorsOfCompromise": [
+            "Files encrypted with .gentlemen extension",
+            "Desktop wallpaper changes to ransom notice",
+            "Abnormal process termination patterns",
+            "Scheduled tasks for encryption execution",
+            "PowerShell Empire or similar framework usage"
+          ],
+          "recommendedActions": [
+            "Deploy EDR rules for Gentlemen signatures",
+            "Review manufacturing/HC system access logs",
+            "Implement network segmentation for OT/ICS",
+            "Isolate backup systems from production networks"
+          ]
+        }
+      },
+      "id": "process-gentlemen",
+      "name": "Process Gentlemen Threat",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "RANSOMWARE",
+          "severity": "MEDIUM",
+          "threatName": "VolkLocker Decryption Bug",
+          "threatActor": "CyberVolk (Pro-Russia)",
+          "attackVector": "Ransomware-as-a-Service",
+          "affectedSystems": [
+            "Windows endpoints",
+            "SMB networks"
+          ],
+          "indicatorsOfCompromise": [
+            "Files encrypted with .volk extension",
+            "Golang-based ransomware executable",
+            "Master encryption keys in plaintext temp files",
+            "Quality control issues in ransomware binary"
+          ],
+          "recommendedActions": [
+            "Check temp folder for decryption keys",
+            "Attempt free decryption before paying ransom",
+            "Report to SentinelOne for decryption tool",
+            "Block VolkLocker execution signatures"
+          ],
+          "additionalContext": "CRITICAL: Decryption keys written to plaintext in system temp folder - free decryption may be possible"
+        }
+      },
+      "id": "process-volklocker",
+      "name": "Process VolkLocker Threat",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        300,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "RANSOMWARE",
+          "severity": "HIGH",
+          "threatName": "Warlock Ransomware",
+          "threatActor": "Warlock",
+          "attribution": "Pro-Russia / Storm-2603",
+          "targetIndustries": [
+            "Manufacturing",
+            "Production",
+            "Industrial"
+          ],
+          "attackVector": "Ransomware",
+          "indicatorsOfCompromise": [
+            "Files encrypted with .warlock extension",
+            "GOLD SALEM tradecraft deployment",
+            "Targeted industrial control systems",
+            "Credential theft for initial access"
+          ],
+          "recommendedActions": [
+            "Block Warlock execution in EDR",
+            "Review industrial system access controls",
+            "Monitor for GOLD SALEM attack patterns",
+            "Segment OT networks from IT infrastructure"
+          ]
+        }
+      },
+      "id": "process-warlock",
+      "name": "Process Warlock Threat",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        300,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "RANSOMWARE",
+          "severity": "HIGH",
+          "threatName": "INC Ransomware",
+          "threatActor": "INC Ransomware Group",
+          "attackVector": "Ransomware-as-a-Service",
+          "targetIndustries": [
+            "Technology",
+            "Finance",
+            "Healthcare"
+          ],
+          "indicatorsOfCompromise": [
+            "Files encrypted with .inc extension",
+            "Data exfiltration before encryption",
+            "Professional negotiation process",
+            "Dark web victim shaming"
+          ],
+          "recommendedActions": [
+            "Deploy INC detection signatures",
+            "Review recent data exfiltration alerts",
+            "Prepare incident response playbook",
+            "Engage legal counsel before negotiations"
+          ]
+        }
+      },
+      "id": "process-inc-ransomware",
+      "name": "Process INC Threat",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        300,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "RANSOMWARE",
+          "severity": "MEDIUM",
+          "threatName": "Lynx Ransomware",
+          "threatActor": "Lynx Group",
+          "attackVector": "Ransomware",
+          "targetIndustries": [
+            "SMB",
+            "Technology",
+            "Retail"
+          ],
+          "indicatorsOfCompromise": [
+            "Files encrypted with .lynx extension",
+            "Rapid encryption speed",
+            "Low ransom demands initially"
+          ],
+          "recommendedActions": [
+            "Deploy Lynx detection rules",
+            "Review SMB security posture",
+            "Implement rapid containment procedures"
+          ]
+        }
+      },
+      "id": "process-lynx-ransomware",
+      "name": "Process Lynx Threat",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        300,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "RANSOMWARE",
+          "severity": "MEDIUM",
+          "threatName": "TridentLocker Ransomware",
+          "threatActor": "TridentLocker Group",
+          "attackVector": "Ransomware",
+          "indicatorsOfCompromise": [
+            "Files encrypted with .trident extension",
+            "Ransom note with Trident branding",
+            "Data exfiltration before encryption",
+            "New operation observed in December 2025"
+          ],
+          "recommendedActions": [
+            "Deploy TridentLocker signatures",
+            "Monitor for new TridentLocker claims",
+            "Enhance network monitoring for data exfiltration"
+          ]
+        }
+      },
+      "id": "process-tridentlocker",
+      "name": "Process TridentLocker Threat",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        300,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "THREAT_ACTOR",
+          "severity": "HIGH",
+          "threatName": "BlindEagle APT Deploying Ransomware",
+          "threatActor": "BlindEagle (APT-C-36)",
+          "attribution": "Suspected Colombia-aligned",
+          "attackVector": "APT + Ransomware",
+          "targetGeography": [
+            "Colombia",
+            "South America"
+          ],
+          "targetIndustries": [
+            "Government",
+            "Finance",
+            "Critical Infrastructure"
+          ],
+          "indicatorsOfCompromise": [
+            "Compromised internal email accounts",
+            "Caminho downloader deployment",
+            "Enhanced DCRAT payload",
+            "Discord CDN for payload hosting",
+            "Steganographic images with malware",
+            "Qilin ransomware deployment post-compromise"
+          ],
+          "recommendedActions": [
+            "Investigate internal email compromise immediately",
+            "Block Discord CDN for external communications",
+            "Scan for Caminho and DCRAT artifacts",
+            "Review email authentication (DMARC, DKIM, SPF)",
+            "Hunt for Qilin indicators post-compromise"
+          ]
+        }
+      },
+      "id": "process-blind-eagle",
+      "name": "Process BlindEagle APT",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "IOC",
+          "severity": "HIGH",
+          "threatName": "Ransomware Dark Web Monitoring",
+          "iocType": "darkweb",
+          "indicatorsOfCompromise": [
+            {
+              "indicator": "Qilin RaaS",
+              "type": "ThreatActor",
+              "activityLevel": "VERY HIGH",
+              "claimsOnDec22": "14",
+              "description": "Most active ransomware group - 14 attacks in single day"
+            },
+            {
+              "indicator": "Total dark web claims",
+              "type": "Statistics",
+              "value": "121",
+              "period": "24 hours (Dec 22)",
+              "countries": "35",
+              "description": "Active cyber threat claims on dark web"
+            },
+            {
+              "indicator": "Ransomware incidents",
+              "type": "Statistics",
+              "value": "27",
+              "period": "24 hours (Dec 22)",
+              "description": "Ransomware attacks claimed on dark web"
+            }
+          ],
+          "recommendedActions": [
+            "Deploy dark web monitoring service",
+            "Set up alerts for organization mentions",
+            "Monitor for stolen credentials sale",
+            "Track ransomware group victim lists",
+            "Engage with law enforcement early"
+          ]
+        }
+      },
+      "id": "process-darkweb-monitoring",
+      "name": "Process Dark Web Intel",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "MALWARE",
+          "severity": "HIGH",
+          "threatName": "Stealer Malware Fueling Ransomware",
+          "malwareTypes": [
+            "Lumma Stealer",
+            "Risepro Stealer"
+          ],
+          "attackVector": "Information Stealer",
+          "indicatorsOfCompromise": [
+            "Browser credential theft",
+            "Crypto wallet extraction",
+            "Session cookie theft",
+            "MFA bypass via session cookies",
+            "Credentials sold for ~$10/account"
+          ],
+          "recommendedActions": [
+            "Deploy stealer malware detection",
+            "Rotate exposed credentials immediately",
+            "Implement session binding and validation",
+            "Monitor for unusual account activity",
+            "Block stealer malware execution"
+          ]
+        }
+      },
+      "id": "process-stealer-malware",
+      "name": "Process Stealer Malware",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        500,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "VULNERABILITY",
+          "severity": "HIGH",
+          "threatName": "Common Ransomware Attack Vectors",
+          "vulnerabilities": [
+            "Exploitable RDP (CVE-2025-XXXX)",
+            "Phishing with malicious attachments",
+            "Supply chain compromise",
+            "Exploited VPN vulnerabilities",
+            "Weak or reused passwords"
+          ],
+          "indicatorsOfCompromise": [
+            "Brute force attempts on RDP/SSH",
+            "Suspicious VPN authentication",
+            "Phishing email reports from employees",
+            "Unusual software installations",
+            "Modified startup scripts"
+          ],
+          "recommendedActions": [
+            "RDP: Enable NLA, MFA, and network-level authentication",
+            "VPN: Patch VPN appliances, enable MFA",
+            "Phishing: Deploy advanced email filtering, user training",
+            "Passwords: Enforce MFA, password complexity, no reuse",
+            "Supply chain: Verify vendor security, monitor third-party access"
+          ]
+        }
+      },
+      "id": "process-attack-vectors",
+      "name": "Process Attack Vectors",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        500,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "INCIDENT",
+          "severity": "CRITICAL",
+          "threatName": "Active Ransomware Incident Response",
+          "incidentType": "Data Breach + Encryption",
+          "playbookSteps": [
+            {
+              "step": 1,
+              "action": "Detection & Analysis",
+              "timeframe": "0-15 minutes",
+              "tasks": [
+                "Confirm ransomware incident",
+                "Identify affected systems scope",
+                "Document initial indicators",
+                "Notify incident response team"
+              ]
+            },
+            {
+              "step": 2,
+              "action": "Containment",
+              "timeframe": "15-60 minutes",
+              "tasks": [
+                "Isolate infected systems from network",
+                "Disable user accounts used in attack",
+                "Block C2 communications at firewall",
+                "Preserve forensic evidence"
+              ]
+            },
+            {
+              "step": 3,
+              "action": "Eradication",
+              "timeframe": "1-4 hours",
+              "tasks": [
+                "Remove malware and backdoors",
+                "Reset all compromised credentials",
+                "Patch exploited vulnerabilities",
+                "Secure backup systems"
+              ]
+            },
+            {
+              "step": 4,
+              "action": "Recovery",
+              "timeframe": "4-72 hours",
+              "tasks": [
+                "Restore from verified clean backups",
+                "Verify system integrity before restoration",
+                "Monitor for reinfection indicators",
+                "Gradually restore network connectivity"
+              ]
+            },
+            {
+              "step": 5,
+              "action": "Post-Incident",
+              "timeframe": "1-4 weeks",
+              "tasks": [
+                "Complete forensic investigation",
+                "Document lessons learned",
+                "Update security controls",
+                "Conduct staff debriefing"
+              ]
+            }
+          ],
+          "recommendedActions": [
+            "Use this playbook for all ransomware incidents",
+            "Engage legal counsel immediately (regulatory reporting)",
+            "Contact law enforcement (FBI CISA, local authorities)",
+            "Do NOT pay ransom without executive approval",
+            "Prepare customer/regulator notification templates"
+          ]
+        }
+      },
+      "id": "process-incident-response",
+      "name": "Process Incident Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        500,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "values": {
+          "threatType": "REPORT",
+          "severity": "INFO",
+          "threatName": "Ransomware Statistics December 2025",
+          "statistics": {
+            "totalRansomwareAttacksDecember": "659",
+            "manufacturingAttacks": "166 (+35%)",
+            "healthcareAttacks": "20 (+43%)",
+            "educationAttacks": "21 (+24%)",
+            "dataExfiltrationByQilin": "31,200 TB",
+            "averageRansomPayment": "Undisclosed",
+            "ransomwarePercentageOfBreaches": "44%"
+          },
+          "trends": [
+            "Shift to double extortion (data theft + encryption)",
+            "Healthcare sector increasingly targeted",
+            "Manufacturing remains most targeted industry",
+            "Supply chain attacks increasing",
+            "RaaS lowering barrier for new attackers"
+          ],
+          "recommendedActions": [
+            "Review ransomware statistics for budget planning",
+            "Assess organization's position in targeting landscape",
+            "Prioritize security investments based on industry trends",
+            "Prepare for increased targeting in 2026"
+          ]
+        }
+      },
+      "id": "process-statistics",
+      "name": "Process Statistics",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        500,
+        700
+      ]
+    }
+  ],
+  "connections": {
+    "Ransomware Monitor": {
+      "main": [
+        [
+          {
+            "node": "Process Qilin Threat",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Process Gentlemen Threat",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Process VolkLocker Threat",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Process Warlock Threat",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Process INC Threat",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Process Lynx Threat",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Process TridentLocker Threat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Qilin Threat": {
+      "main": [
+        [
+          {
+            "node": "Process BlindEagle APT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Gentlemen Threat": {
+      "main": [
+        [
+          {
+            "node": "Process Dark Web Intel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process VolkLocker Threat": {
+      "main": [
+        [
+          {
+            "node": "Process Stealer Malware",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Warlock Threat": {
+      "main": [
+        [
+          {
+            "node": "Process Attack Vectors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process INC Threat": {
+      "main": [
+        [
+          {
+            "node": "Process Incident Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Lynx Threat": {
+      "main": [
+        [
+          {
+            "node": "Process Statistics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process TridentLocker Threat": {
+      "main": [
+        [
+          {
+            "node": "Process Statistics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process BlindEagle APT": {
+      "main": [
+        [
+          {
+            "node": "Process Incident Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Dark Web Intel": {
+      "main": [
+        [
+          {
+            "node": "Process Incident Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Stealer Malware": {
+      "main": [
+        [
+          {
+            "node": "Process Attack Vectors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Attack Vectors": {
+      "main": [
+        [
+          {
+            "node": "Process Statistics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Incident Response": {
+      "main": [
+        [
+          {
+            "node": "Process Statistics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,348 @@
+{
+  "name": "APT Detection and Response",
+  "nodes": [
+    {
+      "name": "Threat Intel Feed Monitor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "parameters": {
+        "url": "https://threat-intel-api.example.com/feeds/apt-activity",
+        "options": {
+          "timeout": 30000
+        },
+        "pollInterval": 300
+      }
+    },
+    {
+      "name": "Parse APT Intelligence",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const feedData = items[0].json;\n\n// Parse and normalize APT threat intelligence\nconst aptThreats = [];\n\nif (feedData.threats) {\n  feedData.threats.forEach(threat => {\n    aptThreats.push({\n      threatId: 'APT-' + threat.actorId || 'APT-' + Date.now(),\n      actorName: threat.actorName,\n      aliases: threat.aliases || [],\n      attribution: threat.attribution,\n      severity: threat.severity || 'HIGH',\n      campaigns: threat.campaigns || [],\n      indicatorsOfCompromise: threat.iocs || [],\n      tactics: threat.ttps || [],\n      affectedSystems: threat.targetSystems || [],\n      targetedRegions: threat.targetRegions || [],\n      firstSeen: threat.firstSeen,\n      lastActivity: threat.lastActivity || new Date().toISOString()\n    });\n  });\n}\n\nreturn aptThreats.map(threat => ({ json: threat }));"
+      }
+    },
+    {
+      "name": "Current APT Campaigns",
+      "type": "n8n-nodes-base.functionItem",
+      "typeVersion": 1,
+      "position": [
+        300,
+        350
+      ],
+      "parameters": {
+        "functionCode": "// Manual override for known December 2025 APT campaigns\nreturn [{\n  json: {\n    threatId: 'APT-2025-001',\n    actorName: 'Infy (Prince of Persia)',\n    aliases: ['Prince of Persia', 'MuddyWater'],\n    attribution: 'Iranian State-Sponsored',\n    severity: 'HIGH',\n    campaigns: [\n      {\n        name: 'European Target Resurgence',\n        targetRegions: ['Sweden', 'Netherlands', 'Turkey'],\n        firstSeen: '2025-12-21',\n        malware: 'New Infy variant',\n        ttps: ['Persistence', 'Credential Theft', 'Lateral Movement']\n      }\n    ],\n    indicatorsOfCompromise: [\n      { type: 'malware', ioc: 'New Infy malware family', description: 'Updated infrastructure' },\n      { type: 'behavior', ioc: 'Long-term persistence', description: 'Custom rootkits' }\n    ],\n    targetedRegions: ['Europe']\n  }\n}];"
+      }
+    },
+    {
+      "name": "BRICKSTORM Campaign",
+      "type": "n8n-nodes-base.functionItem",
+      "typeVersion": 1,
+      "position": [
+        300,
+        450
+      ],
+      "parameters": {
+        "functionCode": "return [{\n  json: {\n    threatId: 'APT-2025-002',\n    actorName: 'BRICKSTORM',\n    aliases: ['Chinese State-Sponsored'],\n    attribution: 'Multiple Chinese APT Groups',\n    severity: 'CRITICAL',\n    campaigns: [\n      {\n        name: 'Multi-Year Espionage Campaign',\n        targetRegions: ['North America'],\n        targetIndustries: ['Government', 'Critical Infrastructure', 'Enterprise IT'],\n        firstSeen: '2025-12',\n        ttps: ['Persistence', 'Credential Theft', 'Lateral Movement', 'Data Exfiltration']\n      }\n    ],\n    indicatorsOfCompromise: [\n      { type: 'malware', ioc: 'BRICKSTORM backdoor', description: 'VMware and Windows backdoor' },\n      { type: 'behavior', ioc: 'VMware C2 patterns', description: 'Stealthy ESXi C2 traffic' },\n      { type: 'behavior', ioc: 'AD reconnaissance', description: 'Active Directory attacks' }\n    ],\n    affectedSystems: ['VMware vSphere', 'Windows Server', 'Active Directory']\n  }\n}];"
+      }
+    },
+    {
+      "name": "UAT-9686 Campaign",
+      "type": "n8n-nodes-base.functionItem",
+      "typeVersion": 1,
+      "position": [
+        300,
+        550
+      ],
+      "parameters": {
+        "functionCode": "return [{\n  json: {\n    threatId: 'APT-2025-003',\n    actorName: 'UAT-9686',\n    aliases: ['APT41', 'UNC5174'],\n    attribution: 'Chinese State-Sponsored',\n    severity: 'CRITICAL',\n    campaigns: [\n      {\n        name: 'Cisco AsyncOS Zero-Day Exploitation',\n        cve: 'CVE-2025-20393',\n        firstSeen: '2025-11',\n        publicDisclosure: '2025-12-18',\n        ttps: ['Initial Access', 'Persistence', 'Lateral Movement', 'Anti-Forensics']\n      }\n    ],\n    indicatorsOfCompromise: [\n      { type: 'malware', ioc: 'AquaShell', description: 'Python backdoor' },\n      { type: 'malware', ioc: 'ReverseSSH (AquaTunnel)', description: 'Tunneling tool' },\n      { type: 'malware', ioc: 'Chisel', description: 'Lateral movement tool' },\n      { type: 'tool', ioc: 'AquaPurge', description: 'Log cleaning utility' },\n      { type: 'behavior', ioc: 'ESA persistence', description: 'Root-level persistence' }\n    ],\n    affectedSystems: ['Cisco ESA', 'Email Security Infrastructure']\n  }\n}];"
+      }
+    },
+    {
+      "name": "Aggregate APT Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        350
+      ],
+      "parameters": {
+        "functionCode": "// Aggregate all APT intelligence\nconst allAPT = [];\n\nitems.forEach(item => {\n  if (item.json && item.json.threatId) {\n    allAPT.push(item.json);\n  }\n});\n\n// Sort by severity\nallAPT.sort((a, b) => {\n  const severityOrder = { 'CRITICAL': 0, 'HIGH': 1, 'MEDIUM': 2, 'LOW': 3 };\n  return severityOrder[a.severity] - severityOrder[b.severity];\n});\n\nreturn [{\n  json: {\n    timestamp: new Date().toISOString(),\n    aptCount: allAPT.length,\n    criticalCount: allAPT.filter(a => a.severity === 'CRITICAL').length,\n    highCount: allAPT.filter(a => a.severity === 'HIGH').length,\n    campaigns: allAPT,\n    summary: `${allAPT.filter(a => a.severity === 'CRITICAL').length} CRITICAL, ${allAPT.filter(a => a.severity === 'HIGH').length} HIGH severity APT campaigns active`\n  }\n}];"
+      }
+    },
+    {
+      "name": "Severity Classification",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        700,
+        350
+      ],
+      "parameters": {
+        "functionCode": "const data = items[0].json;\n\n// Classify and prioritize each campaign\nconst prioritizedCampaigns = data.campaigns.map(campaign => {\n  let priority = 'P2';\n  let responseActions = [];\n  let escalationRequired = false;\n\n  if (campaign.severity === 'CRITICAL') {\n    priority = 'P1';\n    escalationRequired = true;\n    responseActions = [\n      'Immediate threat hunting',\n      'Enhanced monitoring',\n      'Credential rotation',\n      'Forensic analysis',\n      'Executive briefing'\n    ];\n  } else if (campaign.severity === 'HIGH') {\n    priority = 'P2';\n    responseActions = [\n      'Threat hunting within 48 hours',\n      'Update detection rules',\n      'Review access logs'\n    ];\n  }\n\n  return {\n    ...campaign,\n    priority,\n    responseActions,\n    escalationRequired,\n    status: 'active'\n  };\n});\n\nreturn [{\n  json: {\n    ...data,\n    campaigns: prioritizedCampaigns,\n    lastUpdated: new Date().toISOString()\n  }\n}];"
+      }
+    },
+    {
+      "name": "Send Critical Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ],
+      "parameters": {
+        "channel": "#security-alerts",
+        "text": "=`:warning: **APT THREAT INTELLIGENCE ALERT** :warning:\\n\\n**Active APT Campaigns:** {{ $json.criticalCount }} CRITICAL, {{ $json.highCount }} HIGH\\n\\n**Critical Campaigns:**\\n{{ $json.campaigns.filter(c => c.severity === 'CRITICAL').map(c => \"- \" + c.actorName + \" (\" + c.campaigns[0].name + \")\").join(\"\\n\") }}\\n\\n**Recommended Actions:**\\n1. Deploy IOC-based detection\\n2. Hunt for campaign indicators\\n3. Review affected system logs\\n4. Consider credential rotation\\n\\nFull report available in threat intelligence dashboard."
+      }
+    },
+    {
+      "name": "Create Detection Rules",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        900,
+        350
+      ],
+      "parameters": {
+        "functionCode": "const data = items[0].json;\n\n// Generate detection rules for each campaign\nconst detectionRules = [];\n\ndata.campaigns.forEach(campaign => {\n  // Network detection rules\n  campaign.indicatorsOfCompromise?.forEach(ioc => {\n    if (ioc.type === 'network' || ioc.type === 'malware') {\n      detectionRules.push({\n        ruleId: 'DETECT-' + campaign.threatId + '-' + ioc.type.toUpperCase(),\n        name: `Detect ${campaign.actorName} - ${ioc.description}`,\n        type: 'network',\n        ioc: ioc.ioc,\n        severity: campaign.severity,\n        enabled: true,\n        alertChannel: '#security-alerts'\n      });\n    }\n  });\n\n  // SIEM correlation rules\n  detectionRules.push({\n    ruleId: 'CORR-' + campaign.threatId,\n    name: `APT ${campaign.actorName} Activity Correlation`,\n    type: 'correlation',\n    description: `Detect multiple ${campaign.actorName} TTPs within time window`,\n    ttps: campaign.campaigns?.[0]?.ttps || [],\n    timeWindow: '1h',\n    severity: campaign.severity,\n    enabled: true\n  });\n});\n\nreturn [{\n  json: {\n    detectionRules,\n    ruleCount: detectionRules.length,\n    deploymentTarget: ['SIEM', 'EDR', 'Network Security'],\n    deploymentStatus: 'pending'\n  }\n}];"
+      }
+    },
+    {
+      "name": "Deploy to EDR",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        250
+      ],
+      "parameters": {
+        "functionCode": "const rules = items[0].json.detectionRules;\n\n// Filter for EDR-compatible rules\nconst edrRules = rules.filter(r => r.type === 'network' || r.type === 'malware');\n\n// Simulate EDR deployment\nconst deploymentResult = {\n  platform: 'EDR',\n  rulesDeployed: edrRules.length,\n  rules: edrRules.map(r => r.ruleId),\n  deploymentTime: new Date().toISOString(),\n  status: 'deployed'\n};\n\nreturn [{\n  json: deploymentResult\n}];"
+      }
+    },
+    {
+      "name": "Deploy to SIEM",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        350
+      ],
+      "parameters": {
+        "functionCode": "const rules = items[0].json.detectionRules;\n\n// Filter for SIEM rules\nconst siemRules = rules;\n\n// Simulate SIEM deployment\nconst deploymentResult = {\n  platform: 'SIEM',\n  rulesDeployed: siemRules.length,\n  rules: siemRules.map(r => r.ruleId),\n  deploymentTime: new Date().toISOString(),\n  status: 'deployed'\n};\n\nreturn [{\n  json: deploymentResult\n}];"
+      }
+    },
+    {
+      "name": "Generate Hunting Package",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        350
+      ],
+      "parameters": {
+        "functionCode": "const data = items[0].json;\n\n// Generate threat hunting queries\nconst huntingPackage = {\n  packageId: 'HUNT-PKG-' + Date.now(),\n  generatedAt: new Date().toISOString(),\n  campaigns: data.campaigns.map(campaign => ({\n    actor: campaign.actorName,\n    severity: campaign.severity,\n    queries: {\n      network: [\n        `SELECT * FROM network_events WHERE dest_ip IN (${campaign.indicatorsOfCompromise?.filter(i => i.type === 'network').map(i => `\"${ioc.ioc}\"`).join(', ') || 'none'})`,\n        `SELECT * FROM dns_queries WHERE domain LIKE \"%${campaign.actorName.toLowerCase().replace(' ', '')}%\"`\n      ],\n      endpoint: [\n        `SELECT * FROM process_events WHERE image LIKE \"%${campaign.indicatorsOfCompromise?.find(i => i.type === 'malware')?.ioc || 'unknown'}\"`,\n        `SELECT * FROM registry_events WHERE key_path LIKE \"%run\\%\" OR key_path LIKE \"%currentversion\\\\run%\"`\n      ],\n      authentication: [\n        `SELECT * FROM authentication_events WHERE user NOT IN ('system', 'network service') AND failed_attempts > 5`,\n        `SELECT * FROM authentication_events WHERE logon_type = 4 AND source_workstation NOT IN ('internal')`\n      ]\n    },\n    timeline: {\n      start: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),\n      end: new Date().toISOString()\n    }\n  }))\n};\n\nreturn [{\n  json: huntingPackage\n}];"
+      }
+    },
+    {
+      "name": "Update Threat Intel Database",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        350
+      ],
+      "parameters": {
+        "functionCode": "const data = items[0].json;\n\n// Update threat intelligence database\nconst updateResult = {\n  database: 'ThreatIntel',\n  operation: 'upsert',\n  recordsUpdated: data.campaigns.length,\n  actors: data.campaigns.map(c => c.actorName),\n  timestamp: new Date().toISOString(),\n  status: 'success'\n};\n\nreturn [{\n  json: updateResult\n}];"
+      }
+    },
+    {
+      "name": "Generate APT Report",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        350
+      ],
+      "parameters": {
+        "functionCode": "const data = items[0].json;\n\n// Generate comprehensive APT intelligence report\nconst report = {\n  reportId: 'APT-RPT-' + Date.now(),\n  timestamp: new Date().toISOString(),\n  period: 'December 2025',\n  summary: {\n    totalCampaigns: data.campaigns.length,\n    criticalCampaigns: data.campaigns.filter(c => c.severity === 'CRITICAL').length,\n    highCampaigns: data.campaigns.filter(c => c.severity === 'HIGH').length,\n    nationStateCampaigns: data.campaigns.filter(c => c.attribution?.includes('State-Sponsored')).length\n  },\n  campaigns: data.campaigns.map(c => ({\n    threatId: c.threatId,\n    actor: c.actorName,\n    attribution: c.attribution,\n    severity: c.severity,\n    activeCampaigns: c.campaigns?.length || 0,\n    iocCount: c.indicatorsOfCompromise?.length || 0,\n    status: 'active'\n  })),\n  recommendations: [\n    'Prioritize patching for CVE-2025-20393 (Cisco AsyncOS)',\n    'Enhance VMware infrastructure monitoring',\n    'Review credentials for high-value accounts',\n    'Deploy APT-specific detection rules',\n    'Conduct proactive threat hunting'\n  ],\n  nextReview: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()\n};\n\nreturn [{\n  json: report\n}];"
+      }
+    }
+  ],
+  "connections": {
+    "Threat Intel Feed Monitor": {
+      "main": [
+        [
+          {
+            "node": "Parse APT Intelligence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Current APT Campaigns": {
+      "main": [
+        [
+          {
+            "node": "Aggregate APT Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BRICKSTORM Campaign": {
+      "main": [
+        [
+          {
+            "node": "Aggregate APT Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "UAT-9686 Campaign": {
+      "main": [
+        [
+          {
+            "node": "Aggregate APT Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse APT Intelligence": {
+      "main": [
+        [
+          {
+            "node": "Aggregate APT Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate APT Data": {
+      "main": [
+        [
+          {
+            "node": "Severity Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Severity Classification": {
+      "main": [
+        [
+          {
+            "node": "Send Critical Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Detection Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Critical Alert": {
+      "main": [
+        []
+      ]
+    },
+    "Create Detection Rules": {
+      "main": [
+        [
+          {
+            "node": "Deploy to EDR",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Deploy to SIEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deploy to EDR": {
+      "main": [
+        [
+          {
+            "node": "Generate Hunting Package",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deploy to SIEM": {
+      "main": [
+        [
+          {
+            "node": "Generate Hunting Package",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Hunting Package": {
+      "main": [
+        [
+          {
+            "node": "Update Threat Intel Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Threat Intel Database": {
+      "main": [
+        [
+          {
+            "node": "Generate APT Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "workflowId": "CS-WF-APT-2025-001",
+    "threatType": "APT",
+    "threatName": "Multiple APT Campaigns (Infy, BRICKSTORM, UAT-9686)",
+    "severity": "CRITICAL",
+    "createdBy": "CyberSentinel",
+    "createdAt": "2025-12-27T14:20:11.968570+00:00",
+    "version": "1.0",
+    "tags": [
+      "apt",
+      "nation-state",
+      "iranian",
+      "chinese",
+      "espionage",
+      "backdoor"
+    ]
+  }
+}

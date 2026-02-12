@@ -1,0 +1,355 @@
+{
+  "name": "CyberSentinel Threat Response Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": "ioc"
+      },
+      "name": "IOC Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "url": "https://services.nvd.nist.gov/rest/json/cves/2.0/?resultsPerPage=20&pubStartDate=2025-12-01T00:00:00Z",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "name": "Fetch CVEs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "url": "https://www.cisa.gov/sites/default/files/feed_files/current-activity.json",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "name": "Fetch CISA KEV",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        300,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "url": "https://ransomware.live/api/v1/attacks",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "name": "Fetch Ransomware",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        300,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process and merge all threat intelligence sources\nconst cveData = items[0].json;\nconst cisaData = items[1].json;\nconst ransomwareData = items[2].json;\n\nconst threats = [];\n\n// Process CVEs\nif (cveData.vulnerabilities) {\n  for (const vuln of cveData.vulnerabilities) {\n    const cve = vuln.cve;\n    const metrics = cve.metrics?.cvssMetricV31?.[0]?.cvssData || {};\n    const severity = metrics.baseScore >= 9.0 ? 'CRITICAL' : \n                     metrics.baseScore >= 7.0 ? 'HIGH' : \n                     metrics.baseScore >= 4.0 ? 'MEDIUM' : 'LOW';\n    \n    threats.push({\n      threatId: `CVE-${cve.id}`,\n      threatType: 'VULNERABILITY',\n      title: cve.descriptions?.[0]?.value || 'Unknown Vulnerability',\n      severity: severity,\n      cvssScore: metrics.baseScore || 0,\n      affectedSystems: cve.configurations?.[0]?.affected?.[0]?.cpeMatch?.[0]?.criteria || 'Unknown',\n      indicatorsOfCompromise: [`CVE-${cve.id}`],\n      source: 'NVD',\n      timestamp: new Date().toISOString()\n    });\n  }\n}\n\n// Process CISA KEV\nif (cisaData) {\n  for (const vuln of cisaData) {\n    threats.push({\n      threatId: vuln.cveID || vuln.vulnerabilityName,\n      threatType: 'VULNERABILITY',\n      title: vuln.title || vuln.shortDescription || 'CISA KEV Vulnerability',\n      severity: 'CRITICAL',\n      cvssScore: 9.0,\n      affectedSystems: vuln.product || 'Federal Systems',\n      indicatorsOfCompromise: [vuln.cveID],\n      vendor: vuln.vendorProject,\n      source: 'CISA KEV',\n      dueDate: vuln.dueDate,\n      timestamp: new Date().toISOString()\n    });\n  }\n}\n\n// Process Ransomware\nif (ransomwareData) {\n  for (const attack of ransomwareData.slice(0, 10)) {\n    threats.push({\n      threatId: attack.id || `RANSOMWARE-${Date.now()}`,\n      threatType: 'RANSOMWARE',\n      title: attack.group_name || 'Unknown Ransomware Group',\n      severity: 'HIGH',\n      affectedSystems: attack.target || attack.sector || 'Unknown',\n      country: attack.country,\n      description: attack.description || 'Ransomware attack detected',\n      indicatorsOfCompromise: [attack.leak_site || attack.domain],\n      source: 'Ransomware.live',\n      timestamp: attack.discovered || new Date().toISOString()\n    });\n  }\n}\n\n// Return deduplicated threats\nconst seen = new Set();\nreturn threats.filter(threat => {\n  const key = `${threat.threatType}-${threat.title}`;\n  if (seen.has(key)) return false;\n  seen.add(key);\n  return true;\n}).map(threat => ({ json: threat }));"
+      },
+      "name": "Process Threats",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "operation": "equalTo",
+              "value": "CRITICAL"
+            }
+          ]
+        },
+        "combineOperation": "any"
+      },
+      "name": "Filter Critical",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 1,
+      "position": [
+        700,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "webhookUri": "",
+        "options": {}
+      },
+      "name": "Critical Alert Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "security-alerts",
+        "text": "={{ $json.threatType }} Alert: {{ $json.title }}\nSeverity: {{ $json.severity }}\nCVSS: {{ $json.cvssScore }}\nSystems: {{ $json.affectedSystems }}\nSource: {{ $json.source }}",
+        "options": {}
+      },
+      "name": "Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        900,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "cybersentinel@company.com",
+        "toEmail": "soc@company.com",
+        "subject": "={{ '🚨 CRITICAL: ' + $json.threatType + ' - ' + $json.title }}",
+        "body": "={{ 'Threat Type: ' + $json.threatType + '\\nSeverity: ' + $json.severity + '\\nCVSS Score: ' + $json.cvssScore + '\\nAffected Systems: ' + $json.affectedSystems + '\\nIndicators: ' + JSON.stringify($json.indicatorsOfCompromise) + '\\nSource: ' + $json.source + '\\nTimestamp: ' + $json.timestamp }}",
+        "options": {}
+      },
+      "name": "Email Alert",
+      "type": "n8n-nodes-base.emailRead",
+      "typeVersion": 1,
+      "position": [
+        900,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "table": "threat_intelligence",
+        "fields": {
+          "threat_id": "={{ $json.threatId }}",
+          "threat_type": "={{ $json.threatType }}",
+          "title": "={{ $json.title }}",
+          "severity": "={{ $json.severity }}",
+          "cvss_score": "={{ $json.cvssScore }}",
+          "affected_systems": "={{ $json.affectedSystems }}",
+          "indicators": "={{ JSON.stringify($json.indicatorsOfCompromise) }}",
+          "source": "={{ $json.source }}",
+          "timestamp": "={{ $json.timestamp }}",
+          "created_at": "={{ new Date().toISOString() }}"
+        },
+        "options": {}
+      },
+      "name": "Store in DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "index": "threats-*",
+        "document": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "name": "Index in Elasticsearch",
+      "type": "n8n-nodes-base.elasticsearch",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate IOCs for threat blocking\nconst iocs = [];\nconst threat = items[0].json;\n\n// Extract IPs from indicators\nif (threat.indicatorsOfCompromise) {\n  for (const indicator of threat.indicatorsOfCompromise) {\n    // Simple regex for IP extraction\n    const ipMatch = indicator.match(/\\b\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\b/);\n    if (ipMatch) {\n      iocs.push({\n        type: 'ip',\n        value: ipMatch[0],\n        threatType: threat.threatType,\n        severity: threat.severity,\n        source: threat.source\n      });\n    }\n    \n    // Extract domains\n    const domainMatch = indicator.match(/[a-zA-Z0-9][-a-zA-Z0-9]*\\.[a-zA-Z]{2,}/);\n    if (domainMatch) {\n      iocs.push({\n        type: 'domain',\n        value: domainMatch[0],\n        threatType: threat.threatType,\n        severity: threat.severity,\n        source: threat.source\n      });\n    }\n  }\n}\n\n// Add CVE as IOC\nif (threat.threatId && threat.threatId.startsWith('CVE-')) {\n  iocs.push({\n    type: 'cve',\n    value: threat.threatId,\n    threatType: 'VULNERABILITY',\n    severity: threat.severity,\n    source: threat.source\n  });\n}\n\nreturn iocs.map(ioc => ({ json: ioc }));"
+      },
+      "name": "Extract IOCs",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate firewall block rules for IOCs\nconst iocs = items.map(item => item.json);\nconst rules = [];\n\nfor (const ioc of iocs) {\n  if (ioc.type === 'ip') {\n    rules.push({\n      action: 'block',\n      direction: 'both',\n      protocol: 'any',\n      source: ioc.value,\n      destination: 'any',\n      description: `Block malicious IP: ${ioc.value} (${ioc.threatType})`,\n      source_: 'cyberSentinel',\n      severity: ioc.severity\n    });\n  } else if (ioc.type === 'domain') {\n    rules.push({\n      action: 'block',\n      direction: 'both',\n      protocol: 'any',\n      source: `*.${ioc.value}`,\n      destination: 'any',\n      description: `Block malicious domain: ${ioc.value} (${ioc.threatType})`,\n      source_: 'cyberSentinel',\n      severity: ioc.severity\n    });\n  } else if (ioc.type === 'cve') {\n    rules.push({\n      action: 'alert',\n      direction: 'both',\n      protocol: 'any',\n      source: 'any',\n      destination: 'any',\n      description: `Vulnerability alert: ${ioc.value} - Apply patches immediately`,\n      source_: 'cyberSentinel',\n      severity: ioc.severity\n    });\n  }\n}\n\nreturn rules.map(rule => ({ json: rule }));"
+      },
+      "name": "Generate Firewall Rules",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableName": "firewall_rules",
+        "fields": {
+          "action": "={{ $json.action }}",
+          "direction": "={{ $json.direction }}",
+          "protocol": "={{ $json.protocol }}",
+          "source": "={{ $json.source }}",
+          "destination": "={{ $json.destination }}",
+          "description": "={{ $json.description }}",
+          "source_ip": "={{ $json.source_ }}",
+          "severity": "={{ $json.severity }}",
+          "created_at": "={{ new Date().toISOString() }}"
+        },
+        "options": {}
+      },
+      "name": "Store Firewall Rules",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "reportName": "Daily Threat Intelligence Report",
+        "dateRange": "last_24_hours",
+        "format": "pdf",
+        "sections": {
+          "summary": true,
+          "criticalThreats": true,
+          "topIOCs": true,
+          "recommendations": true
+        }
+      },
+      "name": "Generate Report",
+      "type": "n8n-nodes-base.pdf",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "security-reports",
+        "text": "📊 Daily Threat Report Generated\n\nCritical Threats: {{ $node[\"Process Threats\"].json.length || 0 }}\nIOCs Extracted: {{ $node[\"Extract IOCs\"].json.length || 0 }}\n\nView full report in threat portal.",
+        "options": {}
+      },
+      "name": "Report Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        500
+      ]
+    }
+  ],
+  "connections": {
+    "IOC Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch CVEs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch CISA KEV",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Fetch Ransomware",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Threats": {
+      "main": [
+        [
+          {
+            "node": "Filter Critical",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Critical": {
+      "main": [
+        [
+          {
+            "node": "Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Critical Alert Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store in DB": {
+      "main": [
+        [
+          {
+            "node": "Extract IOCs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract IOCs": {
+      "main": [
+        [
+          {
+            "node": "Generate Firewall Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Firewall Rules": {
+      "main": [
+        [
+          {
+            "node": "Store Firewall Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

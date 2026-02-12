@@ -1,0 +1,402 @@
+{
+  "name": "Phishing Detection and Response",
+  "nodes": [
+    {
+      "name": "Email Security Gateway",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "parameters": {
+        "url": "https://email-security.example.com/api/alerts/phishing",
+        "pollInterval": 60
+      }
+    },
+    {
+      "name": "External Threat Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        100,
+        350
+      ],
+      "parameters": {
+        "url": "https://threat-intel.example.com/feeds/phishing",
+        "pollInterval": 300
+      }
+    },
+    {
+      "name": "User Report Input",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        500
+      ],
+      "parameters": {
+        "httpMethod": "post",
+        "path": "phishing-report",
+        "responseMode": "onReceived"
+      }
+    },
+    {
+      "name": "Parse Phishing Alert",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        300,
+        350
+      ],
+      "parameters": {
+        "functionCode": "const alert = items[0].json;\n\n// Classify phishing campaign type\nlet campaignType = 'generic_phishing';\nlet severity = 'MEDIUM';\nlet indicatorsOfCompromise = [];\n\n// Check for known campaign types\nconst campaignPatterns = {\n  'holiday_phishing': /holiday|christmas|black friday|cyber monday|thanksgiving|new year/i,\n  'tax_phishing': /tax|irs|income tax|tax declaration|tax refund/i,\n  'delivery_phishing': /delivery|package|shipment|tracking|fedex|ups|dhl|royal mail|dpd/i,\n  'invoice_fraud': /invoice|payment|overdue|statement|receipt|confirm payment/i,\n  'gift_card_scam': /gift card|employee rewards|bonus|prize|winner/i,\n  'oauth_consent': /consent|permission|access|authorize|app review/i,\n  'crypto_phishing': /crypto|wallet|bitcoin|ethereum|defi|metamask/i,\n  'business_email_compromise': /wire transfer|urgent|payment|sensitive|confidential|ceo fraud/i\n};\n\nfor (const [type, pattern] of Object.entries(campaignPatterns)) {\n  if (pattern.test(JSON.stringify(alert))) {\n    campaignType = type;\n    break;\n  }\n}\n\n// Extract IOCs from alert\nconst extractedIOCs = {\n  sender: alert.sender || alert.from || null,\n  senderEmail: alert.sender_email || alert.from_address || null,\n  subject: alert.subject || null,\n  urls: alert.urls || alert.links || [],\n  domains: alert.domains || [],\n  attachments: alert.attachments || [],\n  ipAddresses: alert.ip_addresses || [],\n  redirectChains: alert.redirect_chain || []\n};\n\n// Check for AI-generated indicators\nconst aiGeneratedIndicators = {\n  unusualLanguage: /formal russian business language|unusual formality|perfect grammar/i.test(JSON.stringify(alert)),\n  personalization: alert.personalized === true,\n  multiChannel: alert.channels?.length > 1\n};\n\n// Determine severity\nif (campaignType === 'business_email_compromise' || campaignType === 'oauth_consent') {\n  severity = 'HIGH';\n} else if (campaignType === 'crypto_phishing' || campaignType === 'tax_phishing') {\n  severity = 'HIGH';\n} else if (aiGeneratedIndicators.unusualLanguage) {\n  severity = 'MEDIUM';\n}\n\nreturn [{\n  json: {\n    alertId: 'PHISH-' + Date.now(),\n    timestamp: new Date().toISOString(),\n    campaignType,\n    severity,\n    source: alert.source || 'email_gateway',\n    indicatorsOfCompromise: extractedIOCs,\n    aiGenerated: aiGeneratedIndicators.unusualLanguage,\n    targets: alert.targets || alert.recipients || [],\n    subject: alert.subject,\n    body: alert.body_summary || null,\n    urls: extractedIOCs.urls,\n    domains: extractedIOCs.domains\n  }\n}];"
+      }
+    },
+    {
+      "name": "December 2025 Campaigns",
+      "type": "n8n-nodes-base.functionItem",
+      "typeVersion": 1,
+      "position": [
+        300,
+        550
+      ],
+      "parameters": {
+        "functionCode": "return [{\n  json: {\n    alertId: 'PHISH-2025-DEC-001',\n    timestamp: new Date().toISOString(),\n    campaignType: 'holiday_phishing',\n    severity: 'HIGH',\n    source: 'threat_intel',\n    indicatorsOfCompromise: {\n      domains: [\n        'fake-delivery-tracking.com',\n        'royalmail-delivery-notice.net',\n        'fedex-package-verify.org',\n        'ups-tracking-update.info'\n      ],\n      urls: [\n        'https://fake-delivery-tracking.com/track?id=malicious',\n        'https://royalmail-delivery-notice.net/verify?session=steal'\n      ],\n      senderEmail: ['support@fake-delivery-tracking.com', 'tracking@royalmail-delivery-notice.net']\n    },\n    aiGenerated: true,\n    targets: ['retail', 'logistics', 'general users'],\n    campaignStats: {\n      emailsDetected: 33502,\n      period: '2 weeks leading to Christmas',\n      fakeAdsCreatedDaily: 10000,\n      increasePercentage: 620\n    }\n  }\n}];"
+      }
+    },
+    {
+      "name": "Declaration Trap Campaign",
+      "type": "n8n-nodes-base.functionItem",
+      "typeVersion": 1,
+      "position": [
+        300,
+        650
+      ],
+      "parameters": {
+        "functionCode": "return [{\n  json: {\n    alertId: 'PHISH-2025-DEC-002',\n    timestamp: new Date().toISOString(),\n    campaignType: 'crypto_phishing',\n    severity: 'HIGH',\n    source: 'threat_intel',\n    indicatorsOfCompromise: {\n      domains: ['tax-declaration-nl.com', 'belastingdienst-fake.nl'],\n      urls: [\n        'https://tax-declaration-nl.com/declare?wallet=drain',\n        'https://belastingdienst-fake.nl/tax-refund?address=0xmalicious'\n      ],\n      senderEmail: ['noreply@belastingdienst.nl.fake', 'tax@tax-authority.eu.fake']\n    },\n    aiGenerated: false,\n    targets: ['Dutch crypto holders', 'taxpayers'],\n    campaignStats: {\n      type: 'Crypto drainer',\n      impersonation: 'European tax authorities',\n      geography: 'Netherlands',\n      target: 'Cryptocurrency holders'\n    }\n  }\n}];"
+      }
+    },
+    {
+      "name": "ConsentFix Campaign",
+      "type": "n8n-nodes-base.functionItem",
+      "typeVersion": 1,
+      "position": [
+        300,
+        750
+      ],
+      "parameters": {
+        "functionCode": "return [{\n  json: {\n    alertId: 'PHISH-2025-DEC-003',\n    timestamp: new Date().toISOString(),\n    campaignType: 'oauth_consent',\n    severity: 'HIGH',\n    source: 'threat_intel',\n    indicatorsOfCompromise: {\n      domains: ['consent-fix-verify.com', 'oauth-app-authorization.net'],\n      urls: [\n        'https://consent-fix-verify.com/authorize?app=malicious',\n        'https://oauth-app-authorization.net/consent?scope=full'\n      ],\n      attachments: ['consent_form.pdf.exe', 'authorization_doc.scr']\n    },\n    aiGenerated: false,\n    attackTechnique: 'ConsentFix - OAuth consent phishing with ClickFix-style user prompt',\n    targets: ['Enterprise users', 'Microsoft 365 users', 'Google Workspace users']\n  }\n}];"
+      }
+    },
+    {
+      "name": "Aggregate Phishing Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        550
+      ],
+      "parameters": {
+        "functionCode": "// Aggregate all phishing data\nconst allCampaigns = [];\n\nitems.forEach(item => {\n  if (item.json && item.json.alertId) {\n    allCampaigns.push(item.json);\n  }\n});\n\n// Group by campaign type\nconst campaignsByType = {};\nallCampaigns.forEach(campaign => {\n  if (!campaignsByType[campaign.campaignType]) {\n    campaignsByType[campaign.campaignType] = [];\n  }\n  campaignsByType[campaign.campaignType].push(campaign);\n});\n\n// Calculate statistics\nconst stats = {\n  totalCampaigns: allCampaigns.length,\n  highSeverity: allCampaigns.filter(c => c.severity === 'HIGH').length,\n  mediumSeverity: allCampaigns.filter(c => c.severity === 'MEDIUM').length,\n  aiGenerated: allCampaigns.filter(c => c.aiGenerated).length,\n  uniqueDomains: [...new Set(allCampaigns.flatMap(c => c.indicatorsOfCompromise?.domains || []))].length,\n  uniqueUrls: [...new Set(allCampaigns.flatMap(c => c.indicatorsOfCompromise?.urls || []))].length\n};\n\nreturn [{\n  json: {\n    timestamp: new Date().toISOString(),\n    campaigns: allCampaigns,\n    campaignsByType,\n    statistics: stats,\n    summary: `${stats.totalCampaigns} phishing campaigns detected (${stats.highSeverity} HIGH severity, ${stats.aiGenerated} AI-generated)`\n  }\n}];"
+      }
+    },
+    {
+      "name": "Threat Intelligence Update",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        700,
+        550
+      ],
+      "parameters": {
+        "functionCode": "const data = items[0].json;\n\n// Generate threat intelligence update\nconst threatIntelUpdate = {\n  updateId: 'TI-PHISH-' + Date.now(),\n  timestamp: new Date().toISOString(),\n  source: 'CyberSentinel',\n  feedType: 'phishing_campaigns',\n  campaigns: data.campaigns.map(c => ({\n    campaignId: c.alertId,\n    type: c.campaignType,\n    severity: c.severity,\n    indicators: {\n      domains: c.indicatorsOfCompromise?.domains || [],\n      urls: c.indicatorsOfCompromise?.urls || [],\n      senderEmails: c.indicatorsOfCompromise?.senderEmail || [],\n      attachments: c.indicatorsOfCompromise?.attachments || []\n    },\n    metadata: {\n      aiGenerated: c.aiGenerated || false,\n      targets: c.targets || [],\n      campaignStats: c.campaignStats || {}\n    }\n  })),\n  statistics: data.statistics\n};\n\nreturn [{\n  json: threatIntelUpdate\n}];"
+      }
+    },
+    {
+      "name": "Block Malicious Domains",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        900,
+        400
+      ],
+      "parameters": {
+        "functionCode": "const data = items[0].json;\n\n// Generate domain blocking actions\nconst domainsToBlock = [...new Set(data.campaigns.flatMap(c => c.indicatorsOfCompromise?.domains || []))];\nconst urlsToBlock = [...new Set(data.campaigns.flatMap(c => c.indicatorsOfCompromise?.urls || []))];\n\nconst blockActions = {\n  emailGateway: {\n    domains: domainsToBlock,\n    urls: urlsToBlock,\n    action: 'quarantine',\n    priority: data.campaigns.some(c => c.severity === 'HIGH') ? 'critical' : 'high'\n  },\n  webProxy: {\n    domains: domainsToBlock,\n    urls: urlsToBlock,\n    action: 'block',\n    priority: data.campaigns.some(c => c.severity === 'HIGH') ? 'critical' : 'high'\n  },\n  dnsFilter: {\n    domains: domainsToBlock,\n    action: 'block',\n    nxdomain: true\n  },\n  sandbox: {\n    urls: urlsToBlock,\n    action: 'analyze',\n    priority: 'high'\n  }\n};\n\nreturn [{\n  json: {\n    ...data,\n    blockingActions: blockActions,\n    domainsBlocked: domainsToBlock.length,\n    urlsBlocked: urlsToBlock.length,\n    blockStatus: 'initiated'\n  }\n}];"
+      }
+    },
+    {
+      "name": "Send Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        900,
+        550
+      ],
+      "parameters": {
+        "channel": "#security-alerts",
+        "text": "=:warning: **PHISHING CAMPAIGN ALERT** :warning:\\n\\n**Campaigns Detected:** {{ $json.statistics.totalCampaigns }}\\n**HIGH Severity:** {{ $json.statistics.highSeverity }}\\n**AI-Generated:** {{ $json.statistics.aiGenerated }}\\n\\n**Campaign Types:**\\n{{ $json.campaigns.map(c => \"- \" + c.campaignType + \" (\" + c.severity + \")\").join(\"\\n\") }}\\n\\n**Domains Blocked:** {{ $json.domainsBlocked }}\\n**URLs Blocked:** {{ $json.urlsBlocked }}\\n\\n**Actions Taken:**\\n- Email quarantine updated\\n- Web proxy rules deployed\\n- DNS blocking enabled\\n- IOC database updated"
+      }
+    },
+    {
+      "name": "User Notification",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1,
+      "position": [
+        900,
+        700
+      ],
+      "parameters": {
+        "to": "all-employees@company.com",
+        "subject": "=[SECURITY ALERT] Active Phishing Campaign - December 2025",
+        "body": "A significant phishing campaign is currently active. Please be aware of the following:\\n\\n**Campaign Types Detected:**\\n- Holiday-themed delivery phishing (SMS/WhatsApp)\\n- Tax authority impersonation (crypto drainer)\\n- OAuth consent phishing (ConsentFix technique)\\n\\n**What to Look For:**\\n- Unexpected delivery notifications from FedEx, UPS, Royal Mail, DPD\\n- Urgent requests for tax-related actions\\n- Suspicious permission requests for third-party apps\\n- Unusual urgency or pressure in messages\\n\\n**What to Do:**\\n1. DO NOT click links in unexpected messages\\n2. Verify sender email addresses carefully\\n3. Report suspicious emails using the Phish Reporter tool\\n4. Enable MFA on all accounts\\n\\n**If You Clicked a Suspicious Link:**\\n1. Disconnect from the network immediately\\n2. Change your passwords\\n3. Run a malware scan\\n4. Report to IT Security"
+      }
+    },
+    {
+      "name": "Update Detection Rules",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        550
+      ],
+      "parameters": {
+        "functionCode": "const data = items[0].json;\n\n// Generate detection rules for email gateway and SIEM\nconst detectionRules = {\n  emailGateway: [\n    {\n      ruleId: 'EMAIL-PHISH-001',\n      name: 'Block holiday delivery phishing',\n      conditions: [\n        'subject CONTAINS \"delivery\" OR \"package\" OR \"tracking\"',\n        'sender_domain NOT IN (fedex.com, ups.com, dhl.com, royalmail.com)',\n        'body CONTAINS \"click here\" OR \"verify now\"'\n      ],\n      action: 'quarantine',\n      enabled: true\n    },\n    {\n      ruleId: 'EMAIL-PHISH-002',\n      name: 'Block tax authority impersonation',\n      conditions: [\n        'sender_email CONTAINS \"irs\" OR \"tax\" OR \"belastingdienst\"',\n        'sender_domain NOT IN (irs.gov, government.nl)',\n        'body CONTAINS \"crypto\" OR \"wallet\" OR \"refund\"'\n      ],\n      action: 'quarantine',\n      enabled: true\n    },\n    {\n      ruleId: 'EMAIL-PHISH-003',\n      name: 'Block OAuth consent phishing',\n      conditions: [\n        'subject CONTAINS \"consent\" OR \"permission\" OR \"authorization\"',\n        'body CONTAINS \"grant access\" OR \"review app\"',\n        'attachment_type IN (.pdf.exe, .scr, .lnk)'\n      ],\n      action: 'quarantine',\n      enabled: true\n    }\n  ],\n  siem: [\n    {\n      ruleId: 'SIEM-PHISH-001',\n      name: 'Detect multiple failed login attempts post-phishing',\n      conditions: ['authentication_events.failed_attempts > 5', 'time_window = 5m'],\n      action: 'alert',\n      severity: 'HIGH',\n      enabled: true\n    },\n    {\n      ruleId: 'SIEM-PHISH-002',\n      name: 'Detect unusual OAuth consent grants',\n      conditions: ['oauth_consent_grants.new_app = true', 'time_window = 1h', 'count > 3'],\n      action: 'alert',\n      severity: 'HIGH',\n      enabled: true\n    }\n  ]\n};\n\nreturn [{\n  json: {\n    ...data,\n    detectionRules,\n    rulesUpdated: true,\n    ruleCount: detectionRules.emailGateway.length + detectionRules.siem.length\n  }\n}];"
+      }
+    },
+    {
+      "name": "SIEM Correlation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        550
+      ],
+      "parameters": {
+        "functionCode": "const data = items[0].json;\n\n// Generate SIEM correlation queries\nconst correlationQueries = {\n  email: [\n    'SELECT COUNT(*) FROM email_events WHERE sender_domain IN (' + \n      data.campaigns.flatMap(c => c.indicatorsOfCompromise?.domains || []).map(d => `\"${d}\"`).join(', ') + \n      ') AND timestamp > now() - 24h',\n    'SELECT * FROM email_events WHERE subject LIKE \"%delivery%\" AND sender NOT IN (trusted_senders)'\n  ],\n  network: [\n    'SELECT COUNT(*) FROM network_events WHERE dest_domain IN (' + \n      data.campaigns.flatMap(c => c.indicatorsOfCompromise?.domains || []).map(d => `\"${d}\"`).join(', ') + \n      ') AND timestamp > now() - 24h'\n  ],\n  authentication: [\n    'SELECT * FROM authentication_events WHERE source_ip IN (' + \n      data.campaigns.flatMap(c => c.indicatorsOfCompromise?.ipAddresses || []).map(ip => `\"${ip}\"`).join(', ') + \n      ') AND timestamp > now() - 24h'\n  ]\n};\n\nreturn [{\n  json: {\n    ...data,\n    correlationQueries,\n    queryCount: correlationQueries.email.length + correlationQueries.network.length + correlationQueries.authentication.length,\n    correlationStatus: 'executed'\n  }\n}];"
+      }
+    },
+    {
+      "name": "Update Threat Intel DB",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        550
+      ],
+      "parameters": {
+        "functionCode": "const data = items[0].json;\n\n// Update threat intelligence database\nconst updateResult = {\n  database: 'ThreatIntel',\n  operation: 'upsert_phishing_campaigns',\n  recordsUpdated: data.campaigns.length,\n  iocs: {\n    domains: data.campaigns.flatMap(c => c.indicatorsOfCompromise?.domains || []),\n    urls: data.campaigns.flatMap(c => c.indicatorsOfCompromise?.urls || []),\n    senderEmails: data.campaigns.flatMap(c => c.indicatorsOfCompromise?.senderEmail || [])\n  },\n  timestamp: new Date().toISOString(),\n  status: 'success',\n  version: '2025.12.1'\n};\n\nreturn [{\n  json: updateResult\n}];"
+      }
+    },
+    {
+      "name": "Generate Phishing Report",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        550
+      ],
+      "parameters": {
+        "functionCode": "const data = items[0].json;\n\n// Generate comprehensive phishing report\nconst report = {\n  reportId: 'PHISH-RPT-' + Date.now(),\n  timestamp: new Date().toISOString(),\n  period: 'December 2025',\n  summary: {\n    totalCampaigns: data.statistics.totalCampaigns,\n    highSeverityCampaigns: data.statistics.highSeverity,\n    mediumSeverityCampaigns: data.statistics.mediumSeverity,\n    aiGeneratedCampaigns: data.statistics.aiGenerated,\n    uniqueDomainsObserved: data.statistics.uniqueDomains,\n    uniqueUrlsObserved: data.statistics.uniqueUrls\n  },\n  campaigns: data.campaigns.map(c => ({\n    campaignId: c.alertId,\n    type: c.campaignType,\n    severity: c.severity,\n    aiGenerated: c.aiGenerated || false,\n    indicatorsCount: {\n      domains: c.indicatorsOfCompromise?.domains?.length || 0,\n      urls: c.indicatorsOfCompromise?.urls?.length || 0,\n      senderEmails: c.indicatorsOfCompromise?.senderEmail?.length || 0\n    },\n    targets: c.targets || [],\n    additionalData: c.campaignStats || c.attackTechnique || {}\n  })),\n  defenseActions: {\n    domainsBlocked: data.domainsBlocked || 0,\n    urlsBlocked: data.urlsBlocked || 0,\n    detectionRulesUpdated: data.rulesUpdated || false,\n    userNotificationsSent: true\n  },\n  trends: {\n    holidayPhishingIncrease: '620% during Black Friday to Christmas',\n    aiEnhancedPhishing: 'Significant increase in AI-generated content',\n    multiChannelAttacks: 'SMS, WhatsApp, and email combinations'\n  },\n  recommendations: [\n    'Deploy enhanced email filtering for holiday-themed phishing',\n    'Implement user awareness training for delivery scams',\n    'Monitor for OAuth consent anomalies',\n    'Enable MFA on all accounts',\n    'Block identified malicious domains and URLs',\n    'Report suspicious emails via Phish Reporter tool'\n  ],\n  nextReview: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()\n};\n\nreturn [{\n  json: report\n}];"
+      }
+    }
+  ],
+  "connections": {
+    "Email Security Gateway": {
+      "main": [
+        [
+          {
+            "node": "Parse Phishing Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "External Threat Feed": {
+      "main": [
+        [
+          {
+            "node": "Parse Phishing Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "User Report Input": {
+      "main": [
+        [
+          {
+            "node": "Parse Phishing Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "December 2025 Campaigns": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Phishing Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Declaration Trap Campaign": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Phishing Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ConsentFix Campaign": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Phishing Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Phishing Alert": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Phishing Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Phishing Data": {
+      "main": [
+        [
+          {
+            "node": "Threat Intelligence Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Threat Intelligence Update": {
+      "main": [
+        [
+          {
+            "node": "Block Malicious Domains",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "User Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block Malicious Domains": {
+      "main": [
+        [
+          {
+            "node": "Update Detection Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Alert": {
+      "main": [
+        [
+          {
+            "node": "Update Detection Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "User Notification": {
+      "main": [
+        [
+          {
+            "node": "Update Detection Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Detection Rules": {
+      "main": [
+        [
+          {
+            "node": "SIEM Correlation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SIEM Correlation": {
+      "main": [
+        [
+          {
+            "node": "Update Threat Intel DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Threat Intel DB": {
+      "main": [
+        [
+          {
+            "node": "Generate Phishing Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "workflowId": "CS-WF-PHISH-2025-001",
+    "threatType": "PHISHING",
+    "threatName": "Phishing Detection and Response (Holiday, Tax, OAuth, Crypto)",
+    "severity": "HIGH",
+    "createdBy": "CyberSentinel",
+    "createdAt": "2025-12-27T14:20:11.968570+00:00",
+    "version": "1.0",
+    "tags": [
+      "phishing",
+      "email-security",
+      "social-engineering",
+      "holiday-scams",
+      "oauth",
+      "crypto-scam"
+    ]
+  }
+}

@@ -1,0 +1,472 @@
+{
+  "name": "CyberSentinel - Phishing Detection and Response Workflow",
+  "onError": "stopWorkflow",
+  "settings": {
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": 3600,
+    "errorWorkflow": "error-handler-workflow"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "pollTime": "300000",
+        "pollUnit": "milliseconds",
+        "options": {}
+      },
+      "id": "phishing-monitor-trigger",
+      "name": "Phishing Monitor Trigger",
+      "type": "n8n-nodes-base.interval",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.0 }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "check-phishing-reports",
+      "name": "Check Phishing Reports",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "phishing_reports",
+        "columns": {
+          "reporter": "={{ $json.user }}",
+          "email_subject": "={{ $json.subject }}",
+          "sender_email": "={{ $json.sender }}",
+          "suspicious_urls": "={{ $json.urls }}",
+          "attachment_hashes": "={{ $json.attachment_hashes }}",
+          "report_time": "={{ new Date().toISOString() }}",
+          "status": "PENDING"
+        },
+        "additionalFields": {}
+      },
+      "id": "store-phishing-report",
+      "name": "Store Phishing Report",
+      "type": "n8n-nodes-base.n8nSql",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "url": "https://safebrowsing.googleapis.com/v4/threatMatches:find?key=$GOOGLE_SAFE_BROWSING_API_KEY",
+        "options": {}
+      },
+      "id": "check-google-safe-browsing",
+      "name": "Check URLs on Google Safe Browsing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ],
+      "disabled": false,
+      "continueOnFail": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "Google Safe Browsing",
+          "id": "google-sb-key",
+          "type": "httpHeaderAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "ioc",
+        "operation": "check",
+        "iocValue": "={{ $json.suspicious_url }}",
+        "iocType": "url"
+      },
+      "id": "check-url-virustotal",
+      "name": "Check URL on VirusTotal",
+      "type": "n8n-nodes-base.virustotal",
+      "typeVersion": 1,
+      "position": [
+        500,
+        400
+      ],
+      "disabled": false,
+      "credentials": {
+        "virustotalApi": {
+          "name": "VirusTotal API",
+          "id": "virustotal-key",
+          "type": "virustotalApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.malicious }}",
+              "operation": "equal",
+              "value2": "true"
+            }
+          ]
+        }
+      },
+      "id": "malicious-url-detected",
+      "name": "Malicious URL Detected",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "message": "=🎣 PHISHING ALERT CONFIRMED\n\nSubject: {{ $json.email_subject }}\nSender: {{ $json.sender_email }}\nReporter: {{ $json.reporter }}\n\nMalicious URLs Detected:\n{{ $json.suspicious_urls }}\n\nAction Taken:\n- URLs blocked\n- Sender domain flagged\n- Users notified\n\n⚠️ Users who clicked the link should change passwords immediately.",
+        "additionalFields": {}
+      },
+      "id": "confirmed-phishing-slack",
+      "name": "Send Confirmed Phishing Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        900,
+        250
+      ],
+      "disabled": false,
+      "credentials": {
+        "slackApi": {
+          "name": "Slack Alert Channel",
+          "id": "slack-alerts",
+          "type": "slackApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "blocked_domains",
+        "columns": {
+          "domain": "={{ $json.domain }}",
+          "block_reason": "Phishing Campaign",
+          "threat_type": "={{ $json.threat_type }}",
+          "blocked_at": "={{ new Date().toISOString() }}",
+          "expires_at": "={{ new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() }}",
+          "status": "ACTIVE"
+        },
+        "additionalFields": {}
+      },
+      "id": "block-domain-email",
+      "name": "Block Sender Domain",
+      "type": "n8n-nodes-base.n8nSql",
+      "typeVersion": 1,
+      "position": [
+        900,
+        350
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "blocked_urls",
+        "columns": {
+          "url": "={{ $json.url }}",
+          "block_reason": "Confirmed Phishing",
+          "threat_type": "={{ $json.threat_type }}",
+          "blocked_at": "={{ new Date().toISOString() }}",
+          "expires_at": "={{ new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() }}",
+          "status": "ACTIVE"
+        },
+        "additionalFields": {}
+      },
+      "id": "block-url",
+      "name": "Block Malicious URL",
+      "type": "n8n-nodes-base.n8nSql",
+      "typeVersion": 1,
+      "position": [
+        900,
+        450
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "operation": "execute",
+        "command": "cat > /tmp/phishing-analysis-{{ $json.report_id }}.json << 'EOF'\n{\n  \"report_id\": \"{{ $json.report_id }}\",\n  \"analysis_time\": \"{{ new Date().toISOString() }}\",\n  \"finding\": \"{{ $json.finding }}\",\n  \"severity\": \"{{ $json.severity }}\",\n  \"indicators\": {{ $json.indicators }}\n}\nEOF\necho 'Phishing analysis saved'",
+        "shell": "bash"
+      },
+      "id": "save-analysis",
+      "name": "Save Phishing Analysis",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        300
+      ],
+      "disabled": false
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "message": "Subject: ⚠️ Phishing Attempt Detected - Action Required\n\nA phishing email has been reported and confirmed malicious.\n\nDETAILS:\nSubject: {{ $json.email_subject }}\nFrom: {{ $json.sender_email }}\n\nIf you clicked any links or downloaded attachments:\n1. ⚠️ Change your password IMMEDIATELY\n2. 🔍 Run a malware scan\n3. 📞 Contact the Security Team\n4. 📝 Report any suspicious activity\n\nThe malicious URL has been blocked. You should not be able to access it.",
+        "additionalFields": {}
+      },
+      "id": "notify-affected-users",
+      "name": "Notify Affected Users",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1.3,
+      "position": [
+        1100,
+        450
+      ],
+      "disabled": false,
+      "credentials": {
+        "smtp": {
+          "name": "SMTP Server",
+          "id": "smtp-server",
+          "type": "smtp"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "siem",
+        "operation": "create",
+        "event": {
+          "sourcetype": "phishing_alert",
+          "event": "Confirmed phishing attempt",
+          "email_subject": "={{ $json.email_subject }}",
+          "sender": "={{ $json.sender_email }}",
+          "severity": "high",
+          "action_taken": "blocked"
+        }
+      },
+      "id": "log-to-splunk",
+      "name": "Log to SIEM",
+      "type": "n8n-nodes-base.splunk",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        550
+      ],
+      "disabled": false,
+      "credentials": {
+        "splunkApi": {
+          "name": "Splunk Instance",
+          "id": "splunk-instance",
+          "type": "splunkApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "message": "Subject: 🔍 Phishing Simulation Report\n\nWeekly Phishing Simulation Results:\n\nEmails Sent: {{ $json.emails_sent }}\nUsers Clicked: {{ $json.clicked }}\nUsers Reported: {{ $json.reported }}\nCredentials Entered: {{ $json.credentials }}\n\nTop Click Departments:\n{{ $json.top_departments }}\n\nRecommended Training:\n{{ $json.training_recommendations }}",
+        "additionalFields": {}
+      },
+      "id": "weekly-phishing-report",
+      "name": "Send Weekly Phishing Report",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1.3,
+      "position": [
+        900,
+        550
+      ],
+      "disabled": false,
+      "credentials": {
+        "smtp": {
+          "name": "SMTP Server",
+          "id": "smtp-server",
+          "type": "smtp"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "tableId": "phishing_stats",
+        "columns": {
+          "report_date": "={{ new Date().toISOString().split('T')[0] }}",
+          "total_reports": "={{ $json.total_reports }}",
+          "confirmed_malicious": "={{ $json.confirmed }}",
+          "false_positives": "={{ $json.false_positives }}",
+          "urls_blocked": "={{ $json.urls_blocked }}",
+          "domains_blocked": "={{ $json.domains_blocked }}"
+        },
+        "additionalFields": {}
+      },
+      "id": "update-phishing-stats",
+      "name": "Update Phishing Statistics",
+      "type": "n8n-nodes-base.n8nSql",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        300
+      ],
+      "disabled": false
+    }
+  ],
+  "connections": {
+    "Phishing Monitor Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check Phishing Reports",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Phishing Reports": {
+      "main": [
+        [
+          {
+            "node": "Store Phishing Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Phishing Report": {
+      "main": [
+        [
+          {
+            "node": "Check URLs on Google Safe Browsing",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check URL on VirusTotal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check URLs on Google Safe Browsing": {
+      "main": [
+        [
+          {
+            "node": "Malicious URL Detected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check URL on VirusTotal": {
+      "main": [
+        [
+          {
+            "node": "Malicious URL Detected",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Malicious URL Detected": {
+      "main": [
+        [
+          {
+            "node": "Send Confirmed Phishing Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Block Sender Domain",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Block Malicious URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Confirmed Phishing Alert": {
+      "main": [
+        [
+          {
+            "node": "Save Phishing Analysis",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log to SIEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block Sender Domain": {
+      "main": [
+        [
+          {
+            "node": "Notify Affected Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block Malicious URL": {
+      "main": [
+        [
+          {
+            "node": "Update Phishing Statistics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Affected Users": {
+      "main": [
+        [
+          {
+            "node": "Update Phishing Statistics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "createdAt": "2025-12-27T14:20:11.968570+00:00",
+  "updatedAt": "2025-12-27T14:20:11.968570+00:00",
+  "meta": {
+    "agent_id": "a401e896-d617-4e97-8bbf-29f47e133c21",
+    "trigger_id": "a1a6b29f-1834-4666-82d7-1163ce25f64c",
+    "workflow_type": "automated_threat_response",
+    "threat_category": "phishing",
+    "priority": "HIGH"
+  }
+}

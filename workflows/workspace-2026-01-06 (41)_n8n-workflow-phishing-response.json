@@ -1,0 +1,510 @@
+{
+  "name": "Phishing Detection and Response Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "channel": "security-phishing",
+        "text": "🔍 **New Email Submitted for Phishing Analysis** 🔍\\n\\nStarting automated phishing detection and analysis pipeline...",
+        "blocks": []
+      },
+      "id": "slack-new-submission",
+      "name": "Slack - New Submission",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const emailData = $input.first().json;\n\n// Normalize email data for analysis\nconst normalizedEmail = {\n  subject: emailData.subject || emailData.subject_line || 'No Subject',\n  sender: emailData.from || emailData.sender || 'Unknown',\n  senderEmail: emailData.from_address || emailData.reply_to || extractEmail(emailData.from),\n  recipients: emailData.to || emailData.recipients || [],\n  body: emailData.body || emailData.text || emailData.html || '',\n  attachments: emailData.attachments || emailData.files || [],\n  links: emailData.links || extractLinks(emailData.body || ''),\n  receivedDate: emailData.date || emailData.received || new Date().toISOString(),\n  rawHeaders: emailData.headers || emailData.raw_headers || ''\n};\n\nfunction extractEmail(text) {\n  const match = text.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})/);\n  return match ? match[1] : null;\n}\n\nfunction extractLinks(text) {\n  const regex = /https?:\\/\\/[\\w\\-._~:/?#[\\]@!$&'()*+,;=%]+/g;\n  return text.match(regex) || [];\n}\n\nreturn normalizedEmail;\n\nfunction extractEmail(text) {\n  const match = text.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})/);\n  return match ? match[1] : null;\n}\n\nfunction extractLinks(text) {\n  const regex = /https?:\\/\\/[\\w\\-._~:/?#[\\]@!$&'()*+,;=%]+/g;\n  return text.match(regex) || [];\n}"
+      },
+      "id": "normalize-email",
+      "name": "Normalize Email Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const email = $input.first().json;\n\n// Suspicious indicators\nconst indicators = {\n  urgency_keywords: ['urgent', 'immediate', 'action required', 'suspend', 'restrict', 'unauthorized', 'verify your account', 'confirm your identity', 'password expired', 'account locked'],\n  financial_keywords: ['invoice', 'payment', 'bank transfer', 'wire transfer', 'gift card', 'bitcoin', 'crypto', 'account update', 'billing'],\n  impersonation_patterns: ['ceo', 'cfo', 'executive', 'hr', 'payroll', 'support', 'admin'],\n  tld_risks: ['.xyz', '.top', '.club', '.win', '.zip', '.mov', '.link'],\n  suspicious_patterns: [\n    /\\$\\d+,\\d{3}/,  // Large dollar amounts\n    /wire transfer/i,\n    /gift card/i,\n    /bitcoin/i,\n    /crypto/i,\n    /account.*suspend/i,\n    /verify.*identity/i,\n    /confirm.*account/i,\n    /password.*expired/i,\n    /urgent.*action/i,\n    /immediate.*payment/i\n  ]\n};\n\nconst findings = {\n  urgency_indicators: [],\n  financial_indicators: [],\n  impersonation_attempts: [],\n  suspicious_tlds: [],\n  pattern_matches: [],\n  total_risk_score: 0\n};\n\n// Check urgency keywords\nindicators.urgency_keywords.forEach(keyword => {\n  if (email.subject.toLowerCase().includes(keyword) || email.body.toLowerCase().includes(keyword)) {\n    findings.urgency_indicators.push(keyword);\n    findings.total_risk_score += 10;\n  }\n});\n\n// Check financial keywords\nindicators.financial_keywords.forEach(keyword => {\n  if (email.subject.toLowerCase().includes(keyword) || email.body.toLowerCase().includes(keyword)) {\n    findings.financial_indicators.push(keyword);\n    findings.total_risk_score += 15;\n  }\n});\n\n// Check for impersonation\nindicators.impersonation_patterns.forEach(pattern => {\n  if (email.subject.toLowerCase().includes(pattern) || email.body.toLowerCase().includes(pattern)) {\n    findings.impersonation_attempts.push(pattern);\n    findings.total_risk_score += 20;\n  }\n});\n\n// Check TLD risks\nemail.links.forEach(link => {\n  try {\n    const url = new URL(link);\n    if (indicators.tld_risks.includes(url.hostname.split('.').pop())) {\n      findings.suspicious_tlds.push(link);\n      findings.total_risk_score += 25;\n    }\n  } catch (e) {}\n});\n\n// Check patterns\nindicators.suspicious_patterns.forEach(pattern => {\n  if (pattern.test(email.subject) || pattern.test(email.body)) {\n    findings.pattern_matches.push(pattern.source);\n    findings.total_risk_score += 30;\n  }\n});\n\n// Normalize score\nfindings.total_risk_score = Math.min(findings.total_risk_score, 100);\n\nreturn {\n  ...email,\n  phishingAnalysis: findings,\n  analyzedAt: new Date().toISOString()\n};"
+      },
+      "id": "analyze-content",
+      "name": "Analyze Email Content",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://email-verify/checker",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "verify-sender",
+      "name": "Verify Sender Reputation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://link-safety-checker/scan",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "scan-links",
+      "name": "Scan All Links",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://attachment-scanner/scan",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "scan-attachments",
+      "name": "Scan Attachments",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const analysis = $input.first().json;\n\n// Calculate final phishing confidence score\nconst baseScore = analysis.phishingAnalysis?.total_risk_score || 0;\nconst senderScore = analysis.senderReputation?.risk_score || 0;\nconst linkScore = analysis.linkAnalysis?.risk_score || 0;\nconst attachmentScore = analysis.attachmentAnalysis?.risk_score || 0;\n\nconst totalScore = Math.round((baseScore * 0.4) + (senderScore * 0.2) + (linkScore * 0.25) + (attachmentScore * 0.15));\n\nconst classification = totalScore >= 70 ? 'HIGH_RISK' : \n                       totalScore >= 40 ? 'SUSPICIOUS' : \n                       totalScore >= 20 ? 'LOW_RISK' : 'CLEAN';\n\nconst recommendations = [];\n\nif (classification === 'HIGH_RISK') {\n  recommendations.push('BLOCK email immediately');\n  recommendations.push('Report to security team');\n  recommendations.push('Do NOT click any links');\n  recommendations.push('Do NOT open attachments');\n  recommendations.push('Notify recipients');\n} else if (classification === 'SUSPICIOUS') {\n  recommendations.push('Flag as suspicious');\n  recommendations.push('Review links before clicking');\n  recommendations.push('Verify sender through separate channel');\n  recommendations.push('Scan all attachments');\n} else {\n  recommendations.push('Monitor for user reports');\n}\n\nreturn {\n  classification,\n  confidenceScore: totalScore,\n  analysisDetails: analysis,\n  recommendations,\n  classifiedAt: new Date().toISOString()\n};"
+      },
+      "id": "final-classification",
+      "name": "Final Classification",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.classification }}",
+              "operation": "equal",
+              "value2": "HIGH_RISK"
+            }
+          ]
+        }
+      },
+      "id": "high-risk-filter",
+      "name": "High Risk Filter",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.classification }}",
+              "operation": "equal",
+              "value2": "SUSPICIOUS"
+            }
+          ]
+        }
+      },
+      "id": "suspicious-filter",
+      "name": "Suspicious Filter",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "security-alerts",
+        "text": "=🚨 **PHISHING ALERT - HIGH RISK DETECTED** 🚨\\n\\n**Classification:** HIGH_RISK\\n**Confidence Score:** {{ $json.confidenceScore }}/100\\n**Sender:** {{ $json.analysisDetails.sender }}\\n**Subject:** {{ $json.analysisDetails.subject }}\\n\\n**Key Indicators:**\\n- Urgency triggers: {{ $json.analysisDetails.phishingAnalysis.urgency_indicators.join(', ') || 'None' }}\\n- Financial triggers: {{ $json.analysisDetails.phishingAnalysis.financial_indicators.join(', ') || 'None' }}\\n- Suspicious links: {{ $json.analysisDetails.phishingAnalysis.suspicious_tlds.length }}\\n- Pattern matches: {{ $json.analysisDetails.phishingAnalysis.pattern_matches.length }}\\n\\n**IMMEDIATE ACTIONS:**\\n1. BLOCK sender/domain\\n2. Remove from all mailboxes\\n3. Alert all recipients\\n4. Investigate potential compromise",
+        "blocks": []
+      },
+      "id": "slack-critical-alert",
+      "name": "Slack - Critical Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "to": "soc@company.com",
+        "subject": "🚨 CRITICAL: High-Risk Phishing Email Detected - Immediate Action Required",
+        "text": "=**PHISHING ALERT - HIGH RISK DETECTED**\\n\\n**Classification:** HIGH_RISK\\n**Confidence Score:** {{ $json.confidenceScore }}/100\\n**Sender:** {{ $json.analysisDetails.sender }}\\n**Sender Email:** {{ $json.analysisDetails.senderEmail }}\\n**Subject:** {{ $json.analysisDetails.subject }}\\n**Recipients:** {{ $json.analysisDetails.recipients.join(', ') }}\\n\\n**Analysis Summary:**\\n- Urgency indicators: {{ $json.analysisDetails.phishingAnalysis.urgency_indicators.join(', ') }}\\n- Financial indicators: {{ $json.analysisDetails.phishingAnalysis.financial_indicators.join(', ') }}\\n- Suspicious TLDs: {{ $json.analysisDetails.phishingAnalysis.suspicious_tlds.length }}\\n- Pattern matches: {{ $json.analysisDetails.phishingAnalysis.pattern_matches.length }}\\n\\n**Immediate Actions Required:**\\n1. BLOCK sender domain at email gateway\\n2. Remove email from all mailboxes (if possible)\\n3. Alert all recipients immediately\\n4. Investigate potential credential compromise\\n5. Enable enhanced monitoring for related IOCs\\n\\n**Links Found:**\\n{{ $json.analysisDetails.links.join('\\n') }}\\n\\n**Attachments:**\\n{{ $json.analysisDetails.attachments.map(a => a.filename).join('\\n') }}\\n\\n---\nGenerated by CyberSentinel Phishing Detection System",
+        "options": {}
+      },
+      "id": "email-critical-alert",
+      "name": "Email - Critical Alert",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://email-gateway/ quarantine",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "quarantine-email",
+      "name": "Quarantine Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://siem/api/incidents",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "create-siem-incident",
+      "name": "Create SIEM Incident",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "incidentType",
+              "value": "phishing"
+            },
+            {
+              "name": "severity",
+              "value": "critical"
+            },
+            {
+              "name": "description",
+              "value": "=High-risk phishing email detected. Sender: {{ $json.analysisDetails.sender }}. Subject: {{ $json.analysisDetails.subject }}"
+            }
+          ]
+        }
+      },
+      "id": "create-incident-ticket",
+      "name": "Create Incident Ticket",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "security-phishing",
+        "text": "=⚠️ **Suspicious Email Detected** ⚠️\\n\\n**Classification:** SUSPICIOUS\\n**Confidence Score:** {{ $json.confidenceScore }}/100\\n**Sender:** {{ $json.analysisDetails.sender }}\\n**Subject:** {{ $json.analysisDetails.subject }}\\n\\n**Indicators:**\\n- Risk score: {{ $json.confidenceScore }}/100\\n- Flags: {{ Object.entries($json.analysisDetails.phishingAnalysis).filter(([k,v]) => v && v.length > 0).map(([k,v]) => k + ': ' + v.length).join(', ') }}\\n\\nReview recommended before taking action.",
+        "blocks": []
+      },
+      "id": "slack-suspicious-alert",
+      "name": "Slack - Suspicious Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "to": "security-team@company.com",
+        "subject": "⚠️ Suspicious Phishing Email Detected - Review Required",
+        "text": "=**Suspicious Email - Review Required**\\n\\n**Classification:** SUSPICIOUS\\n**Confidence Score:** {{ $json.confidenceScore }}/100\\n**Sender:** {{ $json.analysisDetails.sender }}\\n**Subject:** {{ $json.analysisDetails.subject }}\\n\\n**Risk Indicators:**\\n- Urgency: {{ $json.analysisDetails.phishingAnalysis.urgency_indicators.length }}\\n- Financial: {{ $json.analysisDetails.phishingAnalysis.financial_indicators.length }}\\n- Suspicious TLDs: {{ $json.analysisDetails.phishingAnalysis.suspicious_tlds.length }}\\n\\n**Recommendations:**\\n- Verify sender through separate channel\\n- Review links before clicking\\n- Scan all attachments\\n- Monitor for user reports\\n\\nGenerated by CyberSentinel",
+        "options": {}
+      },
+      "id": "email-suspicious-alert",
+      "name": "Email - Suspicious Alert",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "security-phishing",
+        "text": "=✅ **Email Analysis Complete** ✅\\n\\n**Classification:** {{ $json.classification }}\\n**Confidence Score:** {{ $json.confidenceScore }}/100\\n**Sender:** {{ $json.analysisDetails.sender }}\\n**Subject:** {{ $json.analysisDetails.subject }}\\n\\nNo immediate action required. Added to monitoring queue.",
+        "blocks": []
+      },
+      "id": "slack-clean-result",
+      "name": "Slack - Clean Result",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "classification",
+              "value": "={{ $json.classification }}"
+            },
+            {
+              "name": "confidenceScore",
+              "value": "={{ $json.confidenceScore }}"
+            },
+            {
+              "name": "workflowStatus",
+              "value": "completed"
+            }
+          ]
+        }
+      },
+      "id": "finalize-workflow",
+      "name": "Finalize Workflow",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Slack - New Submission": {
+      "main": [
+        [
+          {
+            "node": "Normalize Email Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Email Data": {
+      "main": [
+        [
+          {
+            "node": "Analyze Email Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Email Content": {
+      "main": [
+        [
+          {
+            "node": "Verify Sender Reputation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Scan All Links",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Scan Attachments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Sender Reputation": {
+      "main": [
+        [
+          {
+            "node": "Final Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scan All Links": {
+      "main": [
+        [
+          {
+            "node": "Final Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scan Attachments": {
+      "main": [
+        [
+          {
+            "node": "Final Classification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Classification": {
+      "main": [
+        [
+          {
+            "node": "High Risk Filter",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Suspicious Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High Risk Filter": {
+      "main": [
+        [
+          {
+            "node": "Slack - Critical Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email - Critical Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Quarantine Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create SIEM Incident",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Incident Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Suspicious Filter": {
+      "main": [
+        [
+          {
+            "node": "Slack - Suspicious Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email - Suspicious Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Suspicious Alert": {
+      "main": [
+        [
+          {
+            "node": "Slack - Clean Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email - Suspicious Alert": {
+      "main": [
+        [
+          {
+            "node": "Slack - Clean Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack - Clean Result": {
+      "main": [
+        [
+          {
+            "node": "Finalize Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    "phishing",
+    "email-security",
+    "threat-detection",
+    "automation"
+  ],
+  "meta": {
+    "version": "1.0.0",
+    "author": "CyberSentinel",
+    "created": "2025-12-27T14:20:00Z",
+    "description": "Automated workflow for detecting and responding to phishing emails with multi-stage analysis"
+  }
+}

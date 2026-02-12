@@ -1,0 +1,342 @@
+{
+  "name": "CVE-2025-55182 React2Shell Automated Response",
+  "nodes": [
+    {
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "parameters": {
+        "httpMethod": "post",
+        "path": "cve-2025-55182-alert",
+        "options": {}
+      }
+    },
+    {
+      "name": "Parse Alert Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const data = items[0].json;\n\n// Extract key indicators from the alert\nconst threatData = {\n  cve_id: data.cve_id || 'CVE-2025-55182',\n  threat_type: 'VULNERABILITY',\n  severity: 'CRITICAL',\n  source: 'CyberSentinel Monitor',\n  timestamp: new Date().toISOString(),\n  indicators: {\n    suspicious_urls: [],\n    file_hashes: [],\n    ip_addresses: [],\n    domains: []\n  },\n  affected_systems: data.affectedSystems || []\n};\n\nreturn [{json: threatData}];"
+      }
+    },
+    {
+      "name": "VirusTotal Enrichment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        500,
+        100
+      ],
+      "parameters": {
+        "url": "=https://www.virustotal.com/api/v3/files/{{ $json.indicators.file_hashes[0] }}",
+        "options": {
+          "headers": {
+            "x-apikey": "={{ $node['VirusTotal Credentials'].json['apiKey'] }}"
+          }
+        }
+      }
+    },
+    {
+      "name": "AbuseIPDB Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ],
+      "parameters": {
+        "url": "=https://api.abuseipdb.com/api/v2/check?ipAddress={{ $json.indicators.ip_addresses[0] }}",
+        "options": {
+          "headers": {
+            "Key": "={{ $node['AbuseIPDB Credentials'].json['apiKey'] }}"
+          }
+        }
+      }
+    },
+    {
+      "name": "Severity Assessment",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const data = items[0].json;\n\n// Calculate threat score based on available indicators\nlet threatScore = 0;\nlet riskLevel = 'LOW';\n\n// CVSS 10.0 base score\nthreatScore += 100;\n\n// Check for active exploitation status\nif (data.exploitation_status === 'actively_exploited') {\n  threatScore += 50;\n}\n\n// Check for patch availability\nif (!data.patch_available) {\n  threatScore += 30;\n}\n\n// Adjust based on enriched data\nif (data.virustotal_positives && data.virustotal_positives > 0) {\n  threatScore += data.virustotal_positives * 10;\n}\n\nif (data.abuseipdb_score && data.abuseipdb_score > 50) {\n  threatScore += 20;\n}\n\n// Determine risk level\nif (threatScore >= 150) {\n  riskLevel = 'CRITICAL';\n} else if (threatScore >= 100) {\n  riskLevel = 'HIGH';\n} else if (threatScore >= 50) {\n  riskLevel = 'MEDIUM';\n}\n\nreturn [{\n  json: {\n    ...data,\n    threat_score: threatScore,\n    risk_level: riskLevel,\n    assessment_timestamp: new Date().toISOString()\n  }\n}];"
+      }
+    },
+    {
+      "name": "Create SIEM Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        900,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['SIEM Integration'].json['url'] }}/api/alerts",
+        "sendHeaders": true,
+        "sendBody": true,
+        "options": {},
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $node['SIEM Integration'].json['apiKey'] }}"
+            }
+          ]
+        },
+        "specifyBody": "json",
+        "jsonBody": "={{ { \n  alert_type: 'vulnerability',\n  severity: $json.risk_level,\n  title: 'CVE-2025-55182 React Server Components RCE',\n  description: 'Critical unauthenticated RCE vulnerability being actively exploited',\n  indicators: $json.indicators,\n  affected_systems: $json.affected_systems,\n  timestamp: $json.assessment_timestamp,\n  source: 'CyberSentinel Automated Response'\n} }}"
+      }
+    },
+    {
+      "name": "Slack Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ],
+      "parameters": {
+        "channel": "={{ $node['Slack Configuration'].json['security_channel'] }}",
+        "text": "=🚨 *CRITICAL VULNERABILITY ALERT*\n\n*CVE-2025-55182 - React2Shell RCE*\nSeverity: {{ $json.risk_level }}\nThreat Score: {{ $json.threat_score }}\n\n*Description:* Critical unauthenticated RCE in React Server Components being actively exploited.\n\n*Affected Systems:* {{ $json.affected_systems.join(', ') }}\n\n*Recommended Actions:*\n1. URGENT: Upgrade React Server Components to v19.2.1+\n2. Implement WAF rules for React endpoints\n3. Enable enhanced logging for React SSR\n\n*Assessment Time:* {{ $json.assessment_timestamp }}\n\n_Automated alert from CyberSentinel_",
+        "attachments": [],
+        "blocks": []
+      }
+    },
+    {
+      "name": "Email Notification",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ],
+      "parameters": {
+        "to": "={{ $node['Email Configuration'].json['security_team'] }}",
+        "subject": "🚨 CRITICAL: CVE-2025-55182 React2Shell Vulnerability Alert",
+        "body": "=CyberSentinel Automated Threat Alert\n\nVULNERABILITY DETAILS:\n- CVE ID: CVE-2025-55182\n- Title: React Server Components RCE (React2Shell)\n- Severity: CRITICAL (CVSS 10.0)\n- Status: Actively Exploited\n\nDESCRIPTION:\nCritical unauthenticated remote code execution vulnerability in React Server Components Flight protocol. Allows arbitrary code execution via insecure deserialization of malicious HTTP requests.\n\nAFFECTED SYSTEMS:\n{{ $json.affected_systems.join('\\n') }}\n\nINDICATORS OF COMPROMISE:\n- POST requests to /_next/data or /_react with serialized payloads\n- Unexpected process execution from Node.js processes\n- curl, wget, chmod execution via server\n\nRECOMMENDED ACTIONS:\n1. URGENT: Upgrade React to v19.2.1 or later\n2. Implement WAF rules blocking serialized data in HTTP requests\n3. Enable enhanced logging for all React SSR endpoints\n4. Monitor for unusual process execution from Node.js/Python\n\n---\nAutomated by CyberSentinel\nAssessment Time: {{ $json.assessment_timestamp }}"
+      }
+    },
+    {
+      "name": "Create Jira Ticket",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ],
+      "parameters": {
+        "project": "={{ $node['Jira Configuration'].json['project_key'] }}",
+        "summary": "CRITICAL: CVE-2025-55182 React2Shell Vulnerability - Immediate Action Required",
+        "issueType": "Task",
+        "description": "=**Vulnerability Alert - Immediate Action Required**\n\n*Vulnerability Details:*\n- CVE: CVE-2025-55182\n- Title: React Server Components RCE (React2Shell)\n- CVSS: 10.0 (Critical)\n- Status: Actively Exploited\n\n*Description:*\nCritical unauthenticated RCE vulnerability in React Server Components allowing arbitrary code execution via insecure deserialization.\n\n*Affected Systems:*\n{{ $json.affected_systems.join('\\n') }}\n\n*Immediate Actions Required:*\n1. ⏰ URGENT: Upgrade React Server Components to v19.2.1+\n2. 🔒 Implement WAF rules for React endpoints\n3. 📊 Enable enhanced logging for SSR endpoints\n4. 🔍 Monitor for exploitation indicators\n\n*Timeline:* Within 24 hours\n\n---\n_Generated by CyberSentinel Automated Response_",
+        "labels": [
+          "vulnerability",
+          "critical",
+          "cve-2025-55182"
+        ]
+      }
+    },
+    {
+      "name": "Block IOC - Firewall",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['Firewall API'].json['url'] }}/api/block",
+        "sendBody": true,
+        "jsonBody": "={{ {\n  ioc_type: 'ip',\n  ioc_value: $json.indicators.ip_addresses[0],\n  source: 'CyberSentinel',\n  reason: 'CVE-2025-55182 exploitation attempt',\n  expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()\n} }}"
+      }
+    },
+    {
+      "name": "Block IOC - Proxy",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['Proxy/SWG API'].json['url'] }}/api/block-url",
+        "sendBody": true,
+        "jsonBody": "={{ {\n  url_pattern: $json.indicators.suspicious_urls[0],\n  source: 'CyberSentinel',\n  reason: 'CVE-2025-55182 exploitation attempt',\n  category: 'malware'\n} }}"
+      }
+    },
+    {
+      "name": "Log Response",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['Log Storage'].json['url'] }}/api/threat-responses",
+        "sendBody": true,
+        "jsonBody": "={{ {\n  workflow_id: 'workflow-cve-2025-55182',\n  threat_type: 'VULNERABILITY',\n  cve_id: 'CVE-2025-55182',\n  severity: $json.risk_level,\n  threat_score: $json.threat_score,\n  actions_taken: [\n    'SIEM alert created',\n    'Slack notification sent',\n    'Email notification sent',\n    'Jira ticket created',\n    'IOCs blocked (firewall)',\n    'IOCs blocked (proxy)'\n  ],\n  timestamp: new Date().toISOString(),\n  source: 'CyberSentinel Automated Response'\n} }}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Alert Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Alert Data": {
+      "main": [
+        [
+          {
+            "node": "VirusTotal Enrichment",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AbuseIPDB Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VirusTotal Enrichment": {
+      "main": [
+        [
+          {
+            "node": "Severity Assessment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AbuseIPDB Check": {
+      "main": [
+        [
+          {
+            "node": "Severity Assessment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Severity Assessment": {
+      "main": [
+        [
+          {
+            "node": "Create SIEM Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Slack Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Jira Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create SIEM Alert": {
+      "main": [
+        [
+          {
+            "node": "Block IOC - Firewall",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Notification": {
+      "main": [
+        []
+      ]
+    },
+    "Email Notification": {
+      "main": [
+        []
+      ]
+    },
+    "Create Jira Ticket": {
+      "main": [
+        [
+          {
+            "node": "Block IOC - Firewall",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Block IOC - Proxy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block IOC - Firewall": {
+      "main": [
+        [
+          {
+            "node": "Log Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block IOC - Proxy": {
+      "main": [
+        [
+          {
+            "node": "Log Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Response": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null
+}

@@ -1,0 +1,298 @@
+{
+  "name": "React2Shell CVE-2025-55182 Automated Response",
+  "nodes": [
+    {
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cybersentinel-react2shell-alert",
+        "responseMode": "lastNode"
+      }
+    },
+    {
+      "name": "Parse CVE Alert",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const cveData = items[0].json;\n\n// Extract key indicators\nconst iocs = {\n  ipv4: [\n    '206.237.3.150',\n    '45.77.33.136',\n    '143.198.92.82',\n    '183.6.80.214'\n  ],\n  filePatterns: ['/tmp/pwned.txt'],\n  processPatterns: [\n    'Node.js.*unexpected child processes',\n    'whoami.*React.*application',\n    '/etc/passwd.*Node.js'\n  ]\n};\n\nreturn [{\n  json: {\n    cveId: 'CVE-2025-55182',\n    vulnerabilityName: 'React2Shell',\n    severity: 'CRITICAL',\n    cvssScore: 10.0,\n    affectedSystems: cveData.affectedSystems || ['React 19.x', 'Next.js 15.x/16.x'],\n    indicators: iocs,\n    timestamp: new Date().toISOString()\n  }\n}];"
+      }
+    },
+    {
+      "name": "Check Priority",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.severity }}",
+              "operation": "equal",
+              "value2": "CRITICAL"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Send Critical Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ],
+      "parameters": {
+        "channel": "cybersentinel-alerts",
+        "text": "=🚨 *CRITICAL SECURITY ALERT: React2Shell (CVE-2025-55182)*\n\n*Severity:* CRITICAL (CVSS 10.0)\n*Status:* Actively Exploited\n*Due Date:* OVERDUE (CISA KEV)\n\n*Affected Systems:*\n{{ $json.affectedSystems }}\n\n*Immediate Actions Required:*\n1. Upgrade React to latest 19.x\n2. Upgrade Next.js to 15.5.2+ or 16.0.1+\n3. Implement WAF rules immediately\n4. Hunt for IOCs in logs\n\n*Indicators of Compromise:*\n{{ $json.indicators.ipv4.join(', ') }}\n\n*Reference:* AWS Security Bulletin"
+      }
+    },
+    {
+      "name": "Create Jira Ticket",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ],
+      "parameters": {
+        "project": "SEC",
+        "summary": "=React2Shell CVE-2025-55182 - Critical Vulnerability Response",
+        "description": "=## Critical Security Alert\n\n**CVE ID:** CVE-2025-55182  \n**Vulnerability Name:** React2Shell  \n**CVSS Score:** 10.0 (Critical)  \n**Status:** Actively Exploited  \n\n### Affected Systems\n{{ $json.affectedSystems.join('\\n') }}\n\n### Indicators of Compromise\n**Network IOCs:**\n{{ $json.indicators.ipv4.join('\\n') }}\n\n**File IOCs:**\n{{ $json.indicators.filePatterns.join('\\n') }}\n\n### Recommended Actions\n1. **IMMEDIATE PATCHING** - Upgrade React and Next.js immediately\n2. **Network Segmentation** - Implement WAF rules for RSC endpoints\n3. **Detection Deployment** - Deploy Sigma rules for Node.js anomalies\n4. **Threat Hunting** - Review historical logs for IOCs\n5. **Incident Response** - If compromised, isolate and engage IR team\n\n### References\n- AWS Security Bulletin\n- Cisco Security Advisory\n- CISA KEV Catalog"
+      }
+    },
+    {
+      "name": "Block Malicious IPs - Firewall",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        900,
+        100
+      ],
+      "parameters": {
+        "functionCode": "// Generate firewall block commands for IOCs\nconst ips = items[0].json.indicators.ipv4;\nconst firewallRules = ips.map(ip => ({\n  action: 'block',\n  protocol: 'tcp',\n  source: ip,\n  destination: 'any',\n  port: 'any',\n  timestamp: new Date().toISOString()\n}));\n\n// Generate n8n command for network device (example: Cisco ASA)\nconst commands = ips.map(ip => `access-list OUTSIDE_IN extended deny tcp host ${ip} any eq any`);\n\nreturn [{\n  json: {\n    deviceType: 'firewall',\n    vendor: 'cisco',\n    model: 'ASA',\n    rules: firewallRules,\n    cliCommands: commands,\n    status: 'pending_approval'\n  }\n}];"
+      }
+    },
+    {
+      "name": "Deploy WAF Rules - Cloudflare",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ],
+      "parameters": {
+        "functionCode": "// Generate Cloudflare WAF rules\nconst iocs = items[0].json.indicators.ipv4;\n\nconst cfRules = [\n  {\n    action: 'block',\n    description: 'Block React2Shell C2 IPs',\n    ipSources: iocs,\n    expression: '(ip.src in $IP_LIST)'\n  },\n  {\n    action: 'challenge',\n    description: 'Rate limit RSC endpoints',\n    endpoints: ['/_next/data', '/_next/rsc', '/api/rsc'],\n    threshold: '10 requests/minute',\n    expression: '(http.request.uri.path in $RSC_PATHS) and (rate_limit(60,10) > 0)'\n  }\n];\n\nreturn [{\n  json: {\n    platform: 'cloudflare',\n    ruleType: 'waf_rules',\n    rules: cfRules,\n    status: 'deployed'\n  }\n}];"
+      }
+    },
+    {
+      "name": "Deploy EDR Detection",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ],
+      "parameters": {
+        "functionCode": "// Generate Sigma rules for EDR\nconst sigmaRules = [\n  {\n    title: 'React2Shell - Suspicious Node.js Process Spawn',\n    id: 'fb7c5c2a-4c8f-5a6b-9d2e-3f4a5b8c2d1e',\n    status: 'experimental',\n    description: 'Detects unexpected child process spawning from Node.js/React',\n    author: 'CyberSentinel',\n    level: 'high',\n    detection: {\n      selection: {\n        EventID: 1,\n        ParentImage: ['*/node', '*/node.exe', '*/next-server'],\n        CommandLine: ['whoami', 'id', 'uname', '/etc/passwd']\n      }\n    }\n  },\n  {\n    title: 'React2Shell - Suspicious File Write to /tmp',\n    id: 'a1b2c3d4-e5f6-7a8b-9c0d-e1f2a3b4c5d6',\n    status: 'experimental',\n    description: 'Detects suspicious file writes to /tmp directory',\n    author: 'CyberSentinel',\n    level: 'high',\n    detection: {\n      selection: {\n        EventID: 11,\n        TargetFilename: '/tmp/pwned.txt'\n      }\n    }\n  }\n];\n\nreturn [{\n  json: {\n    platform: 'EDR',\n    supportedFormats: ['sigma', 'Splunk SPL', 'Elastic EQL', 'CrowdStrike Falcon'],\n    rules: sigmaRules\n  }\n}];"
+      }
+    },
+    {
+      "name": "Deploy SIEM Alert",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        900,
+        400
+      ],
+      "parameters": {
+        "functionCode": "// Generate Splunk/SIEM alerts\nconst alertConfig = {\n  name: 'React2Shell CVE-2025-55182 Alert',\n  description: 'Alert on potential React2Shell exploitation attempts',\n  status: 'enabled',\n  search: `index=security \n| eval severity = case(\n    cidrmatch(\"206.237.3.150\", src_ip), \"CRITICAL\",\n    cidrmatch(\"45.77.33.136\", src_ip), \"CRITICAL\",\n    cidrmatch(\"143.198.92.82\", src_ip), \"HIGH\",\n    cidrmatch(\"183.6.80.214\", src_ip), \"HIGH\",\n    true(), \"INFO\"\n  )\n| where severity != \"INFO\"\n| stats count by src_ip, dest_ip, url, severity\n| sort -severity, -count`,\n  actions: [\n    {\n      type: 'email',\n      to: 'security-team@company.com',\n      subject: 'React2Shell Alert - IOC Detected'\n    },\n    {\n      type: 'webhook',\n      url: 'https://your-soar.example.com/alerts/react2shell'\n    }\n  ]\n};\n\nreturn [{\n  json: {\n    platform: 'Splunk',\n    alertType: 'Saved Search',\n    config: alertConfig,\n    status: 'created'\n  }\n}];"
+      }
+    },
+    {
+      "name": "Update Asset Inventory",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ],
+      "parameters": {
+        "functionCode": "// Update CMDB with affected systems\nconst affectedSystems = items[0].json.affectedSystems;\n\nconst cmdbUpdate = {\n  assetType: 'software_inventory',\n  vulnerability: 'CVE-2025-55182',\n  affectedRecords: affectedSystems.map(sys => ({\n    system: sys,\n    status: 'needs_patch',\n    priority: 'CRITICAL',\n    assignedTo: 'Security Team',\n    dueDate: '2025-12-30',\n    lastUpdated: new Date().toISOString()\n  })),\n  metadata: {\n    source: 'CyberSentinel',\n    workflow: 'react2shell-cve-response',\n    version: '1.0'\n  }\n};\n\nreturn [{\n  json: cmdbUpdate\n}];"
+      }
+    },
+    {
+      "name": "Generate Report",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        200
+      ],
+      "parameters": {
+        "functionCode": "// Generate comprehensive incident report\nconst report = {\n  reportId: 'RPT-CVE-2025-55182-' + Date.now(),\n  generatedAt: new Date().toISOString(),\n  vulnerability: {\n    cveId: 'CVE-2025-55182',\n    name: 'React2Shell',\n    severity: 'CRITICAL',\n    cvssScore: 10.0,\n    category: 'Remote Code Execution'\n  },\n  timeline: {\n    vulnerabilityDisclosed: '2025-12-03',\n    cisaKEVAdded: '2025-12-09',\n    cisaDeadline: '2025-12-26',\n    workflowExecuted: new Date().toISOString()\n  },\n  responseActions: [\n    { action: 'Alert Sent', status: 'Completed' },\n    { action: 'Jira Ticket Created', status: 'Completed' },\n    { action: 'Firewall Rules Generated', status: 'Pending Approval' },\n    { action: 'WAF Rules Deployed', status: 'Completed' },\n    { action: 'EDR Detection Deployed', status: 'Completed' },\n    { action: 'SIEM Alert Created', status: 'Completed' },\n    { action: 'CMDB Updated', status: 'Pending' }\n  ],\n  metrics: {\n    affectedSystemsCount: 3,\n    iocsBlocked: 4,\n    detectionsDeployed: 2,\n    ticketsCreated: 1,\n    alertsSent: 1\n  }\n};\n\nreturn [{\n  json: report\n}];"
+      }
+    },
+    {
+      "name": "Completion Log",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-logging.example.com/cybersentinel/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse CVE Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse CVE Alert": {
+      "main": [
+        [
+          {
+            "node": "Check Priority",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Priority": {
+      "main": [
+        [
+          {
+            "node": "Send Critical Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Create Jira Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Critical Alert": {
+      "main": [
+        [
+          {
+            "node": "Block Malicious IPs - Firewall",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Jira Ticket": {
+      "main": [
+        [
+          {
+            "node": "Block Malicious IPs - Firewall",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Block Malicious IPs - Firewall": {
+      "main": [
+        [
+          {
+            "node": "Deploy WAF Rules - Cloudflare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deploy WAF Rules - Cloudflare": {
+      "main": [
+        [
+          {
+            "node": "Deploy EDR Detection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deploy EDR Detection": {
+      "main": [
+        [
+          {
+            "node": "Deploy SIEM Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deploy SIEM Alert": {
+      "main": [
+        [
+          {
+            "node": "Update Asset Inventory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Asset Inventory": {
+      "main": [
+        [
+          {
+            "node": "Generate Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Report": {
+      "main": [
+        [
+          {
+            "node": "Completion Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

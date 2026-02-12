@@ -1,0 +1,209 @@
+{
+  "name": "CyberSentinel - Ransomware Response Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "urls": [
+          "https://www.breachsense.com/breaches/2025/december/",
+          "https://asec.ahnlab.com/en/91607/"
+        ],
+        "options": {}
+      },
+      "name": "Monitor Dark Web Feeds",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "value": "=[{\n  \"groupName\": \"Gentlemen\",\n  \"firstSeen\": \"2025-08-01\",\n  \"targetSectors\": [\"Manufacturing\", \"Healthcare\"],\n  \"targetSize\": \"Medium to Large Enterprises\",\n  \"tactics\": [\"Sophisticated evasion\", \"Internal propagation\"],\n  \"status\": \"ACTIVE\",\n  \"attackVector\": \"Phishing, Initial Access\"\n}, {\n  \"groupName\": \"Akira\",\n  \"firstSeen\": \"2023\",\n  \"targetSectors\": [\"All industries\"],\n  \"marketShare\": \"34% of Q3 2025 attacks\",\n  \"tactics\": [\"VPN exploitation\", \"Double extortion\"],\n  \"status\": \"ACTIVE\"\n}, {\n  \"groupName\": \"Qilin\",\n  \"firstSeen\": \"2024\",\n  \"targetSectors\": [\"Manufacturing\", \"Healthcare\"],\n  \"marketShare\": \"10% of attacks\",\n  \"tactics\": [\"Data exfiltration\", \"Ransomware\"],\n  \"status\": \"ACTIVE\"\n}, {\n  \"groupName\": \"Warlock\",\n  \"firstSeen\": \"2024\",\n  \"targetSectors\": [\"Manufacturing\"],\n  \"attribution\": \"Storm-2603 (China-aligned)\",\n  \"tactics\": [\"Gold Salem tradecraft\"],\n  \"status\": \"ACTIVE\"\n}]",
+        "key": "ransomwareGroups"
+      },
+      "name": "Track Active Groups",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "table": "ransomware_tracking",
+        "fields": {
+          "group_name": "={{ $json.groupName }}",
+          "threat_type": "RANSOMWARE",
+          "first_seen": "={{ $json.firstSeen }}",
+          "target_sectors": "={{ JSON.stringify($json.targetSectors) }}",
+          "attack_vector": "={{ $json.attackVector }}",
+          "tactics": "={{ JSON.stringify($json.tactics) }}",
+          "status": "={{ $json.status }}",
+          "market_share": "={{ $json.marketShare }}",
+          "attribution": "={{ $json.attribution }}",
+          "workflow_id": "RANSOMWARE-RESPONSE-2025",
+          "created_at": "={{ now }}"
+        }
+      },
+      "name": "Update Ransomware DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "subject": "ALERT: Active Ransomware Group Targeting {{ $json.targetSector }}",
+        "body": "=<h2>Ransomware Threat Intelligence Alert</h2>\n<p><strong>Threat Group:</strong> {{ $json.groupName }}</p>\n<p><strong>Target Sector:</strong> {{ $json.targetSectors }}</p>\n<p><strong>Status:</strong> {{ $json.status }}</p>\n<h3>Attack Vector:</h3>\n<p>{{ $json.attackVector }}</p>\n<h3>Known Tactics:</h3>\n<ul>{{ $json.tactics.map(t => `<li>${t}</li>`).join('') }}</ul>\n<h3>Immediate Defensive Actions:</h3>\n<ol><li>Review and update backup procedures - ensure offline/offsite backups exist</li><li>Enable advanced threat protection on endpoints</li><li>Implement network segmentation for critical assets</li><li>Audit remote access (RDP, VPN) security</li><li>Deploy EDR with ransomware-specific behavioral detection</li><li>Conduct phishing simulation exercises for employees</li><li>Review incident response playbook</li></ol>\n<h3>IOCs:</h3>\n<pre>{{ $json.iocs }}</pre>",
+        "attachments": "={{ $binary }}"
+      },
+      "name": "Alert Security Team",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "#ransomware-alerts",
+        "text": "⚠️ RANSOMWARE ALERT: {{ $json.groupName }}\nTarget Sector: {{ $json.targetSectors }}\nStatus: {{ $json.status }}\nAttack Vector: {{ $json.attackVector }}\n\nReview defensive posture. Check email for full IOCs and mitigations."
+      },
+      "name": "Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        700,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "table": "threat_intel_reports",
+        "fields": {
+          "report_type": "RANSOMWARE",
+          "title": "={{ $json.groupName }} Ransomware Activity Report",
+          "threat_actor": "={{ $json.groupName }}",
+          "severity": "HIGH",
+          "summary": "={{ `Active ransomware group targeting ${$json.targetSectors.join(', ')} with ${$json.tactics.join(', ')}` }}",
+          "ttps": "T1566 - Phishing, T1486 - Data Encrypted for Impact, T1490 - Inhibit System Recovery",
+          "sources": "Dark Web Monitoring, ASEC",
+          "workflow_id": "RANSOMWARE-RESPONSE-2025",
+          "created_at": "={{ now }}"
+        }
+      },
+      "name": "Generate Intel Report",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        500,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "ruleId": "ransomware-detect-v1"
+      },
+      "name": "Update EDR Rules",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "table": "incident_playbooks",
+        "fields": {
+          "playbook_name": "Ransomware Incident Response",
+          "threat_type": "RANSOMWARE",
+          "severity": "CRITICAL",
+          "steps": "1. Isolate affected systems\\n2. Identify ransomware variant\\n3. Preserve evidence\\n4. Notify IR team\\n5. Engage legal counsel\\n6. Restore from backups\\n7. Post-incident review",
+          "workflow_id": "RANSOMWARE-RESPONSE-2025",
+          "created_at": "={{ now }}"
+        }
+      },
+      "name": "Verify Playbook",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        900,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "Monitor Dark Web Feeds": {
+      "main": [
+        [
+          {
+            "node": "Track Active Groups",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Track Active Groups": {
+      "main": [
+        [
+          {
+            "node": "Update Ransomware DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Ransomware DB": {
+      "main": [
+        [
+          {
+            "node": "Alert Security Team",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate Intel Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Security Team": {
+      "main": [
+        [
+          {
+            "node": "Update EDR Rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Verify Playbook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "id": "RANSOMWARE-RESPONSE-2025"
+}

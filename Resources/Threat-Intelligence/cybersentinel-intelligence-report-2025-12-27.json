@@ -1,0 +1,1225 @@
+{
+  "meta": {
+    "generatedAt": "2025-12-27T14:20:11.968570+00:00",
+    "agentId": "a401e896-d617-4e97-8bbf-29f47e133c21",
+    "triggerId": "a1a6b29f-1834-4666-82d7-1163ce25f64c",
+    "collectionPeriod": "December 2025",
+    "threatCount": 10,
+    "criticalCount": 4,
+    "highCount": 6
+  },
+  "executiveSummary": {
+    "overview": "December 2025 marked a significant escalation in cyber threats with multiple critical vulnerabilities (CVSS 10.0 and 9.8), active exploitation by state-sponsored APT groups, and sophisticated phishing campaigns abusing legitimate infrastructure. Organizations face immediate risk from React2Shell zero-day, Microsoft Office RCE vulnerabilities, and ransomware campaigns from Qilin and LockBit 5 affiliates.",
+    "keyFindings": [
+      "React2Shell (CVE-2025-55182) represents the most critical vulnerability of 2025 with CVSS 10.0 and active exploitation by China-nexus threat actors",
+      "Google Tasks phishing campaign abused legitimate Google infrastructure to target 3,000+ organizations",
+      "MuddyWater and BlindEagle APT groups escalated regional targeting with custom loaders and fileless techniques",
+      "Ransomware ecosystem expanded with 57 new groups and 350+ new strains, many adopting double extortion immediately",
+      "AI-powered phishing and automation is lowering the barrier for sophisticated cyberattacks"
+    ],
+    "recommendedPriority": "CRITICAL - Immediate patching required for React2Shell, Microsoft Office RCE, and Array Networks command injection vulnerabilities"
+  },
+  "threats": [
+    {
+      "threatId": "CVE-2025-55182",
+      "n8nWorkflowId": "wf-react2shell-001",
+      "threatType": "VULNERABILITY",
+      "name": "React2Shell - React Server Components RCE",
+      "severity": "CRITICAL",
+      "cvssScore": 10,
+      "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H",
+      "cwe": "CWE-94: Improper Control of Generation of Code",
+      "cveId": "CVE-2025-55182",
+      "affectedSystems": [
+        "React 19.x Server Components",
+        "Next.js 15.x/16.x with App Router",
+        "Node.js applications using React Server Components",
+        "Enterprise web applications",
+        "Cloud-hosted JavaScript applications"
+      ],
+      "affectedIndustries": [
+        "Technology",
+        "Software Development",
+        "SaaS Providers",
+        "E-commerce",
+        "Financial Services (web apps)"
+      ],
+      "indicatorsOfCompromise": [
+        {
+          "type": "Network",
+          "indicator": "Unexpected HTTP POST requests to /_next/data or /api/_next/data endpoints",
+          "description": "Malicious crafted requests targeting React Server Components"
+        },
+        {
+          "type": "Network",
+          "indicator": "Prolonged connection attempts from IPs like 183.6.80.214",
+          "description": "China-nexus actors systematically troubleshooting exploitation attempts"
+        },
+        {
+          "type": "Process",
+          "indicator": "Node.js processes spawning unexpected shell commands",
+          "description": "Post-exploitation command execution via RCE"
+        },
+        {
+          "type": "FileSystem",
+          "indicator": "New or modified files in application directories without deployment",
+          "description": "Web shell or payload deployment"
+        }
+      ],
+      "attribution": {
+        "threatActors": [
+          {
+            "name": "Earth Lamia",
+            "country": "China",
+            "confidence": "HIGH",
+            "observedActivity": "Active exploitation attempts since Dec 3, 2025"
+          },
+          {
+            "name": "Jackpot Panda",
+            "country": "China",
+            "confidence": "HIGH",
+            "observedActivity": "Concurrent exploitation attempts"
+          }
+        ],
+        "exploitAvailability": "Public PoC available, active exploitation confirmed",
+        "cisaKEV": true,
+        "cisaDueDate": "2025-12-26"
+      },
+      "timeline": {
+        "disclosed": "December 2025",
+        "exploitDetected": "December 3, 2025",
+        "cisaAdded": "December 2025",
+        "patchAvailable": true,
+        "vendor": "Meta (React)"
+      },
+      "recommendedActions": [
+        {
+          "priority": "P1",
+          "action": "IMMEDIATE - Upgrade React 19.x to patched version immediately",
+          "impact": "Critical - Prevents unauthenticated RCE",
+          "effort": "Medium - Requires testing of React-dependent components"
+        },
+        {
+          "priority": "P1",
+          "action": "IMMEDIATE - Upgrade Next.js to 15.x/16.x patched versions",
+          "impact": "Critical - Eliminates attack vector",
+          "effort": "Medium - May require minor code adjustments"
+        },
+        {
+          "priority": "P2",
+          "action": "Deploy WAF rules to block suspicious React Server Component requests",
+          "impact": "High - Temporary mitigation before patch",
+          "effort": "Low - Configuration change"
+        },
+        {
+          "priority": "P2",
+          "action": "Enable enhanced logging on Next.js/React endpoints",
+          "impact": "Medium - Detection capability",
+          "effort": "Low - Logging configuration"
+        },
+        {
+          "priority": "P3",
+          "action": "Scan environment for Indicators of Compromise",
+          "impact": "Medium - Post-compromise detection",
+          "effort": "Medium - Requires forensic analysis"
+        }
+      ],
+      "businessContext": {
+        "exploitationLikelihood": "HIGH - Active exploitation confirmed",
+        "impactIfExploited": "Complete system compromise, data exfil, lateral movement",
+        "regulatoryImplications": [
+          "GDPR Article 32",
+          "CISA BOD 22-01"
+        ],
+        "patchComplexity": "Medium - May require regression testing",
+        "downtimeRequired": "Minimal if staged rollout possible"
+      }
+    },
+    {
+      "threatId": "CVE-2025-66644",
+      "n8nWorkflowId": "wf-arraynetworks-002",
+      "threatType": "VULNERABILITY",
+      "name": "Array Networks ArrayOS AG Command Injection",
+      "severity": "CRITICAL",
+      "cvssScore": 9.8,
+      "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:H/A:H",
+      "cwe": "CWE-78: OS Command Injection",
+      "cveId": "CVE-2025-66644",
+      "affectedSystems": [
+        "Array Networks ArrayOS AG versions before 9.4.5.9",
+        "VPN gateways",
+        "Application delivery controllers"
+      ],
+      "affectedIndustries": [
+        "Enterprise VPN Users",
+        "Government",
+        "Financial Services",
+        "Healthcare",
+        "Critical Infrastructure"
+      ],
+      "indicatorsOfCompromise": [
+        {
+          "type": "Network",
+          "indicator": "Unusual ICMP/UDP traffic to VPN gateways",
+          "description": "Potential command injection probe patterns"
+        },
+        {
+          "type": "System",
+          "indicator": "Unexpected processes on ArrayOS devices",
+          "description": "Post-exploitation activity"
+        },
+        {
+          "type": "Log",
+          "indicator": "Failed authentication followed by system command execution logs",
+          "description": "Exploitation attempts in system logs"
+        }
+      ],
+      "attribution": {
+        "threatActors": [
+          {
+            "name": "Unconfirmed",
+            "country": "Unknown",
+            "confidence": "MEDIUM",
+            "observedActivity": "Active exploitation Aug-Dec 2025"
+          }
+        ],
+        "exploitAvailability": "In-the-wild exploitation confirmed",
+        "cisaKEV": true,
+        "cisaDueDate": "2025-12-29"
+      },
+      "timeline": {
+        "discovered": "December 2025",
+        "exploitDetected": "August 2025",
+        "cisaAdded": "December 8, 2025",
+        "patchAvailable": true,
+        "vendor": "Array Networks"
+      },
+      "recommendedActions": [
+        {
+          "priority": "P1",
+          "action": "UPGRADE ArrayOS to version 9.4.5.9 or later IMMEDIATELY",
+          "impact": "Critical - Eliminates command injection vector",
+          "effort": "Low - Standard upgrade procedure"
+        },
+        {
+          "priority": "P1",
+          "action": "If upgrade not possible, implement network segmentation",
+          "impact": "High - Limits exposure",
+          "effort": "Medium - Requires network changes"
+        },
+        {
+          "priority": "P2",
+          "action": "Review and rotate all credentials accessing VPN",
+          "impact": "Medium - Credential hygiene",
+          "effort": "Low - Standard security practice"
+        },
+        {
+          "priority": "P2",
+          "action": "Enable enhanced monitoring on VPN gateways",
+          "impact": "Medium - Detection capability",
+          "effort": "Low - Monitoring configuration"
+        }
+      ],
+      "businessContext": {
+        "exploitationLikelihood": "HIGH - Active in-the-wild exploitation since August",
+        "impactIfExploited": "Full VPN gateway compromise, lateral movement into internal network",
+        "regulatoryImplications": [
+          "CISA BOD 22-01",
+          "NIST Cybersecurity Framework"
+        ],
+        "patchComplexity": "Low - Standard upgrade",
+        "downtimeRequired": "Brief maintenance window"
+      }
+    },
+    {
+      "threatId": "CVE-2025-62554",
+      "n8nWorkflowId": "wf-msft-office-003",
+      "threatType": "VULNERABILITY",
+      "name": "Microsoft Office Type Confusion RCE",
+      "severity": "HIGH",
+      "cvssScore": 8.4,
+      "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
+      "cwe": "CWE-843: Type Confusion",
+      "cveId": "CVE-2025-62554",
+      "affectedSystems": [
+        "Microsoft Office 2016, 2019, 2021",
+        "Microsoft 365 Apps for Enterprise",
+        "Outlook",
+        "Word, Excel, PowerPoint"
+      ],
+      "affectedIndustries": [
+        "All industries using Microsoft Office",
+        "Government",
+        "Financial Services",
+        "Healthcare",
+        "Manufacturing"
+      ],
+      "indicatorsOfCompromise": [
+        {
+          "type": "FileSystem",
+          "indicator": "Suspicious .docx/.xlsx files in downloads or email attachments",
+          "description": "Malicious Office documents"
+        },
+        {
+          "type": "Process",
+          "indicator": "Office applications spawning child processes unexpectedly",
+          "description": "Code execution via exploitation"
+        },
+        {
+          "type": "Network",
+          "indicator": "Outbound connections from Office processes to suspicious IPs",
+          "description": "C2 communication"
+        }
+      ],
+      "attribution": {
+        "threatActors": [
+          {
+            "name": "Various",
+            "country": "Unknown",
+            "confidence": "MEDIUM",
+            "observedActivity": "Used in targeted phishing campaigns"
+          }
+        ],
+        "exploitAvailability": "Microsoft assessed exploitation as 'less likely'",
+        "cisaKEV": false,
+        "patchAvailable": true
+      },
+      "timeline": {
+        "disclosed": "December 2025 Patch Tuesday",
+        "patchAvailable": true,
+        "vendor": "Microsoft"
+      },
+      "recommendedActions": [
+        {
+          "priority": "P1",
+          "action": "Deploy December 2025 cumulative updates to all workstations",
+          "impact": "Critical - Eliminates RCE vector",
+          "effort": "Low - Standard patching"
+        },
+        {
+          "priority": "P1",
+          "action": "Enable Attack Surface Reduction rules - Block Office from creating child processes",
+          "impact": "High - Mitigates exploitation",
+          "effort": "Low - GPO configuration"
+        },
+        {
+          "priority": "P2",
+          "action": "Update email gateway signatures to detect exploit patterns",
+          "impact": "Medium - Email filtering",
+          "effort": "Low - Signature update"
+        },
+        {
+          "priority": "P3",
+          "action": "Block macro execution from internet-sourced documents",
+          "impact": "Medium - Defense in depth",
+          "effort": "Low - GPO change"
+        }
+      ],
+      "businessContext": {
+        "exploitationLikelihood": "MEDIUM - Microsoft assessment is 'less likely' but used in targeted attacks",
+        "impactIfExploited": "Remote code execution, malware deployment, data theft",
+        "regulatoryImplications": [
+          "Microsoft Security Updates"
+        ],
+        "patchComplexity": "Low - Standard patching",
+        "downtimeRequired": "Minimal"
+      }
+    },
+    {
+      "threatId": "CVE-2025-62557",
+      "n8nWorkflowId": "wf-msft-office-004",
+      "threatType": "VULNERABILITY",
+      "name": "Microsoft Office Use-After-Free RCE",
+      "severity": "HIGH",
+      "cvssScore": 8.4,
+      "cvssVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
+      "cwe": "CWE-416: Use After Free",
+      "cveId": "CVE-2025-62557",
+      "affectedSystems": [
+        "Microsoft Office 2016, 2019, 2021",
+        "Microsoft 365 Apps for Enterprise",
+        "Outlook"
+      ],
+      "affectedIndustries": [
+        "All Microsoft Office users"
+      ],
+      "indicatorsOfCompromise": [
+        {
+          "type": "Process",
+          "indicator": "Office crashes followed by suspicious process spawning",
+          "description": "Use-after-free exploitation"
+        },
+        {
+          "type": "Memory",
+          "indicator": "Abnormal memory patterns in Office processes",
+          "description": "Heap spray or exploitation artifacts"
+        }
+      ],
+      "attribution": {
+        "threatActors": [
+          {
+            "name": "Various",
+            "country": "Unknown",
+            "confidence": "MEDIUM",
+            "observedActivity": "Used in spear-phishing campaigns"
+          }
+        ],
+        "exploitAvailability": "Microsoft assessed exploitation as 'less likely'",
+        "cisaKEV": false,
+        "patchAvailable": true
+      },
+      "timeline": {
+        "disclosed": "December 2025 Patch Tuesday",
+        "patchAvailable": true,
+        "vendor": "Microsoft"
+      },
+      "recommendedActions": [
+        {
+          "priority": "P1",
+          "action": "Deploy December 2025 Office updates",
+          "impact": "Critical - Patches both Office RCE vulnerabilities",
+          "effort": "Low - Standard patching"
+        },
+        {
+          "priority": "P2",
+          "action": "Implement Enhanced Mitigation Experience Toolkit (EMET) equivalent protections",
+          "impact": "Medium - Exploitation mitigation",
+          "effort": "Low - System configuration"
+        }
+      ],
+      "businessContext": {
+        "exploitationLikelihood": "MEDIUM - Less likely per Microsoft but sophisticated attackers may have capabilities",
+        "impactIfExploited": "Similar to CVE-2025-62554 - RCE via malicious documents",
+        "patchComplexity": "Low",
+        "downtimeRequired": "Minimal"
+      }
+    },
+    {
+      "threatId": "MUDDYVATER",
+      "n8nWorkflowId": "wf-muddywater-005",
+      "threatType": "THREAT_ACTOR",
+      "name": "MuddyWater (Iranian APT)",
+      "severity": "HIGH",
+      "targetedRegions": [
+        "Israel",
+        "Egypt",
+        "Middle East"
+      ],
+      "targetedSectors": [
+        "Government",
+        "Defense",
+        "Financial Services",
+        "Critical Infrastructure"
+      ],
+      "attackVectors": [
+        {
+          "type": "Spear Phishing",
+          "description": "Targeted emails with malicious attachments/links",
+          "prevalence": "Primary"
+        },
+        {
+          "type": "Compromised Credentials",
+          "description": "Initial access via stolen credentials",
+          "prevalence": "Increasing"
+        },
+        {
+          "type": "Exposed Services",
+          "description": "Exploitation of publicly exposed services",
+          "prevalence": "Common"
+        }
+      ],
+      "tools": [
+        {
+          "name": "Fooder Loader",
+          "type": "Custom Loader",
+          "description": "Custom loader designed to deploy MuddyViper backdoor",
+          "detection": "May evade traditional AV"
+        },
+        {
+          "name": "MuddyViper",
+          "type": "Backdoor",
+          "description": "Modular backdoor for persistent access",
+          "capabilities": [
+            "System information collection",
+            "File execution",
+            "Shell command execution",
+            "File transfer",
+            "Data exfiltration"
+          ]
+        }
+      ],
+      "tactics": [
+        "Living-off-the-land techniques",
+        "Modular backdoor deployment",
+        "Long-term persistence",
+        "Defense evasion"
+      ],
+      "indicatorsOfCompromise": [
+        {
+          "type": "FileSystem",
+          "indicator": "Suspicious DLL files in temporary directories",
+          "description": "Fooder loader artifacts"
+        },
+        {
+          "type": "Network",
+          "indicator": "Connections to Discord CDN or similar platforms",
+          "description": "C2 communication via legitimate services"
+        },
+        {
+          "type": "Registry",
+          "indicator": "New persistence entries for unknown services",
+          "description": "MuddyViper persistence"
+        },
+        {
+          "type": "Process",
+          "indicator": "PowerShell scripts with encoded commands",
+          "description": "Living-off-the-land execution"
+        }
+      ],
+      "attribution": {
+        "country": "Iran",
+        "organization": "Ministry of Intelligence",
+        "firstObserved": "2017",
+        "currentActivity": "Active - Escalating operations",
+        "confidence": "HIGH"
+      },
+      "recommendedActions": [
+        {
+          "priority": "P1",
+          "action": "Enable enhanced logging on email gateways and endpoints",
+          "impact": "Critical - Detection capability",
+          "effort": "Medium - Configuration required"
+        },
+        {
+          "priority": "P1",
+          "action": "Implement multi-factor authentication on all privileged accounts",
+          "impact": "Critical - Credential theft mitigation",
+          "effort": "Medium - Deployment effort"
+        },
+        {
+          "priority": "P2",
+          "action": "Block or monitor PowerShell Script Block Logging bypass attempts",
+          "impact": "High - Evasion detection",
+          "effort": "Low - GPO configuration"
+        },
+        {
+          "priority": "P2",
+          "action": "Review and rotate credentials for exposed services",
+          "impact": "High - Reduces credential reuse",
+          "effort": "Low - Standard practice"
+        },
+        {
+          "priority": "P3",
+          "action": "Conduct threat hunting for MuddyViper IOCs",
+          "impact": "Medium - Proactive detection",
+          "effort": "Medium - Requires SOC resources"
+        }
+      ],
+      "businessContext": {
+        "targetLikelihood": "HIGH for organizations in Israel/Egypt and related sectors",
+        "impactIfTargeted": "Espionage, persistent access, data exfiltration",
+        "motivation": "State-sponsored espionage",
+        "sophistication": "HIGH - Custom tools, evolving techniques"
+      }
+    },
+    {
+      "threatId": "BLINDEAGLE",
+      "n8nWorkflowId": "wf-blindagle-006",
+      "threatType": "THREAT_ACTOR",
+      "name": "BlindEagle (APT-C-36)",
+      "severity": "HIGH",
+      "targetedRegions": [
+        "Colombia",
+        "South America",
+        "Potential expansion to other regions"
+      ],
+      "targetedSectors": [
+        "Government (Primary)",
+        "Finance",
+        "Petroleum",
+        "Manufacturing",
+        "Professional Services"
+      ],
+      "attackVectors": [
+        {
+          "type": "Compromised Email Accounts",
+          "description": "Abuse of compromised internal email for phishing",
+          "prevalence": "Primary - Recent evolution"
+        },
+        {
+          "type": "Multi-stage Fileless Attacks",
+          "description": "Fileless malware using in-memory execution",
+          "prevalence": "Common"
+        },
+        {
+          "type": "Steganography",
+          "description": "Hidden payloads in images",
+          "prevalence": "Common"
+        }
+      ],
+      "tools": [
+        {
+          "name": "Caminho Downloader",
+          "type": "Downloader",
+          "description": "Custom downloader for second-stage payloads"
+        },
+        {
+          "name": "DCRAT",
+          "type": "Remote Access Trojan",
+          "description": "Enhanced version of DarkCrystal RAT",
+          "capabilities": [
+            "Remote control",
+            "Data theft",
+            "Keylogging",
+            "Screen capture"
+          ]
+        }
+      ],
+      "tactics": [
+        "Modular multi-stage execution",
+        "Fileless techniques",
+        "Legitimate cloud service abuse (Discord)",
+        "Stealth and attribution resistance"
+      ],
+      "indicatorsOfCompromise": [
+        {
+          "type": "Network",
+          "indicator": "Traffic to Discord API/CDN from non-Discord applications",
+          "description": "C2 communication"
+        },
+        {
+          "type": "FileSystem",
+          "indicator": "Suspicious PNG/JPEG files in temp directories",
+          "description": "Steganographic payloads"
+        },
+        {
+          "type": "Memory",
+          "indicator": "Injected code in legitimate processes",
+          "description": "Fileless execution"
+        },
+        {
+          "type": "Email",
+          "indicator": "Emails from compromised internal accounts with unusual attachments",
+          "description": "Lateral phishing"
+        }
+      ],
+      "attribution": {
+        "country": "South America (Colombia)",
+        "firstObserved": "April 2018",
+        "currentActivity": "Active - Targeting Colombian government",
+        "confidence": "HIGH",
+        "evolution": "Recently expanded to use compromised internal emails"
+      },
+      "recommendedActions": [
+        {
+          "priority": "P1",
+          "action": "Implement email authentication (DMARC, DKIM, SPF) strictly",
+          "impact": "Critical - Prevents email spoofing abuse",
+          "effort": "Medium - Configuration required"
+        },
+        {
+          "priority": "P1",
+          "action": "Monitor for Discord API calls from non-Discord processes",
+          "impact": "Critical - C2 detection",
+          "effort": "Low - EDR rule"
+        },
+        {
+          "priority": "P2",
+          "action": "Deploy advanced threat detection for fileless malware",
+          "impact": "High - Memory-based detection",
+          "effort": "Medium - EDR tuning"
+        },
+        {
+          "priority": "P2",
+          "action": "Conduct forensic analysis of any suspicious images",
+          "impact": "High - Payload identification",
+          "effort": "Medium - Requires expertise"
+        },
+        {
+          "priority": "P3",
+          "action": "Implement behavioral analysis for abnormal email patterns",
+          "impact": "Medium - Internal compromise detection",
+          "effort": "Medium - SIEM correlation"
+        }
+      ],
+      "businessContext": {
+        "targetLikelihood": "HIGH for Colombian government and related sectors",
+        "impactIfTargeted": "Espionage, data theft, persistent access",
+        "motivation": "Regional espionage",
+        "sophistication": "HIGH - Evolving tradecraft, fileless attacks"
+      }
+    },
+    {
+      "threatId": "QILIN-RANSOM",
+      "n8nWorkflowId": "wf-qilin-007",
+      "threatType": "RANSOMWARE",
+      "name": "Qilin Ransomware Group",
+      "severity": "CRITICAL",
+      "targetedRegions": [
+        "Global",
+        "Singapore",
+        "Japan",
+        "Europe"
+      ],
+      "targetedSectors": [
+        "Healthcare",
+        "Manufacturing",
+        "Finance",
+        "Education",
+        "IT & Telecommunications"
+      ],
+      "attackVectors": [
+        {
+          "type": "Vulnerability Exploitation",
+          "description": "Primary initial access via CVEs",
+          "prevalence": "Primary (32% of attacks)"
+        },
+        {
+          "type": "Compromised Credentials",
+          "description": "VPN and RDP compromise",
+          "prevalence": "23% of attacks"
+        },
+        {
+          "type": "Phishing",
+          "description": "Malicious emails with attachments",
+          "prevalence": "19% of attacks"
+        }
+      ],
+      "ttps": [
+        "Double extortion (data theft + encryption)",
+        "Data integrity attacks",
+        "Cloud lockouts",
+        "Identity takeover"
+      ],
+      "indicatorsOfCompromise": [
+        {
+          "type": "FileSystem",
+          "indicator": "Files with .qilin or random extension",
+          "description": "Encrypted files"
+        },
+        {
+          "type": "FileSystem",
+          "indicator": "Ransomware note files (README.html, etc.)",
+          "description": "Ransom notification"
+        },
+        {
+          "type": "Network",
+          "indicator": "Large outbound data transfers",
+          "description": "Data exfiltration before encryption"
+        },
+        {
+          "type": "Process",
+          "indicator": "Mass file encryption processes",
+          "description": "Active encryption"
+        }
+      ],
+      "attribution": {
+        "groupType": "RaaS (Ransomware-as-a-Service)",
+        "firstObserved": "2024",
+        "currentActivity": "Active - Q3 2025: 10% of observed attacks",
+        "confidence": "HIGH",
+        "affiliates": "Multiple active affiliates"
+      },
+      "recommendedActions": [
+        {
+          "priority": "P1",
+          "action": "IMMEDIATE - Verify immutable backups are in place and tested",
+          "impact": "Critical - Recovery capability",
+          "effort": "Low - Verification"
+        },
+        {
+          "priority": "P1",
+          "action": "Patch all exploited vulnerabilities immediately",
+          "impact": "Critical - Eliminates primary attack vector",
+          "effort": "Medium - Requires prioritization"
+        },
+        {
+          "priority": "P1",
+          "action": "Enable MFA on all VPN and RDP access points",
+          "impact": "Critical - Credential theft mitigation",
+          "effort": "Medium - Deployment"
+        },
+        {
+          "priority": "P2",
+          "action": "Deploy network segmentation to limit lateral movement",
+          "impact": "High - Containment",
+          "effort": "Medium - Network changes"
+        },
+        {
+          "priority": "P2",
+          "action": "Implement EDR with ransomware-specific behavioral detection",
+          "impact": "High - Detection and prevention",
+          "effort": "Low - Configuration"
+        },
+        {
+          "priority": "P3",
+          "action": "Conduct regular tabletop exercises with ransomware scenarios",
+          "impact": "Medium - Preparedness",
+          "effort": "Low - Planning"
+        }
+      ],
+      "businessContext": {
+        "exploitationLikelihood": "HIGH - One of most operationally damaging groups of 2025",
+        "impactIfExploited": "Complete operational disruption, data loss, reputational damage, regulatory consequences",
+        "paymentRecommendation": "DO NOT PAY - No guarantee of recovery and funds criminal activity",
+        "recoveryTime": "Weeks to months without tested backups",
+        "regulatoryImplications": [
+          "GDPR Article 32",
+          "SEC regulations",
+          "Industry-specific breach laws"
+        ]
+      }
+    },
+    {
+      "threatId": "LOCKBIT5",
+      "n8nWorkflowId": "wf-lockbit5-008",
+      "threatType": "RANSOMWARE",
+      "name": "LockBit 5 Ransomware",
+      "severity": "CRITICAL",
+      "targetedRegions": [
+        "Global",
+        "Europe (Active)",
+        "Turkey",
+        "Hungary",
+        "Czech Republic"
+      ],
+      "targetedSectors": [
+        "Manufacturing",
+        "Mining",
+        "Energy",
+        "HVAC",
+        "Various commercial enterprises"
+      ],
+      "attackVectors": [
+        {
+          "type": "Vulnerability Exploitation",
+          "description": "Exploitation of known CVEs",
+          "prevalence": "Primary"
+        },
+        {
+          "type": "Phishing",
+          "description": "Credential harvesting",
+          "prevalence": "Common"
+        },
+        {
+          "type": "RDP Compromise",
+          "description": "Brute force on RDP endpoints",
+          "prevalence": "Common"
+        }
+      ],
+      "ttps": [
+        "Rapid encryption (hours)",
+        "Data exfiltration",
+        "Extortion pressure via dark web leak site"
+      ],
+      "recentVictims": [
+        {
+          "name": "Fresh2You",
+          "industry": "Fruit Import/Wholesale",
+          "location": "Europe",
+          "date": "2025-12-26"
+        },
+        {
+          "name": "Fortrex Zrt",
+          "industry": "Industrial Design",
+          "location": "Hungary",
+          "date": "2025-12-26"
+        },
+        {
+          "name": "Gümüştaş",
+          "industry": "Mining",
+          "location": "Turkey",
+          "date": "2025-12-26"
+        },
+        {
+          "name": "GES Genel Elektrik",
+          "industry": "Electrical Engineering",
+          "location": "Turkey",
+          "date": "2025-12-26"
+        }
+      ],
+      "indicatorsOfCompromise": [
+        {
+          "type": "FileSystem",
+          "indicator": "Files encrypted with .lockbit5 or similar extension",
+          "description": "Encryption artifacts"
+        },
+        {
+          "type": "FileSystem",
+          "indicator": "Restore_My_Files.txt ransom notes",
+          "description": "Ransom notification"
+        },
+        {
+          "type": "Network",
+          "indicator": "Connections to Tor-based leak sites",
+          "description": "Extortion site communication"
+        }
+      ],
+      "attribution": {
+        "groupType": "RaaS",
+        "firstObserved": "2019 (evolved)",
+        "currentActivity": "Active - Mass campaign targeting European companies",
+        "confidence": "HIGH",
+        "lawEnforcement": "Previously disrupted, has resurged"
+      },
+      "recommendedActions": [
+        {
+          "priority": "P1",
+          "action": "Ensure offline/immutable backups are current and tested",
+          "impact": "Critical - Recovery capability",
+          "effort": "Low - Verification"
+        },
+        {
+          "priority": "P1",
+          "action": "Block all unnecessary inbound/outbound RDP",
+          "impact": "Critical - Attack surface reduction",
+          "effort": "Low - Firewall rules"
+        },
+        {
+          "priority": "P2",
+          "action": "Implement application whitelisting",
+          "impact": "High - Execution prevention",
+          "effort": "Medium - Deployment"
+        },
+        {
+          "priority": "P2",
+          "action": "Enable folder-level ransomware protection in EDR",
+          "impact": "High - Behavioral blocking",
+          "effort": "Low - Configuration"
+        },
+        {
+          "priority": "P3",
+          "action": "Monitor dark web for organization data",
+          "impact": "Medium - Early warning",
+          "effort": "Medium - External monitoring"
+        }
+      ],
+      "businessContext": {
+        "exploitationLikelihood": "HIGH for organizations with vulnerable external services",
+        "impactIfExploited": "Business disruption, data loss, financial extortion demands",
+        "paymentRecommendation": "DO NOT PAY",
+        "recoveryTime": "Variable - depends on backup status"
+      }
+    },
+    {
+      "threatId": "GOOGTASKS-PHISH",
+      "n8nWorkflowId": "wf-google-tasks-009",
+      "threatType": "PHISHING",
+      "name": "Google Tasks Notification Phishing Campaign",
+      "severity": "HIGH",
+      "targetedRegions": [
+        "Global"
+      ],
+      "targetedSectors": [
+        "Manufacturing (Primary)",
+        "Technology",
+        "Financial Services",
+        "Professional Services"
+      ],
+      "attackVectors": [
+        {
+          "type": "Email Spoofing",
+          "description": "Abuse of Google legitimate infrastructure",
+          "prevalence": "Primary",
+          "details": "Emails from noreply-application-integration@google.com"
+        },
+        {
+          "type": "Task Notifications",
+          "description": "Abuse of Google Tasks notifications",
+          "prevalence": "Primary"
+        }
+      ],
+      "campaignDetails": {
+        "victimCount": "3,000+ organizations",
+        "discoveryDate": "December 2025",
+        "abusedService": "Google Tasks / Google Cloud Automation",
+        "evasionTechnique": "Abuse of legitimate Google infrastructure to bypass email security"
+      },
+      "indicatorsOfCompromise": [
+        {
+          "type": "Email",
+          "indicator": "Emails from noreply-application-integration@google.com with suspicious Task links",
+          "description": "Phishing emails"
+        },
+        {
+          "type": "Network",
+          "indicator": "Users clicking Google Task links to external phishing sites",
+          "description": "Credential theft attempts"
+        },
+        {
+          "type": "Behavior",
+          "indicator": "Multiple failed login attempts from unusual locations",
+          "description": "Account compromise"
+        }
+      ],
+      "recommendedActions": [
+        {
+          "priority": "P1",
+          "action": "BLOCK Google Tasks notifications from external sources at email gateway",
+          "impact": "Critical - Primary vector blocking",
+          "effort": "Low - Email rule"
+        },
+        {
+          "priority": "P1",
+          "action": "NOTIFY all users about campaign and provide safe procedures",
+          "impact": "Critical - User awareness",
+          "effort": "Low - Communication"
+        },
+        {
+          "priority": "P2",
+          "action": "Enable login anomaly detection for all accounts",
+          "impact": "High - Compromised account detection",
+          "effort": "Low - Security policy"
+        },
+        {
+          "priority": "P2",
+          "action": "Review Google Workspace audit logs for suspicious Task creation",
+          "impact": "High - Campaign detection",
+          "effort": "Low - Log review"
+        },
+        {
+          "priority": "P3",
+          "action": "Implement URL sandboxing for external links",
+          "impact": "Medium - Click-time protection",
+          "effort": "Medium - Security tool deployment"
+        }
+      ],
+      "businessContext": {
+        "exploitationLikelihood": "HIGH - 3,000+ organizations already compromised",
+        "impactIfExploited": "Credential theft, account takeover, data breach, lateral movement",
+        "evasionTechnique": "Leverages trust in Google brand to bypass security controls",
+        "uniqueRisk": "Abuse of legitimate services makes traditional email filtering ineffective"
+      }
+    },
+    {
+      "threatId": "PHANTOMSTEALER",
+      "n8nWorkflowId": "wf-phantom-stealer-010",
+      "threatType": "MALWARE",
+      "name": "Phantom Stealer",
+      "severity": "HIGH",
+      "targetedRegions": [
+        "Eastern Europe",
+        "Russia-speaking regions"
+      ],
+      "targetedSectors": [
+        "Finance",
+        "Accounting",
+        "Banking"
+      ],
+      "attackVectors": [
+        {
+          "type": "Phishing",
+          "description": "Payment confirmation email impersonation",
+          "prevalence": "Primary"
+        }
+      ],
+      "campaignDetails": {
+        "name": "Operation Phantom Stealer",
+        "language": "Russian (formal business style)",
+        "theme": "Bank transfer notifications",
+        "target": "Finance and accounting teams",
+        "objective": "Exploit routine business workflows"
+      },
+      "malwareCapabilities": [
+        "Credential harvesting",
+        "Browser data theft",
+        "System information collection",
+        "Financial data theft"
+      ],
+      "indicatorsOfCompromise": [
+        {
+          "type": "Email",
+          "indicator": "Russian-language payment confirmation emails from unknown senders",
+          "description": "Phishing emails"
+        },
+        {
+          "type": "FileSystem",
+          "indicator": "Suspicious attachments in finance team email downloads",
+          "description": "Malware delivery"
+        },
+        {
+          "type": "Process",
+          "indicator": "Unknown processes accessing browser data or credentials",
+          "description": "Data theft activity"
+        },
+        {
+          "type": "Network",
+          "indicator": "Exfiltration connections from endpoint processes",
+          "description": "Data exfiltration"
+        }
+      ],
+      "attribution": {
+        "threatActor": "Unknown (Russian-speaking)",
+        "confidence": "MEDIUM",
+        "firstObserved": "December 2025",
+        "currentActivity": "Active"
+      },
+      "recommendedActions": [
+        {
+          "priority": "P1",
+          "action": "BLOCK Russian-language payment confirmation emails at gateway",
+          "impact": "Critical - Primary vector blocking",
+          "effort": "Low - Email rule"
+        },
+        {
+          "priority": "P1",
+          "action": "EDUCATE finance/accounting teams about campaign",
+          "impact": "Critical - Human firewall",
+          "effort": "Low - Training"
+        },
+        {
+          "priority": "P2",
+          "action": "Monitor finance team endpoints for credential access",
+          "impact": "High - Detection",
+          "effort": "Low - EDR policy"
+        },
+        {
+          "priority": "P2",
+          "action": "Enable browser credential protection features",
+          "impact": "High - Credential security",
+          "effort": "Low - Feature enablement"
+        },
+        {
+          "priority": "P3",
+          "action": "Implement data loss prevention for financial data",
+          "impact": "Medium - Exfiltration prevention",
+          "effort": "Medium - DLP policy"
+        }
+      ],
+      "businessContext": {
+        "exploitationLikelihood": "MEDIUM-HIGH for finance/accounting functions",
+        "impactIfExploited": "Credential theft, financial fraud, data breach",
+        "targetRationale": "Finance teams handle sensitive financial data and transactions",
+        "sophistication": "MEDIUM-HIGH - Uses deep understanding of business workflows"
+      }
+    }
+  ],
+  "vulnerabilitySummary": {
+    "totalCVEs": 8,
+    "criticalSeverity": 2,
+    "highSeverity": 6,
+    "activelyExploited": 5,
+    "cisaKEVListed": 4,
+    "topPriorities": [
+      "CVE-2025-55182 (React2Shell) - CVSS 10.0",
+      "CVE-2025-66644 (Array Networks) - CVSS 9.8",
+      "CVE-2025-62554/62557 (Microsoft Office) - CVSS 8.4"
+    ]
+  },
+  "threatActorSummary": {
+    "totalActors": 4,
+    "stateSponsored": 3,
+    "crimeware": 1,
+    "mostActive": [
+      {
+        "name": "MuddyWater",
+        "activity": "Custom loader deployment, regional targeting escalation"
+      },
+      {
+        "name": "BlindEagle",
+        "activity": "Government targeting, fileless techniques"
+      },
+      {
+        "name": "Earth Lamia/Jackpot Panda",
+        "activity": "React2Shell exploitation"
+      }
+    ]
+  },
+  "ransomwareEcosystem": {
+    "newGroups2025": 57,
+    "newStrains2025": 350,
+    "topVariants": [
+      {
+        "name": "Akira",
+        "marketShare": "34% of Q3 2025 attacks",
+        "activity": "Continued"
+      },
+      {
+        "name": "Qilin",
+        "marketShare": "10% of Q3 2025 attacks",
+        "activity": "Escalating"
+      }
+    ],
+    "trends": [
+      "Shift to double extortion immediately",
+      "Exploited vulnerabilities as primary attack vector (32%)",
+      "Credential compromise down (23%) from 2024 (29%)",
+      "AI-powered automation in attacks"
+    ]
+  },
+  "phishingTrends": {
+    "notableCampaigns": 5,
+    "aiEnhanced": true,
+    "abusedServices": [
+      "Google Tasks",
+      "Discord",
+      "Legitimate cloud platforms"
+    ],
+    "sectorConcentration": {
+      "travel": "57.6%",
+      "logistics": "27.5%",
+      "government": "8.2%"
+    }
+  },
+  "recommendations": {
+    "immediate": [
+      "PATCH React2Shell vulnerability CVE-2025-55182 across all affected React/Next.js applications",
+      "PATCH Array Networks ArrayOS to version 9.4.5.9 or later",
+      "DEPLOY Microsoft Office December 2025 updates to all workstations",
+      "NOTIFY users about Google Tasks phishing campaign - Do NOT click Google Task links from unknown senders",
+      "VERIFY immutable/offline backups are in place for ransomware resilience"
+    ],
+    "shortTerm": [
+      "Enable MFA on all privileged and remote access accounts",
+      "Implement network segmentation to limit lateral movement",
+      "Deploy EDR with ransomware-specific behavioral detection",
+      "Update email gateway signatures for malicious document patterns",
+      "Conduct threat hunting for identified IOCs"
+    ],
+    "mediumTerm": [
+      "Implement Zero Trust architecture principles",
+      "Deploy advanced threat detection for fileless malware",
+      "Conduct regular ransomware tabletop exercises",
+      "Implement comprehensive logging and monitoring",
+      "Review and rotate credentials for exposed services"
+    ],
+    "strategic": [
+      "Establish continuous vulnerability management program",
+      "Build threat intelligence sharing partnerships",
+      "Invest in AI-powered security defenses",
+      "Develop incident response automation",
+      "Maintain regulatory compliance posture"
+    ]
+  },
+  "falsePositiveReduction": {
+    "confidenceIndicators": [
+      "CISA KEV listing increases confidence",
+      "Active exploitation evidence",
+      "Multiple independent sources",
+      "Specific IOCs vs generic patterns"
+    ],
+    "validationSteps": [
+      "Cross-reference with vendor advisories",
+      "Verify CVSS scoring appropriateness",
+      "Check for POC/exploit availability",
+      "Assess organizational exposure"
+    ]
+  },
+  "sources": [
+    "INE Security - December 2025 Critical CVE Round-Up",
+    "CrowdStrike - Patch Tuesday Analysis December 2025",
+    "Strobes Security - Top CVEs of December 2025",
+    "SOC Radar - Top 10 CVEs of 2025",
+    "Cisco Talos - Microsoft Patch Tuesday December 2025",
+    "CISA - Known Exploited Vulnerabilities Catalog",
+    "AWS Security Blog - China-nexus threat groups React2Shell exploitation",
+    "CYFIRMA - Weekly Intelligence Reports December 2025",
+    "The Hacker News - Iranian Infy APT Resurfaces",
+    "Bitdefender - Threat Debrief December 2025",
+    "Cyble - 10 New Ransomware Groups of 2025",
+    "Security Boulevard - Top Data Breaches of December 2025",
+    "Dark Reading - 5 Threats That Defined Security in 2025",
+    "Bright Defense - Phishing Statistics December 2025",
+    "Push Security - 2025 Top Phishing Trends"
+  ]
+}

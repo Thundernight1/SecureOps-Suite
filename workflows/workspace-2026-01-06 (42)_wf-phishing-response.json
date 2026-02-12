@@ -1,0 +1,165 @@
+{
+  "name": "Enterprise Phishing Response",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.threatintel.io/v1/phishing/campaign",
+        "authentication": "preDefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": {
+          "threatType": "PHISHING",
+          "severity": "HIGH",
+          "campaigns": [
+            {
+              "name": "Google Cloud App Integration Abuse",
+              "vector": "Spoofed Google emails",
+              "target": "Manufacturing, Finance, Tech sectors",
+              "method": "Multi-step redirect to Microsoft credential harvesting"
+            },
+            {
+              "name": "ConsentFix Attack",
+              "vector": "OAuth consent + ClickFix",
+              "target": "Enterprise users",
+              "method": "Browser-native attack technique"
+            },
+            {
+              "name": "npm Package Phishing",
+              "vector": "Malicious npm packages",
+              "target": "DevOps, Developers",
+              "method": "Credential harvesting via package names"
+            },
+            {
+              "name": "Webrat Campaign",
+              "vector": "Fake GitHub repos",
+              "target": "Security researchers, Gamers",
+              "method": "CVE PoC lures with malware droppers"
+            }
+          ],
+          "statistics": {
+            "credentialPhishingPercentage": 73.9,
+            "mfaBypassRate": 15,
+            "cloudAccountCompromise": 27,
+            "averageBreachCost": "$4.88M"
+          }
+        },
+        "options": {}
+      },
+      "name": "Phishing Intel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        280,
+        300
+      ],
+      "id": "phishing-intel-1"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "channel": "phishing-alerts",
+        "text": "=🎣 PHISHING CAMPAIGN ALERT\n\nTHREAT SEVERITY: HIGH\nDETECTION RATE: 73.9% of BEC attacks are credential-focused\n\nACTIVE CAMPAIGNS:\n\n1. Google Cloud Integration Abuse\n   Vector: Spoofed Google notifications (9,000+ emails sent)\n   Target: Manufacturing, Finance, Technology sectors\n   Method: Multi-step redirect to Microsoft credential harvesting sites\n   \n2. ConsentFix Attack (NEW)\n   Vector: OAuth consent + ClickFix-style prompts\n   Target: Enterprise users with cloud access\n   Method: Browser-native attack bypassing traditional defenses\n   \n3. npm Package Phishing\n   Vector: Malicious packages on npm registry\n   Target: DevOps teams, developers\n   Method: Credential harvesting via package names\n   \n4. Webrat Campaign\n   Vector: Fake GitHub repositories with CVE PoCs\n   Target: Security researchers, gamers\n   Method: Droppers disable Defender, deploy backdoor\n\nSTATISTICS:\n• 54% of phishing breaches result in credential theft\n• 27% lead to cloud account compromise\n• 15% use MFA phishing kits (AiTM attacks)\n• Average cost: $4.88M per breach\n\nRECOMMENDED ACTIONS:\n1. BLOCK Google Cloud redirect patterns\n2. DEPLOY email filters for OAuth consent lures\n3. AUDIT npm package installations\n4. WARN teams about fake GitHub PoC repos\n5. ENABLE MFA phishing-resistant methods (FIDO2)\n\nn8nWorkflowId: wf-phishing-response",
+        "options": {}
+      },
+      "name": "Phishing Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        300
+      ],
+      "id": "phishing-slack-1"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "to": "security-awareness@company.com",
+        "subject": "🎣 Phishing Alert: Active Credential Theft Campaigns",
+        "text": "=PHISHING THREAT INTELLIGENCE REPORT\n\nTHREAT SEVERITY: HIGH\n\nEXECUTIVE SUMMARY:\nMultiple sophisticated phishing campaigns are targeting enterprise users with credential theft as the primary objective. Organizations must strengthen email security and user awareness.\n\nDETAILED CAMPAIGNS:\n\n1. GOOGLE CLOUD APPLICATION INTEGRATION ABUSE\n• Volume: 9,000+ spoofed emails sent\n• Sectors: Manufacturing, Finance, Technology\n• Technique: Multi-step redirect through Google domains\n• Destination: Microsoft-themed credential harvesting site\n\n2. CONSENTFIX ATTACK (NEW TECHNIQUE)\n• Type: Browser-native OAuth consent phishing\n• Method: ClickFix-style user prompts\n• Impact: Bypasses traditional email filters\n\n3. MALICIOUS npm PACKAGES\n• Vector: 27+ packages on npm registry\n• Target: DevOps teams, developers\n• Impact: Direct credential harvesting\n\n4. WEBRAT CAMPAIGN\n• Lure: Fake GitHub repos with CVE PoC code\n• Targets: Security researchers, gamers, students\n• Impact: Backdoor deployment, keylogging\n\nSTATISTICS:\n• 73.9% of BEC attacks = credential phishing\n• 54% of phishing breaches = successful credential theft\n• 27% of incidents = cloud account compromise\n• 15% = MFA bypass via AiTM phishing kits\n• Average breach cost: $4.88M\n\nDEFENSE RECOMMENDATIONS:\n1. Deploy advanced email filtering with URL sandboxing\n2. Implement DMARC, SPF, DKIM enforcement\n3. Enable FIDO2/WebAuthn MFA (resistant to phishing)\n4. Monitor for suspicious OAuth consent requests\n5. Block npm package installations from untrusted sources\n6. Train users to recognize consent phishing patterns\n7. Use browser extensions to detect ConsentFix patterns",
+        "options": {}
+      },
+      "name": "Awareness Team Email",
+      "type": "n8n-nodes-base.emailReadWrite",
+      "typeVersion": 2,
+      "position": [
+        720,
+        300
+      ],
+      "id": "awareness-email-1"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "ticketType": "phishing_incident",
+        "title": "=Active Phishing Campaign - Credential Theft",
+        "description": "=Multiple credential phishing campaigns detected. Review email logs.",
+        "options": {}
+      },
+      "name": "Create Phishing Ticket",
+      "type": "n8n-nodes-base.jiraSoftware",
+      "typeVersion": 3,
+      "position": [
+        940,
+        300
+      ],
+      "id": "phishing-ticket-1"
+    }
+  ],
+  "connections": {
+    "Phishing Intel": {
+      "main": [
+        [
+          {
+            "node": "Phishing Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Phishing Slack Alert": {
+      "main": [
+        [
+          {
+            "node": "Awareness Team Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Awareness Team Email": {
+      "main": [
+        [
+          {
+            "node": "Create Phishing Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateId": "phishing-response",
+    "cyberSentinel": true,
+    "triggerId": "a1a6b29f-1834-4666-82d7-1163ce25f64c",
+    "agentId": "a401e896-d617-4e97-8bbf-29f47e133c21",
+    "scheduledTime": "2025-12-27T14:20:11.968570+00:00"
+  }
+}

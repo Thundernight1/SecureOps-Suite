@@ -1,0 +1,459 @@
+{
+  "name": "CyberSentinel - Ransomware Attack Response (Qilin/Rhysida)",
+  "meta": {
+    "threatType": "RANSOMWARE",
+    "threatGroups": [
+      "Qilin",
+      "Rhysida",
+      "Akira",
+      "Cl0p"
+    ],
+    "severity": "CRITICAL",
+    "attackVectors": [
+      "Exploited vulnerabilities (32%)",
+      "Compromised credentials (23%)",
+      "Malicious email (19%)",
+      "Phishing (18%)"
+    ],
+    "affectedIndustries": [
+      "Manufacturing (930 victims)",
+      "Technology (893 victims)",
+      "Healthcare (529 victims)",
+      "Critical Infrastructure"
+    ],
+    "doubleExtortion": true,
+    "n8nWorkflowId": "ransomware-qilin-rhysida-response"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "pollTime": "*/5 * * * *"
+      },
+      "name": "Ransomware Detection Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "id": "trigger-001"
+    },
+    {
+      "parameters": {
+        "url": "https://ransomware.live/api/active-campaigns"
+      },
+      "name": "Monitor Ransomware Feeds",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        300,
+        100
+      ],
+      "id": "ransom-feed-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/detect_ransomware_indicators.py --mode comprehensive"
+      },
+      "name": "Scan for IoCs",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ],
+      "id": "scan-iocs-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/check_edr_alerts.py --ransomware"
+      },
+      "name": "Check EDR Alerts",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ],
+      "id": "edr-check-001"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.ransomwareDetected }}",
+              "operation": "equal",
+              "value2": "true"
+            }
+          ]
+        }
+      },
+      "name": "Ransomware Detected?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ],
+      "id": "ransomware-check-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/network_isolation.py --mode immediate --reason ransomware_detection"
+      },
+      "name": "Network Isolation",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ],
+      "id": "isolate-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/block_ransomware_communication.py --all"
+      },
+      "name": "Block C2 Communication",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ],
+      "id": "block-c2-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/stop_services.py --ransomware_mode"
+      },
+      "name": "Stop Critical Services",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ],
+      "id": "stop-services-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/create_snapshot.py --all_systems"
+      },
+      "name": "Create System Snapshots",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        700,
+        400
+      ],
+      "id": "snapshot-001"
+    },
+    {
+      "parameters": {
+        "channel": "#security-critical",
+        "text": "🛑 **RANSOMWARE INCIDENT DETECTED** 🛑\n\n**Severity:** CRITICAL\n**Status:** ACTIVE ATTACK IN PROGRESS\n\n**Threat Group:** {{ $json.threatGroup || 'Unknown Ransomware' }}\n**Affected Systems:** {{ $json.affectedSystems }}\n**Encryption Detected:** {{ $json.encryptionDetected }}\n\n**IMMEDIATE ACTIONS TAKEN:**\n✅ Network isolation initiated\n✅ C2 communication blocked\n✅ Critical services stopped\n✅ System snapshots created\n\n**DO NOT:**\n❌ Power off affected systems\n❌ Attempt file recovery without forensic imaging\n❌ Communicate with threat actors\n\n**INVESTIGATION TEAM:** Assemble immediately\n**INCIDENT COMMAND:** Notify CISO and Legal"
+      },
+      "name": "Critical Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ],
+      "id": "slack-critical-001"
+    },
+    {
+      "parameters": {
+        "from": "cybersentinel@company.com",
+        "to": "ciso@company.com,security-ops@company.com,it-director@company.com,legal@company.com",
+        "subject": "🚨 CRITICAL: RANSOMWARE ATTACK IN PROGRESS - IMMEDIATE RESPONSE REQUIRED",
+        "text": "CyberSentinel has detected an active ransomware attack. Immediate containment actions have been initiated.\n\n**INCIDENT SUMMARY:**\n- Threat Type: {{ $json.threatGroup || 'Unknown Ransomware' }}\n- Status: ACTIVE / ENCRYPTION IN PROGRESS\n- Affected Systems: {{ $json.affectedSystems }}\n- Double Extortion: LIKELY\n\n**ACTIONS ALREADY TAKEN:**\n1. Network isolation of affected segments\n2. C2 communication blocked at firewall\n3. Critical services stopped to prevent spread\n4. System snapshots created for forensics\n\n**IMMEDIATE PRIORITIES:**\n1. **ASSEMBLE** - Incident Response Team\n2. **ASSESS** - Scope of infection\n3. **CONTAIN** - Prevent lateral movement\n4. **EVIDENCE** - Preserve forensic data\n5. **COMMUNICATE** - Legal and PR coordination\n\n**CRITICAL:** Do NOT power off systems. Do NOT attempt decryption without backups.\n\n**INCIDENT COMMAND STRUCTURE:**\n- Incident Commander: [TBD]\n- Technical Lead: [TBD]\n- Communications: [TBD]\n- Legal Liaison: [TBD]"
+      },
+      "name": "Critical Email Alert",
+      "type": "n8n-nodes-base.email",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ],
+      "id": "email-critical-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/create_jira_incident.py --priority critical --labels ransomware,incident"
+      },
+      "name": "Create Incident Ticket",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        900,
+        400
+      ],
+      "id": "jira-ticket-001"
+    },
+    {
+      "parameters": {
+        "channel": "#security-critical",
+        "text": "🔍 **FORENSIC COLLECTION** 🔍\n\n**Ransomware Investigation - Phase 1**\n\nCollecting:\n- [ ] Memory dumps from affected systems\n- [ ] Disk images from affected systems\n- [ ] Network traffic logs\n- [ ] Firewall/EDR logs\n- [ ] Authentication logs\n- [ ] Email headers (if phishing vector)\n- [ ] Previous backup verification\n\n**Timeline Analysis:**\n- Initial access: {{ $json.initialAccessTime }}\n- Lateral movement: {{ $json.lateralMovementDetected }}\n- Data exfiltration: {{ $json.dataExfiltrationDetected }}\n\n**Ransom Note Location:** {{ $json.ransomNotePath || 'TBD' }}"
+      },
+      "name": "Forensic Collection Tasks",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ],
+      "id": "forensic-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/check_backup_integrity.py --all"
+      },
+      "name": "Verify Backup Integrity",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        300
+      ],
+      "id": "backup-check-001"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "ransomware_incidents",
+        "columns": "incident_id, threat_group, severity, affected_systems, containment_status, forensic_status, created_at, status",
+        "values": "gen_random_uuid(), '{{ $json.threatGroup }}', 'CRITICAL', '{{ $json.affectedSystems }}', 'isolated', 'in_progress', NOW(), 'active'"
+      },
+      "name": "Log Incident",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        400
+      ],
+      "id": "db-log-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/assess_ransom_note.py"
+      },
+      "name": "Analyze Ransom Note",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        200
+      ],
+      "id": "ransom-note-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/prepare_recovery_plan.py"
+      },
+      "name": "Prepare Recovery Plan",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        300
+      ],
+      "id": "recovery-plan-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/scan_for_persistence.py"
+      },
+      "name": "Scan for Persistence",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        400
+      ],
+      "id": "persistence-001"
+    },
+    {
+      "parameters": {
+        "channel": "#security-critical",
+        "text": "📊 **INCIDENT STATUS UPDATE** 📊\n\n**Ransomware Incident - Current Status**\n\n**Containment:** ✅ COMPLETE\n**Forensics:** 🔄 IN PROGRESS\n**Backups Status:** {{ $json.backupStatus }}\n**Recovery Plan:** 🔄 IN DEVELOPMENT\n\n**Next Steps:**\n1. Complete forensic imaging\n2. Validate backup integrity\n3. Develop recovery timeline\n4. Coordinate legal/comms\n5. Plan phased restoration\n\n**Estimated Recovery Time:** {{ $json.estimatedRecoveryTime }}\n**Business Impact:** {{ $json.businessImpact }}"
+      },
+      "name": "Status Update",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        200
+      ],
+      "id": "status-update-001"
+    }
+  ],
+  "connections": {
+    "Ransomware Detection Trigger": {
+      "main": [
+        [
+          {
+            "node": "Monitor Ransomware Feeds",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Scan for IoCs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check EDR Alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Monitor Ransomware Feeds": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Detected?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scan for IoCs": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Detected?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check EDR Alerts": {
+      "main": [
+        [
+          {
+            "node": "Ransomware Detected?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ransomware Detected?": {
+      "main": [
+        [
+          {
+            "node": "Network Isolation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Block C2 Communication",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Stop Critical Services",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create System Snapshots",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Critical Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Critical Email Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Incident Ticket",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Forensic Collection Tasks",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Verify Backup Integrity",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create System Snapshots": {
+      "main": [
+        [
+          {
+            "node": "Analyze Ransom Note",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Prepare Recovery Plan",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Scan for Persistence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Ransom Note": {
+      "main": [
+        [
+          {
+            "node": "Status Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Recovery Plan": {
+      "main": [
+        [
+          {
+            "node": "Status Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scan for Persistence": {
+      "main": [
+        [
+          {
+            "node": "Status Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

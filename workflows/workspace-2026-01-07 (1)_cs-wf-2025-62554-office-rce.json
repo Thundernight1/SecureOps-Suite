@@ -1,0 +1,258 @@
+{
+  "name": "CyberSentinel - Microsoft Office RCE Response",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTime": "0 */4 * * *",
+        "limit": 50
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "id": "trigger-schedule"
+    },
+    {
+      "parameters": {
+        "url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2025-62554",
+        "options": {}
+      },
+      "name": "MSRC Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        300,
+        200
+      ],
+      "id": "msrc-check"
+    },
+    {
+      "parameters": {
+        "operation": "json",
+        "options": {}
+      },
+      "name": "Parse MSRC Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ],
+      "id": "parse-msrc"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.severity }}",
+              "operation": "equal",
+              "value2": "Critical"
+            }
+          ]
+        }
+      },
+      "name": "Check Severity",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ],
+      "id": "severity-check"
+    },
+    {
+      "parameters": {
+        "operation": "json",
+        "options": {}
+      },
+      "name": "Generate Alert",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        900,
+        150
+      ],
+      "id": "generate-alert"
+    },
+    {
+      "parameters": {
+        "channel": "security-alerts",
+        "text": "=🔴 **CRITICAL: Microsoft Office RCE Vulnerabilities** 🔴\n\n**CVE-2025-62554** (Type Confusion) & **CVE-2025-62557** (Use-After-Free)\n\n⚠️ **CVSS**: 8.4 (Critical)\n🎯 **AFFECTED**: Microsoft Office (all versions)\n\n**ATTACK VECTOR:**\n- Malicious email attachments/documents\n- No user interaction required (worst case)\n- Remote code execution possible\n\n**MITIGATIONS:**\n1. ⏱️ Apply December 2025 Security Updates IMMEDIATELY\n2. 🔒 Block Office macros via Group Policy\n3. 📧 Enable Safe Links/Safe Attachments\n4. 🔍 Monitor for suspicious Office child processes\n\n**IOCs to watch:**\n- winword.exe/excel.exe spawning powershell/cmd\n- Abnormal Office document network connections\n- Registry modifications by Office processes",
+        "attachments": []
+      },
+      "name": "Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        150
+      ],
+      "id": "slack-alert"
+    },
+    {
+      "parameters": {
+        "operation": "json",
+        "options": {}
+      },
+      "name": "Create EDR Query",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ],
+      "id": "edr-query"
+    },
+    {
+      "parameters": {
+        "query": "process_name:winword.exe OR process_name:excel.exe\nparent_process_name:powershell.exe OR parent_process_name:cmd.exe\ntimeframe:last_24h"
+      },
+      "name": "CrowdStrike Query",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1100,
+        300
+      ],
+      "id": "crowdstrike-query"
+    },
+    {
+      "parameters": {
+        "command": "Get-WmiObject -Class Win32_Product | Where-Object {$_.Name -like \"*Microsoft Office*\"} | Select-Object Name, Version"
+      },
+      "name": "Check Office Versions",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        200
+      ],
+      "id": "check-office"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "ticketStatus",
+              "value": "=INVESTIGATING"
+            }
+          ]
+        }
+      },
+      "options": {}
+    },
+    {
+      "name": "Update Jira Ticket",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        200
+      ],
+      "id": "jira-ticket"
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "MSRC Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MSRC Check": {
+      "main": [
+        [
+          {
+            "node": "Parse MSRC Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse MSRC Response": {
+      "main": [
+        [
+          {
+            "node": "Check Severity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Severity": {
+      "main": [
+        [
+          {
+            "node": "Generate Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create EDR Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Alert": {
+      "main": [
+        [
+          {
+            "node": "Slack Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create EDR Query": {
+      "main": [
+        [
+          {
+            "node": "CrowdStrike Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CrowdStrike Query": {
+      "main": [
+        [
+          {
+            "node": "Check Office Versions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "workflowId": "cs-wf-2025-62554-office",
+  "meta": {
+    "threatType": "VULNERABILITY",
+    "severity": "CRITICAL",
+    "cveId": "CVE-2025-62554, CVE-2025-62557",
+    "threatName": "Microsoft Office RCE",
+    "createdAt": "2025-12-27T14:20:11.968570+00:00",
+    "agentId": "a401e896-d617-4e97-8bbf-29f47e133c21",
+    "triggerId": "a1a6b29f-1834-4666-82d7-1163ce25f64c"
+  }
+}

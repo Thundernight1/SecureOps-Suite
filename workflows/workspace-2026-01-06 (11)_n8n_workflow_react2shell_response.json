@@ -1,0 +1,398 @@
+{
+  "name": "CyberSentinel - React2Shell RCE Response",
+  "nodes": [
+    {
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        100,
+        200
+      ],
+      "parameters": {
+        "path": "cybersentinel-react2shell-alert",
+        "options": {}
+      }
+    },
+    {
+      "name": "Parse Alert",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        300,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const alert = items[0].json;\n\n// Determine if this is a valid React2Shell alert\nconst indicators = {\n  cve: 'CVE-2025-55182',\n  threatType: 'VULNERABILITY',\n  severity: 'CRITICAL',\n  confidence: 0.95\n};\n\n// Return parsed alert\nreturn [{\n  json: {\n    ...alert,\n    processedAt: new Date().toISOString(),\n    workflowId: 'wf-react2shell-response-001',\n    indicators: indicators,\n    automatedResponse: true\n  }\n}];"
+      }
+    },
+    {
+      "name": "Check False Positive",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        500,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const alert = items[0].json;\n\n// React2Shell False Positive Checks\nconst checks = {\n  isReactApplication: false,\n  hasRSCEnabled: false,\n  isPubliclyExposed: false,\n  hasVulnerabilityScan: false\n};\n\n// In a real implementation, query CMDB/API to verify\n// For demo, assume this needs investigation\nchecks.isReactApplication = true;\nchecks.hasRSCEnabled = true;\nchecks.isPubliclyExposed = true;\n\nconst isLikelyFalsePositive = !checks.isReactApplication || !checks.hasRSCEnabled || !checks.isPubliclyExposed;\n\nreturn [{\n  json: {\n    ...alert,\n    falsePositiveChecks: checks,\n    requiresInvestigation: !isLikelyFalsePositive,\n    proceedToResponse: isLikelyFalsePositive\n  }\n}];"
+      }
+    },
+    {
+      "name": "Generate SIEM Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        700,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Configuration\"].json[\"siemWebhookUrl\"]}}",
+        "sendHeaders": true,
+        "sendBody": true,
+        "options": {},
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "alert_type",
+              "value": "VULNERABILITY"
+            },
+            {
+              "name": "severity",
+              "value": "CRITICAL"
+            },
+            {
+              "name": "title",
+              "value": "React2Shell RCE Zero-Day Detected"
+            },
+            {
+              "name": "cve",
+              "value": "CVE-2025-55182"
+            },
+            {
+              "name": "description",
+              "value": "Critical React Server Components RCE vulnerability actively exploited"
+            },
+            {
+              "name": "indicators",
+              "value": "={{JSON.stringify($node[\"Check False Positive\"].json[\"falsePositiveChecks\"])}}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{new Date().toISOString()}}"
+            },
+            {
+              "name": "workflow_id",
+              "value": "wf-react2shell-response-001"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Create Jira Ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        700,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Configuration\"].json[\"jiraApiUrl\"]}}/rest/api/3/issue",
+        "sendHeaders": true,
+        "sendBody": true,
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {},
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{\"Basic \" + Buffer.from($node[\"Configuration\"].json[\"jiraEmail\"] + \":\" + $node[\"Configuration\"].json[\"jiraApiToken\"]).toString(\"base64\")}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "={{JSON.stringify({\n  project: { key: \"SEC\" },\n  summary: \"[CRITICAL] React2Shell RCE Vulnerability - Immediate Action Required\",\n  description: {\n    type: \"doc\",\n    version: 1,\n    content: [{\n      type: \"paragraph\",\n      content: [{\n        type: \"text\",\n        text: \"CVE-2025-55182 - React Server Components RCE (CVSS 10.0)\\n\\nStatus: ACTIVELY EXPLOITED\\nCISA KEV: Yes\\nCISA Deadline: 2025-12-26\\n\\nThreat Actor: China State-Nexus (Earth Lamia, Jackpot Panda)\\n\\nRequired Actions:\\n1. Upgrade React to latest version immediately\\n2. Deploy WAF rules to block RSC attacks\\n3. Monitor for post-exploitation activity\\n4. Review application logs for indicators\"\n      }]\n    }]\n  },\n  issuetype: { name: \"Bug\" },\n  priority: { name: \"Highest\" }\n})}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Send Slack Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        700,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Configuration\"].json[\"slackWebhookUrl\"]}}",
+        "sendBody": true,
+        "options": {},
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "🚨 **CRITICAL SECURITY ALERT - React2Shell RCE** 🚨"
+            },
+            {
+              "name": "blocks",
+              "value": "={{JSON.stringify([{\n  type: \"header\",\n  text: { type: \"plain_text\", text: \"🚨 Critical: React2Shell RCE Vulnerability Detected\" }\n}, {\n  type: \"section\",\n  fields: [\n    { type: \"mrkdwn\", text: \"*CVE:*\\nCVE-2025-55182\" },\n    { type: \"mrkdwn\", text: \"*Severity:*\\nCRITICAL (CVSS 10.0)\" },\n    { type: \"mrkdwn\", text: \"*Status:*\\nActively Exploited\" },\n    { type: \"mrkdwn\", text: \"*Attribution:*\\nChina State-Nexus\" }\n  ]\n}, {\n  type: \"section\",\n  text: { type: \"mrkdwn\", text: \"*Immediate Actions Required:*\\n• Upgrade React to latest version\\n• Deploy WAF rules blocking RSC attacks\\n• Monitor for suspicious process activity\\n• Review application logs\" }\n}, {\n  type: \"actions\",\n  elements: [\n    { type: \"button\", text: { type: \"plain_text\", text: \"View Jira Ticket\" }, url: \"={{$node[\"Create Jira Ticket\"].json[\"self\"]}}\" },\n    { type: \"button\", text: { type: \"plain_text\", text: \"View SIEM Alert\" }, url: \"={{$node[\"Configuration\"].json[\"siemConsoleUrl\"]}}\" }\n  ]\n}])}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Deploy WAF Rule",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        900,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Configuration\"].json[\"wafApiUrl\"]}}/rules",
+        "sendHeaders": true,
+        "sendBody": true,
+        "options": {},
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{\"Bearer \" + $node[\"Configuration\"].json[\"wafApiToken\"]}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "name",
+              "value": "React2Shell RCE Protection"
+            },
+            {
+              "name": "action",
+              "value": "block"
+            },
+            {
+              "name": "conditions",
+              "value": "={{JSON.stringify([{\n  type: \"request_pattern\",\n  pattern: \"\\\\/_next\\\\/rsc\",\n  negate: false\n}, {\n  type: \"body_pattern\",\n  pattern: \"\\\\$undefined|\\\\$cyc|\\\\$comp\",\n  negate: false\n}, {\n  type: \"header_pattern\",\n  pattern: \"content-type.*application.*json\",\n  negate: false\n}])}}"
+            },
+            {
+              "name": "priority",
+              "value": 1
+            },
+            {
+              "name": "enabled",
+              "value": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Block C2 Indicators",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        900,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Configuration\"].json[\"edrApiUrl\"]}}/indicators/block",
+        "sendHeaders": true,
+        "sendBody": true,
+        "options": {},
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{\"Bearer \" + $node[\"Configuration\"].json[\"edrApiToken\"]}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "threat_id",
+              "value": "THREAT-001"
+            },
+            {
+              "name": "indicators",
+              "value": "={{JSON.stringify([\n  \"183.6.80.214\",\n  \"*.noodlerat[.]com\",\n  \"*.snowlight[.]cn\",\n  \"*.vshell[.]net\"\n])}}"
+            },
+            {
+              "name": "action",
+              "value": "block"
+            },
+            {
+              "name": "description",
+              "value": "React2Shell post-exploitation C2 indicators"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Email Security Team",
+      "type": "n8n-nodes-base.emailSend",
+      "position": [
+        900,
+        300
+      ],
+      "parameters": {
+        "to": "={{$node[\"Configuration\"].json[\"securityTeamEmail\"]}}",
+        "subject": "🚨 CRITICAL: React2Shell RCE Vulnerability - Immediate Action Required",
+        "options": {},
+        "text": "={{\"CRITICAL SECURITY ALERT - React2Shell RCE (CVE-2025-55182)\\n\\n\" +\n\"CVE: CVE-2025-55182\\n\" +\n\"CVSS: 10.0 (Critical)\\n\" +\n\"Status: Actively Exploited by China State-Nexus\\n\" +\n\"CISA KEV: Yes\\n\" +\n\"CISA Deadline: 2025-12-26\\n\\n\" +\n\"THREAT ACTOR: Earth Lamia, Jackpot Panda (China)\\n\\n\" +\n\"INDICATORS OF COMPROMISE:\\n\" +\n\"- HTTP requests to /_next/rsc with malformed serialized data\\n\" +\n\"- Unexpected process spawning from Node.js processes\\n\" +\n\"- Web shell artifacts in temp directories\\n\" +\n\"- Linux backdoors: Noodle RAT, SNOWLIGHT, VShell, BPFDoor\\n\\n\" +\n\"REQUIRED ACTIONS:\\n\" +\n\"1. Upgrade React to latest version IMMEDIATELY\\n\" +\n\"2. Deploy WAF rules blocking RSC protocol attacks\\n\" +\n\"3. Monitor for process injection from Node.js\\n\" +\n\"4. Review recent file modifications in app directories\\n\" +\n\"5. Check for suspicious cron jobs/systemd services\\n\" +\n\"6. Implement network segmentation for app servers\\n\\n\" +\n\"Jira Ticket: \" + $node[\"Create Jira Ticket\"].json.key + \"\\n\\n\" +\n\"Generated by CyberSentinel - Automated Threat Response\"}}"
+      }
+    },
+    {
+      "name": "Log Response",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        1100,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{$node[\"Configuration\"].json[\"loggingApiUrl\"]}}/api/v1/incidents",
+        "sendHeaders": true,
+        "sendBody": true,
+        "options": {},
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{\"Bearer \" + $node[\"Configuration\"].json[\"loggingApiToken\"]}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "incident_id",
+              "value": "={{\"INC-React2Shell-\" + Date.now()}}"
+            },
+            {
+              "name": "threat_id",
+              "value": "THREAT-001"
+            },
+            {
+              "name": "workflow_id",
+              "value": "wf-react2shell-response-001"
+            },
+            {
+              "name": "status",
+              "value": "automated_response_complete"
+            },
+            {
+              "name": "actions_taken",
+              "value": "={{JSON.stringify([\"SIEM Alert Created\", \"Jira Ticket Created\", \"Slack Notification Sent\", \"WAF Rule Deployed\", \"C2 Indicators Blocked\", \"Email Alert Sent\"])}}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{new Date().toISOString()}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Configuration",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        0,
+        200
+      ],
+      "parameters": {
+        "functionCode": "// Centralized configuration for n8n workflow\n// In production, use n8n credentials for sensitive values\n\nreturn [{\n  json: {\n    // SIEM Configuration\n    siemWebhookUrl: process.env.SIEM_WEBHOOK_URL || \"https://your-siem.example.com/api/webhooks/incoming\",\n    siemConsoleUrl: process.env.SIEM_CONSOLE_URL || \"https://your-siem.example.com/alerts\",\n    \n    // Jira Configuration\n    jiraApiUrl: process.env.JIRA_API_URL || \"https://your-company.atlassian.net\",\n    jiraEmail: process.env.JIRA_EMAIL || \"security@yourcompany.com\",\n    jiraApiToken: process.env.JIRA_API_TOKEN || \"\",\n    \n    // Slack Configuration\n    slackWebhookUrl: process.env.SLACK_WEBHOOK_URL || \"https://hooks.slack.com/services/YOUR/WEBHOOK/URL\",\n    \n    // WAF Configuration\n    wafApiUrl: process.env.WAF_API_URL || \"https://your-waf.example.com/api/v1\",\n    wafApiToken: process.env.WAF_API_TOKEN || \"\",\n    \n    // EDR Configuration\n    edrApiUrl: process.env.EDR_API_URL || \"https://your-edr.example.com/api/v1\",\n    edrApiToken: process.env.EDR_API_TOKEN || \"\",\n    \n    // Email Configuration\n    smtpHost: process.env.SMTP_HOST || \"smtp.yourcompany.com\",\n    smtpPort: parseInt(process.env.SMTP_PORT) || 587,\n    securityTeamEmail: process.env.SECURITY_TEAM_EMAIL || \"security-team@yourcompany.com\",\n    \n    // Logging Configuration\n    loggingApiUrl: process.env.LOGGING_API_URL || \"https://your-logging.example.com\",\n    loggingApiToken: process.env.LOGGING_API_TOKEN || \"\",\n    \n    // Notification Recipients\n    securityChannel: \"security-alerts\",\n    socEmail: \"soc@yourcompany.com\",\n    \n    // Thresholds\n    autoBlockThreshold: 0.9,\n    alertOnlyThreshold: 0.7\n  }\n}];"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Alert": {
+      "main": [
+        [
+          {
+            "node": "Check False Positive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check False Positive": {
+      "main": [
+        [
+          {
+            "node": "Generate SIEM Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Jira Ticket",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Slack Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configuration": {
+      "main": [
+        [
+          {
+            "node": "Parse Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,438 @@
+{
+  "name": "CyberSentinel - Master Threat Response Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTime": "*/5 * * * *"
+      },
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "id": "trigger-001"
+    },
+    {
+      "parameters": {
+        "url": "https://cve.circl.lu/api/last"
+      },
+      "name": "CVE Feed Monitor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        300,
+        100
+      ],
+      "id": "cve-monitor-001"
+    },
+    {
+      "parameters": {
+        "operation": "customQuery",
+        "customQuery": "SELECT * FROM threats WHERE severity IN ('CRITICAL', 'HIGH') AND created_at > NOW() - INTERVAL '24 hours'"
+      },
+      "name": "Threat Database Query",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ],
+      "id": "threat-db-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/analyze_threat.py"
+      },
+      "name": "Threat Analysis Engine",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ],
+      "id": "analysis-engine-001"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.threatType }}",
+              "operation": "equal",
+              "value2": "VULNERABILITY"
+            }
+          ]
+        }
+      },
+      "name": "Vulnerability Filter",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ],
+      "id": "filter-vuln-001"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.threatType }}",
+              "operation": "equal",
+              "value2": "RANSOMWARE"
+            }
+          ]
+        }
+      },
+      "name": "Ransomware Filter",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ],
+      "id": "filter-ransom-001"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.threatType }}",
+              "operation": "equal",
+              "value2": "APT"
+            }
+          ]
+        }
+      },
+      "name": "APT Filter",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ],
+      "id": "filter-apt-001"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.threatType }}",
+              "operation": "equal",
+              "value2": "MALWARE"
+            }
+          ]
+        }
+      },
+      "name": "Malware Filter",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        400
+      ],
+      "id": "filter-malware-001"
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $json.vulnWorkflowId }}"
+      },
+      "name": "Trigger Vulnerability Playbook",
+      "type": "n8n-nodes-base.workflow",
+      "typeVersion": 1,
+      "position": [
+        900,
+        100
+      ],
+      "id": "trigger-vuln-playbook-001"
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $json.ransomWorkflowId }}"
+      },
+      "name": "Trigger Ransomware Playbook",
+      "type": "n8n-nodes-base.workflow",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ],
+      "id": "trigger-ransom-playbook-001"
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $json.aptWorkflowId }}"
+      },
+      "name": "Trigger APT Playbook",
+      "type": "n8n-nodes-base.workflow",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ],
+      "id": "trigger-apt-playbook-001"
+    },
+    {
+      "parameters": {
+        "workflowId": "={{ $json.malwareWorkflowId }}"
+      },
+      "name": "Trigger Malware Playbook",
+      "type": "n8n-nodes-base.workflow",
+      "typeVersion": 1,
+      "position": [
+        900,
+        400
+      ],
+      "id": "trigger-malware-playbook-001"
+    },
+    {
+      "parameters": {
+        "channel": "#security-alerts",
+        "text": "={{ '🚨 **CyberSentinel Alert** 🚨\\n**Type:** ' + $json.threatType + '\\n**Severity:** ' + $json.severity + '\\n**Description:** ' + $json.description + '\\n**Affected Systems:** ' + $json.affectedSystems + '\\n**Recommended Actions:** ' + $json.recommendedActions }}"
+      },
+      "name": "Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ],
+      "id": "slack-alert-001"
+    },
+    {
+      "parameters": {
+        "from": "cybersentinel@company.com",
+        "to": "security-team@company.com",
+        "subject": "CyberSentinel Alert: {{ $json.threatType }} - {{ $json.severity }}",
+        "options": {
+          "attachments": "={{ { content: $json.description + '\\n\\nAffected Systems: ' + $json.affectedSystems + '\\n\\nRecommended Actions: ' + $json.recommendedActions } }}"
+        }
+      },
+      "name": "Email Alert",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        350
+      ],
+      "id": "email-alert-001"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "threat_intelligence",
+        "columns": "threat_id, threat_type, severity, description, affected_systems, iocs, recommended_actions, workflow_id, created_at",
+        "values": "={{ $json.threatId }}, {{ $json.threatType }}, {{ $json.severity }}, {{ $json.description }}, {{ $json.affectedSystems }}, {{ JSON.stringify($json.indicatorsOfCompromise) }}, {{ $json.recommendedActions }}, {{ $json.n8nWorkflowId }}, NOW()"
+      },
+      "name": "Log to Database",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        500
+      ],
+      "id": "db-log-001"
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Threat Analysis Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CVE Feed Monitor": {
+      "main": [
+        [
+          {
+            "node": "Threat Analysis Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Threat Database Query": {
+      "main": [
+        [
+          {
+            "node": "Threat Analysis Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Threat Analysis Engine": {
+      "main": [
+        [
+          {
+            "node": "Vulnerability Filter",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Ransomware Filter",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "APT Filter",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Malware Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vulnerability Filter": {
+      "main": [
+        [
+          {
+            "node": "Trigger Vulnerability Playbook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Ransomware Filter": {
+      "main": [
+        [
+          {
+            "node": "Trigger Ransomware Playbook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "APT Filter": {
+      "main": [
+        [
+          {
+            "node": "Trigger APT Playbook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Malware Filter": {
+      "main": [
+        [
+          {
+            "node": "Trigger Malware Playbook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Trigger Vulnerability Playbook": {
+      "main": [
+        [
+          {
+            "node": "Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log to Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Ransomware Playbook": {
+      "main": [
+        [
+          {
+            "node": "Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log to Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger APT Playbook": {
+      "main": [
+        [
+          {
+            "node": "Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log to Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Malware Playbook": {
+      "main": [
+        [
+          {
+            "node": "Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log to Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

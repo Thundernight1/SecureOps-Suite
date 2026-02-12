@@ -1,0 +1,209 @@
+{
+  "name": "CyberSentinel Ransomware Detection & Response",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "siem-alert-trigger",
+      "name": "SIEM Alert Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ],
+      "webhookId": "ransomware-alert-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse ransomware detection alert\nconst alertData = items[0].json;\n\n// Extract indicators of compromise\nconst indicatorsOfCompromise = {\n  fileIndicators: [],\n  networkIndicators: [],\n  behavioralIndicators: [],\n  registryIndicators: []\n};\n\n// Common ransomware file extensions\nconst ransomwareExtensions = [\n  '.lockbit', '.lockbit2', '.lockbit3',\n  '.abc', '.alphv', '.blackcat',\n  '.rhysida', '.qilin', '. Akira',\n  '.medusa', '.cl0p', '.vice',\n  '.8base', '.blackbasta', '.conti'\n];\n\n// Check for file extension encryption patterns\nif (alertData.filesEncrypted) {\n  alertData.filesEncrypted.forEach(file => {\n    ransomwareExtensions.forEach(ext => {\n      if (file.name.toLowerCase().endsWith(ext)) {\n        indicatorsOfCompromise.fileIndicators.push({\n          type: 'encrypted_extension',\n          value: ext,\n          source: file.path,\n          timestamp: file.timestamp\n        });\n      }\n    });\n  });\n}\n\n// Network indicators\nif (alertData.c2Communication) {\n  alertData.c2Communication.forEach(c2 => {\n    indicatorsOfCompromise.networkIndicators.push({\n      type: 'c2_host',\n      value: c2.host,\n      port: c2.port,\n      protocol: c2.protocol,\n      timestamp: c2.timestamp\n    });\n  });\n}\n\n// Behavioral indicators\nif (alertData.behaviors) {\n  alertData.behaviors.forEach(behavior => {\n    indicatorsOfCompromise.behavioralIndicators.push({\n      type: behavior.category,\n      description: behavior.description,\n      severity: behavior.severity || 'high'\n    });\n  });\n}\n\n// Determine ransomware family if known\nconst ransomwareFamily = alertData.ransomwareFamily || detectRansomwareFamily(indicatorsOfCompromise);\n\n// Assess severity\nlet severity = 'HIGH';\nif (alertData.encryptionProgress > 50 || alertData.criticalSystemsAffected) {\n  severity = 'CRITICAL';\n} else if (alertData.encryptionProgress > 0 || alertData.numberOfAffectedSystems > 5) {\n  severity = 'HIGH';\n}\n\n// Identify affected systems\nconst affectedSystems = {\n  workstations: alertData.workstationsAffected || 0,\n  servers: alertData.serversAffected || 0,\n  domainControllers: alertData.domainControllersAffected || 0,\n  backupSystems: alertData.backupSystemsAffected || false,\n  fileShares: alertData.fileSharesEncrypted || 0\n};\n\nreturn [{\n  json: {\n    alertId: alertData.alertId,\n    ransomwareFamily,\n    severity,\n    indicatorsOfCompromise,\n    affectedSystems,\n    encryptionProgress: alertData.encryptionProgress || 0,\n    initialAccessVector: alertData.initialAccessVector || 'unknown',\n    detectionSource: alertData.detectionSource,\n    timestamp: new Date().toISOString()\n  }\n}];\n\nfunction detectRansomwareFamily(iocs) {\n  // Simple detection logic based on file extensions\n  const extensions = iocs.fileIndicators.map(i => i.value);\n  if (extensions.includes('.lockbit') || extensions.includes('.lockbit2')) return 'LockBit';\n  if (extensions.includes('.alphv') || extensions.includes('.blackcat')) return 'ALPHV/BlackCat';\n  if (extensions.includes('.rhysida')) return 'Rhysida';\n  if (extensions.includes('.qilin')) return 'Qilin';\n  if (extensions.includes('.cl0p') || extensions.includes('.clop')) return 'Cl0p';\n  if (extensions.includes('.medusa')) return 'Medusa';\n  if (extensions.includes('.Akira') || extensions.includes('.akira')) return 'Akira';\n  return 'Unknown Ransomware';\n}"
+      },
+      "id": "analyze-ransomware-alert",
+      "name": "Analyze Ransomware Alert",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        300,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.severity }}",
+              "operation": "equal",
+              "value2": "CRITICAL"
+            }
+          ]
+        }
+      },
+      "id": "critical-severity-check",
+      "name": "Critical Severity Check",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate immediate ransomware response actions\nconst incident = items[0].json;\n\nconst recommendedActions = [\n  {\n    action: \"ISOLATE_AFFECTED_SYSTEMS\",\n    priority: \"P0\",\n    timeline: \"IMMEDIATE - Within 5 minutes\",\n    description: \"Immediately isolate affected systems from the network\",\n    steps: [\n      \"Disconnect affected systems from network (cable and WiFi)\",\n      \"Disable network ports on affected switches\",\n      \"Block C2 domains/IPs at firewall\",\n      \"Document all actions taken with timestamps\"\n    ]\n  },\n  {\n    action: \"ACTIVATE_INCIDENT_RESPONSE\",\n    priority: \"P0\",\n    timeline: \"IMMEDIATE - Within 15 minutes\",\n    description: \"Activate incident response team and procedures\",\n    steps: [\n      \"Notify incident response team via all channels\",\n      \"Initiate incident response playbook\",\n      \"Establish command and control communication\",\n      \"Begin incident documentation\"\n    ]\n  },\n  {\n    action: \"PRESERVE_EVIDENCE\",\n    priority: \"P0\",\n    timeline: \"IMMEDIATE - Within 30 minutes\",\n    description: \"Preserve forensic evidence before containment\",\n    steps: [\n      \"Capture memory dumps from affected systems\",\n      \"Create forensic images if possible\",\n      \"Save firewall and proxy logs\",\n      \"Document ransom note contents\",\n      \"Record screen captures of affected systems\"\n    ]\n  },\n  {\n    action: \"ASSESS_BACKUP_INTEGRITY\",\n    priority: \"P0\",\n    timeline: \"1-2 hours\",\n    description: \"Verify backup systems are not compromised\",\n    steps: [\n      \"Check backup server integrity\",\n      \"Verify recent backup completion status\",\n      \"Confirm offline/air-gapped backup availability\",\n      \"Test restore procedure on sample data\"\n    ]\n  },\n  {\n    action: \"COMMUNICATE_TO_EXECUTIVES\",\n    priority: \"P1\",\n    timeline: \"2-4 hours\",\n    description: \"Notify executive leadership\",\n    steps: [\n      \"Brief CISO and CIO\",\n      \"Prepare executive summary\",\n      \"Discuss regulatory notification requirements\",\n      \"Coordinate public communications if needed\"\n    ]\n  },\n  {\n    action: \"REGULATORY_NOTIFICATION\",\n    priority: \"P1\",\n    timeline: \"Per regulatory requirements\",\n    description: \"Fulfill regulatory notification obligations\",\n    steps: [\n      \"Determine applicable regulations (GDPR, HIPAA, etc.)\",\n      \"Notify regulators within required timeframe\",\n      \"Document all notifications made\"\n    ]\n  }\n];\n\n// Add specific actions based on ransomware family\nif (incident.ransomwareFamily === 'Cl0p') {\n  recommendedActions.push({\n    action: \"CHECK_FORTRA_GOANYWHERE\",\n    priority: \"P1\",\n    timeline: \"24 hours\",\n    description: \"Cl0p often exploits GoAnywhere MFT - check for CVE-2025-10035 exploitation\",\n    steps: [\n      \"Review GoAnywhere MFT logs\",\n      \"Check for unauthorized file access\",\n      \"Verify data exfiltration scope\"\n    ]\n  });\n}\n\nif (incident.ransomwareFamily === 'LockBit') {\n  recommendedActions.push({\n    action: \"CHECK_RPD_VULNERABILITY\",\n    priority: \"P1\",\n    timeline: \"24 hours\",\n    description: \"LockBit often exploits RPD vulnerabilities\",\n    steps: [\n      \"Review RPD access logs\",\n      \"Check for anomalous RDP connections\",\n      \"Verify multi-factor authentication on RDP\"\n    ]\n  });\n}\n\nreturn [{\n  json: {\n    incidentId: incident.alertId,\n    threatType: \"RANSOMWARE\",\n    ransomwareFamily: incident.ransomwareFamily,\n    severity: incident.severity,\n    affectedSystems: incident.affectedSystems,\n    indicatorsOfCompromise: incident.indicatorsOfCompromise,\n    recommendedActions,\n    generatedAt: new Date().toISOString(),\n    workflowId: \"cybersentinel-ransomware-response-v1\"\n  }\n}];"
+      },
+      "id": "generate-ransomware-response",
+      "name": "Generate Ransomware Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "#ransomware-incident",
+        "text": "={{ '🚨 *CRITICAL: RANSOMWARE INCIDENT DETECTED* 🚨\\n\\n*Alert ID:* ' + $json.incidentId + '\\n*Ransomware Family:* ' + $json.ransomwareFamily + '\\n*Severity:* ' + $json.severity + '\\n*Workstations Affected:* ' + $json.affectedSystems.workstations + '\\n*Servers Affected:* ' + $json.affectedSystems.servers + '\\n\\n🔴 *IMMEDIATE ACTIONS REQUIRED:*\\n' + $json.recommendedActions.filter(a => a.priority === 'P0').map(a => '• ' + a.action + ': ' + a.description).join('\\n') + '\\n\\n📋 *Full Response Plan:* Check incident documentation' }}"
+      },
+      "id": "critical-slack-alert",
+      "name": "Critical Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "to": "incident-response-team@company.com",
+        "subject": "={{ '🚨 CRITICAL: RANSOMWARE INCIDENT - ' + $json.ransomwareFamily + ' - Alert ' + $json.incidentId }}",
+        "body": "={{ 'RANSOMWARE INCIDENT REPORT\\n\\nAlert ID: ' + $json.incidentId + '\\nRansomware Family: ' + $json.ransomwareFamily + '\\nSeverity: ' + $json.severity + '\\nTimestamp: ' + $json.generatedAt + '\\n\\nAFFECTED SYSTEMS:\\n- Workstations: ' + $json.affectedSystems.workstations + '\\n- Servers: ' + $json.affectedSystems.servers + '\\n- Domain Controllers: ' + $json.affectedSystems.domainControllers + '\\n- Backup Systems Compromised: ' + ($json.affectedSystems.backupSystems ? 'YES' : 'NO') + '\\n\\nINDICATORS OF COMPROMISE:\\nFile Extensions: ' + ($json.indicatorsOfCompromise.fileIndicators || []).map(i => i.value).join(', ') + '\\nC2 Network: ' + ($json.indicatorsOfCompromise.networkIndicators || []).map(i => i.value).join(', ') + '\\n\\nIMMEDIATE RESPONSE ACTIONS:\\n' + $json.recommendedActions.filter(a => a.priority === 'P0').map(a => '1. ' + a.action + '\\n   Timeline: ' + a.timeline + '\\n   ' + a.description).join('\\n\\n') + '\\n\\nFull incident response plan available in ticketing system.' }}"
+      },
+      "id": "send-critical-email",
+      "name": "Send Critical Email",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 1,
+      "position": [
+        900,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "incident",
+        "operation": "create",
+        "additionalFields": {
+          "title": "={{ 'RANSOMWARE INCIDENT: ' + $json.ransomwareFamily + ' - Alert ' + $json.incidentId }}",
+          "description": "={{ 'Critical ransomware incident requiring immediate response.\\n\\nSeverity: ' + $json.severity + '\\nRansomware Family: ' + $json.ransomwareFamily + '\\nAffected Systems: ' + ($json.affectedSystems.workstations + $json.affectedSystems.servers) + ' total\\n\\nImmediate Actions Required:\\n' + $json.recommendedActions.filter(a => a.priority === 'P0').map(a => a.action + ': ' + a.description).join('\\n') }}",
+          "priority": "critical",
+          "labels": "ransomware,critical,incident-response,security"
+        }
+      },
+      "id": "create-servicenow-incident",
+      "name": "Create Critical Incident",
+      "type": "n8n-nodes-base.serviceNow",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ '/usr/bin/sudo /sbin/shutdown -h +5 \"Ransomware incident - system isolation initiated\"' }}"
+      },
+      "id": "trigger-system-isolation",
+      "name": "Trigger System Isolation",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        900,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Block IOCs at firewall\nconst iocs = items[0].json.indicatorsOfCompromise;\nconst blockedIndicators = [];\n\n// Block network indicators\nif (iocs.networkIndicators) {\n  iocs.networkIndicators.forEach(indicator => {\n    if (indicator.type === 'c2_host') {\n      // Add firewall block rule logic here\n      blockedIndicators.push({\n        type: 'network',\n        value: indicator.value,\n        action: 'blocked',\n        timestamp: new Date().toISOString()\n      });\n    }\n  });\n}\n\nreturn [{\n  json: {\n    indicatorsBlocked: blockedIndicators,\n    blockedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "block-iocs-firewall",
+      "name": "Block IOCs at Firewall",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "SIEM Alert Trigger": {
+      "main": [
+        [
+          {
+            "node": "Analyze Ransomware Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Ransomware Alert": {
+      "main": [
+        [
+          {
+            "node": "Critical Severity Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Critical Severity Check": {
+      "main": [
+        [
+          {
+            "node": "Generate Ransomware Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Ransomware Response": {
+      "main": [
+        [
+          {
+            "node": "Critical Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Critical Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create ServiceNow Incident",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Trigger System Isolation",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Block IOCs at Firewall",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

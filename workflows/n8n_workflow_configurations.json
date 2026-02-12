@@ -1,0 +1,562 @@
+{
+  "workflows": [
+    {
+      "workflow_id": "wf_react2shell_response_001",
+      "workflow_name": "React2Shell (CVE-2025-55182) Automated Response",
+      "trigger": "VULNERABILITY_DETECTED",
+      "threat_id": "THREAT_001",
+      "n8n_workflow": {
+        "name": "React2Shell Threat Response",
+        "nodes": [
+          {
+            "id": "trigger_node",
+            "type": "webhook",
+            "operation": "listen",
+            "description": "Listen for React2Shell vulnerability alerts"
+          },
+          {
+            "id": "threat_classification",
+            "type": "function",
+            "operation": "classify_threat",
+            "inputs": ["alert_data"],
+            "outputs": ["threat_type", "severity", "affected_systems"],
+            "logic": "Classify as VULNERABILITY, severity CRITICAL, affected_systems: React 19.x, Next.js 15.x/16.x"
+          },
+          {
+            "id": "asset_inventory_check",
+            "type": "http_request",
+            "method": "GET",
+            "endpoint": "/api/assets/search",
+            "query": {
+              "technology": ["React", "Next.js"],
+              "version": ["19.x", "15.x", "16.x"]
+            },
+            "description": "Query asset inventory for affected React/Next.js versions"
+          },
+          {
+            "id": "affected_systems_filter",
+            "type": "function",
+            "operation": "filter_affected",
+            "inputs": ["asset_inventory_check.output"],
+            "logic": "Filter systems using React Server Components (RSC) with App Router"
+          },
+          {
+            "id": "business_context_enrichment",
+            "type": "function",
+            "operation": "enrich_context",
+            "inputs": ["affected_systems_filter.output"],
+            "logic": "Add business context: criticality, revenue impact, customer-facing status"
+          },
+          {
+            "id": "prioritize_systems",
+            "type": "function",
+            "operation": "prioritize",
+            "inputs": ["business_context_enrichment.output"],
+            "logic": "Prioritize by: 1) Customer-facing, 2) Revenue-generating, 3) Critical infrastructure"
+          },
+          {
+            "id": "create_incident",
+            "type": "http_request",
+            "method": "POST",
+            "endpoint": "/api/incidents/create",
+            "payload": {
+              "threat_id": "THREAT_001",
+              "severity": "CRITICAL",
+              "affected_systems": "{{ prioritize_systems.output }}",
+              "business_impact": "HIGH",
+              "recommended_actions": [
+                "IMMEDIATE: Patch React to latest version",
+                "URGENT: Scan for React Server Component usage",
+                "CRITICAL: Monitor for IoCs"
+              ]
+            }
+          },
+          {
+            "id": "notify_security_team",
+            "type": "slack",
+            "operation": "send_message",
+            "channel": "#security-incidents",
+            "message": "🚨 CRITICAL: React2Shell (CVE-2025-55182) detected\nAffected Systems: {{ prioritize_systems.output.count }}\nBusiness Impact: {{ business_context_enrichment.output.total_revenue_impact }}\nAction: Immediate patching required"
+          },
+          {
+            "id": "notify_engineering_team",
+            "type": "email",
+            "operation": "send_email",
+            "recipients": "{{ affected_systems_filter.output.team_leads }}",
+            "subject": "URGENT: React2Shell Vulnerability - Immediate Patching Required",
+            "body": "React Server Components in your applications are vulnerable to CVE-2025-55182 (CVSS 10.0). Immediate patching required. See attached remediation guide."
+          },
+          {
+            "id": "deploy_waf_rules",
+            "type": "http_request",
+            "method": "POST",
+            "endpoint": "/api/waf/deploy_rules",
+            "payload": {
+              "rule_set": "react2shell_exploitation_detection",
+              "description": "Detect React2Shell exploitation attempts",
+              "patterns": [
+                "POST requests to React RSC endpoints with suspicious payloads",
+                "Reconnaissance commands in request bodies",
+                "Multiple failed exploitation attempts"
+              ]
+            }
+          },
+          {
+            "id": "enable_monitoring",
+            "type": "http_request",
+            "method": "POST",
+            "endpoint": "/api/monitoring/enable",
+            "payload": {
+              "monitoring_type": "react2shell_ioc",
+              "indicators": [
+                "IP: 206.237.3.150",
+                "IP: 45.77.33.136",
+                "Reconnaissance commands: whoami, id, uname",
+                "Suspicious /tmp/ writes"
+              ],
+              "alert_threshold": "HIGH"
+            }
+          },
+          {
+            "id": "create_remediation_task",
+            "type": "http_request",
+            "method": "POST",
+            "endpoint": "/api/tasks/create",
+            "payload": {
+              "title": "Patch React2Shell vulnerability",
+              "priority": "CRITICAL",
+              "assigned_to": "{{ affected_systems_filter.output.team_leads }}",
+              "deadline": "2025-12-28",
+              "description": "Update React to latest version and Next.js to 15.x+ or 16.x+",
+              "business_context": "Customer-facing applications must be patched first"
+            }
+          },
+          {
+            "id": "log_response",
+            "type": "function",
+            "operation": "log",
+            "inputs": ["all_previous_nodes"],
+            "logic": "Log all response actions for audit trail"
+          }
+        ],
+        "connections": [
+          "trigger_node -> threat_classification",
+          "threat_classification -> asset_inventory_check",
+          "asset_inventory_check -> affected_systems_filter",
+          "affected_systems_filter -> business_context_enrichment",
+          "business_context_enrichment -> prioritize_systems",
+          "prioritize_systems -> create_incident",
+          "create_incident -> notify_security_team",
+          "create_incident -> notify_engineering_team",
+          "create_incident -> deploy_waf_rules",
+          "create_incident -> enable_monitoring",
+          "create_incident -> create_remediation_task",
+          "notify_security_team -> log_response",
+          "notify_engineering_team -> log_response",
+          "deploy_waf_rules -> log_response",
+          "enable_monitoring -> log_response",
+          "create_remediation_task -> log_response"
+        ]
+      }
+    },
+    {
+      "workflow_id": "wf_office_rce_response_002",
+      "workflow_name": "Microsoft Office RCE Automated Response",
+      "trigger": "VULNERABILITY_DETECTED",
+      "threat_id": "THREAT_002",
+      "n8n_workflow": {
+        "name": "Microsoft Office RCE Response",
+        "nodes": [
+          {
+            "id": "trigger_node",
+            "type": "webhook",
+            "operation": "listen",
+            "description": "Listen for Office RCE vulnerability alerts"
+          },
+          {
+            "id": "threat_classification",
+            "type": "function",
+            "operation": "classify_threat",
+            "inputs": ["alert_data"],
+            "outputs": ["threat_type", "severity", "affected_systems"],
+            "logic": "Classify as VULNERABILITY, severity CRITICAL, affected_systems: Office Suite"
+          },
+          {
+            "id": "asset_inventory_check",
+            "type": "http_request",
+            "method": "GET",
+            "endpoint": "/api/assets/search",
+            "query": {
+              "software": ["Microsoft Office", "Microsoft Outlook", "Microsoft Access"]
+            }
+          },
+          {
+            "id": "email_gateway_check",
+            "type": "http_request",
+            "method": "GET",
+            "endpoint": "/api/email_gateway/status",
+            "description": "Check email gateway filtering capabilities"
+          },
+          {
+            "id": "deploy_email_filters",
+            "type": "http_request",
+            "method": "POST",
+            "endpoint": "/api/email_gateway/deploy_filters",
+            "payload": {
+              "filter_rules": [
+                {
+                  "name": "Block Office RCE attachments",
+                  "pattern": "Office documents with embedded executables",
+                  "action": "QUARANTINE"
+                },
+                {
+                  "name": "Suspicious Office macro detection",
+                  "pattern": "Office documents with suspicious macros",
+                  "action": "ALERT"
+                }
+              ]
+            }
+          },
+          {
+            "id": "deploy_group_policy",
+            "type": "http_request",
+            "method": "POST",
+            "endpoint": "/api/group_policy/deploy",
+            "payload": {
+              "policy": "disable_office_macros",
+              "scope": "all_windows_systems",
+              "description": "Disable Office macros via Group Policy"
+            }
+          },
+          {
+            "id": "create_patch_task",
+            "type": "http_request",
+            "method": "POST",
+            "endpoint": "/api/patch_management/create_task",
+            "payload": {
+              "patch_set": "Microsoft December 2025 Patch Tuesday",
+              "priority": "CRITICAL",
+              "deadline": "2025-12-31",
+              "business_context": "Coordinate with business operations to minimize disruption"
+            }
+          },
+          {
+            "id": "enable_behavioral_monitoring",
+            "type": "http_request",
+            "method": "POST",
+            "endpoint": "/api/monitoring/enable",
+            "payload": {
+              "monitoring_type": "office_rce_behavioral",
+              "indicators": [
+                "Office process spawning PowerShell",
+                "Office process making network connections",
+                "Office process modifying registry",
+                "Unexpected Office process execution"
+              ]
+            }
+          },
+          {
+            "id": "notify_teams",
+            "type": "slack",
+            "operation": "send_message",
+            "channel": "#security-incidents",
+            "message": "🚨 CRITICAL: Microsoft Office RCE (CVE-2025-62554/62557)\nAction: Email filters deployed, Group Policy applied, patching scheduled"
+          }
+        ]
+      }
+    },
+    {
+      "workflow_id": "wf_akira_ransomware_response_003",
+      "workflow_name": "Akira Ransomware Automated Response",
+      "trigger": "RANSOMWARE_DETECTED",
+      "threat_id": "THREAT_003",
+      "n8n_workflow": {
+        "name": "Akira Ransomware Response",
+        "nodes": [
+          {
+            "id": "trigger_node",
+            "type": "webhook",
+            "operation": "listen",
+            "description": "Listen for Akira ransomware detection"
+          },
+          {
+            "id": "threat_classification",
+            "type": "function",
+            "operation": "classify_threat",
+            "inputs": ["alert_data"],
+            "logic": "Classify as RANSOMWARE, severity CRITICAL"
+          },
+          {
+            "id": "isolate_affected_systems",
+            "type": "http_request",
+            "method": "POST",
+            "endpoint": "/api/network/isolate_systems",
+            "payload": {
+              "systems": "{{ alert_data.affected_systems }}",
+              "isolation_type": "NETWORK_ISOLATION",
+              "preserve_logs": true
+            }
+          },
+          {
+            "id": "activate_incident_response",
+            "type": "http_request",
+            "method": "POST",
+            "endpoint": "/api/incidents/activate_response",
+            "payload": {
+              "incident_type": "RANSOMWARE",
+              "severity": "CRITICAL",
+              "activate_war_room": true,
+              "notify_executives": true
+            }
+          },
+          {
+            "id": "backup_verification",
+            "type": "http_request",
+            "method": "GET",
+            "endpoint": "/api/backup/verify_integrity",
+            "description": "Verify backup system integrity and offline status"
+          },
+          {
+            "id": "forensic_collection",
+            "type": "http_request",
+            "method": "POST",
+            "endpoint": "/api/forensics/collect_evidence",
+            "payload": {
+              "systems": "{{ alert_data.affected_systems }}",
+              "preserve_chain_of_custody": true
+            }
+          },
+          {
+            "id": "threat_intelligence_update",
+            "type": "http_request",
+            "method": "POST",
+            "endpoint": "/api/threat_intelligence/update",
+            "payload": {
+              "threat_actor": "Akira Ransomware Group",
+              "indicators": "{{ alert_data.iocs }}",
+              "campaign_id": "{{ alert_data.campaign_id }}"
+            }
+          },
+          {
+            "id": "notify_leadership",
+            "type": "email",
+            "operation": "send_email",
+            "recipients": ["ciso@company.com", "ceo@company.com"],
+            "subject": "CRITICAL: Ransomware Incident - Akira",
+            "body": "Ransomware detected. Incident response activated. War room established."
+          }
+        ]
+      }
+    },
+    {
+      "workflow_id": "wf_phishing_detection_response_005",
+      "workflow_name": "Phishing Campaign Automated Response",
+      "trigger": "PHISHING_DETECTED",
+      "threat_id": "THREAT_005",
+      "n8n_workflow": {
+        "name": "Phishing Detection and Response",
+        "nodes": [
+          {
+            "id": "trigger_node",
+            "type": "webhook",
+            "operation": "listen",
+            "description": "Listen for phishing detection alerts"
+          },
+          {
+            "id": "phishing_classification",
+            "type": "function",
+            "operation": "classify_phishing",
+            "inputs": ["alert_data"],
+            "logic": "Classify phishing type: OAuth, Device Code, Email, etc."
+          },
+          {
+            "id": "extract_indicators",
+            "type": "function",
+            "operation": "extract_iocs",
+            "inputs": ["alert_data"],
+            "outputs": ["urls", "domains", "ips", "email_addresses"]
+          },
+          {
+            "id": "block_indicators",
+            "type": "http_request",
+            "method": "POST",
+            "endpoint": "/api/security/block_indicators",
+            "payload": {
+              "urls": "{{ extract_indicators.output.urls }}",
+              "domains": "{{ extract_indicators.output.domains }}",
+              "ips": "{{ extract_indicators.output.ips }}",
+              "block_scope": ["email_gateway", "proxy", "dns", "firewall"]
+            }
+          },
+          {
+            "id": "identify_recipients",
+            "type": "http_request",
+            "method": "GET",
+            "endpoint": "/api/email/identify_recipients",
+            "query": {
+              "email_hash": "{{ alert_data.email_hash }}"
+            }
+          },
+          {
+            "id": "reset_credentials",
+            "type": "http_request",
+            "method": "POST",
+            "endpoint": "/api/identity/reset_credentials",
+            "payload": {
+              "users": "{{ identify_recipients.output.recipients }}",
+              "force_mfa": true,
+              "notify_users": true
+            }
+          },
+          {
+            "id": "send_user_alert",
+            "type": "email",
+            "operation": "send_email",
+            "recipients": "{{ identify_recipients.output.recipients }}",
+            "subject": "Security Alert: Phishing Email Detected",
+            "body": "A phishing email was detected targeting your account. Your credentials have been reset. Please log in with your new password."
+          },
+          {
+            "id": "update_threat_intelligence",
+            "type": "http_request",
+            "method": "POST",
+            "endpoint": "/api/threat_intelligence/update",
+            "payload": {
+              "threat_type": "PHISHING",
+              "indicators": "{{ extract_indicators.output }}",
+              "campaign_pattern": "{{ phishing_classification.output }}"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "workflow_id": "wf_apt_detection_response_007",
+      "workflow_name": "APT Campaign Automated Response",
+      "trigger": "APT_DETECTED",
+      "threat_id": "THREAT_007",
+      "n8n_workflow": {
+        "name": "APT Detection and Response",
+        "nodes": [
+          {
+            "id": "trigger_node",
+            "type": "webhook",
+            "operation": "listen",
+            "description": "Listen for APT detection alerts"
+          },
+          {
+            "id": "apt_attribution",
+            "type": "function",
+            "operation": "attribute_apt",
+            "inputs": ["alert_data"],
+            "logic": "Attribute to known APT group based on TTPs and indicators"
+          },
+          {
+            "id": "threat_actor_profile",
+            "type": "http_request",
+            "method": "GET",
+            "endpoint": "/api/threat_intelligence/actor_profile",
+            "query": {
+              "actor": "{{ apt_attribution.output.actor_name }}"
+            }
+          },
+          {
+            "id": "identify_affected_systems",
+            "type": "http_request",
+            "method": "GET",
+            "endpoint": "/api/assets/search",
+            "query": {
+              "indicators": "{{ alert_data.iocs }}"
+            }
+          },
+          {
+            "id": "escalate_to_government",
+            "type": "http_request",
+            "method": "POST",
+            "endpoint": "/api/government_reporting/escalate",
+            "payload": {
+              "incident_type": "APT",
+              "threat_actor": "{{ apt_attribution.output.actor_name }}",
+              "affected_systems": "{{ identify_affected_systems.output }}",
+              "business_context": "Government/critical infrastructure targeting"
+            }
+          },
+          {
+            "id": "activate_advanced_response",
+            "type": "http_request",
+            "method": "POST",
+            "endpoint": "/api/incidents/activate_advanced_response",
+            "payload": {
+              "response_level": "MAXIMUM",
+              "threat_actor": "{{ apt_attribution.output.actor_name }}",
+              "activate_threat_hunting": true
+            }
+          },
+          {
+            "id": "notify_sector_peers",
+            "type": "http_request",
+            "method": "POST",
+            "endpoint": "/api/threat_sharing/notify_peers",
+            "payload": {
+              "threat_actor": "{{ apt_attribution.output.actor_name }}",
+              "indicators": "{{ alert_data.iocs }}",
+              "sector": "{{ identify_affected_systems.output.sector }}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "workflow_execution_rules": {
+    "rule_1": {
+      "name": "Automatic Incident Creation",
+      "condition": "severity >= CRITICAL",
+      "action": "Create incident and notify security team"
+    },
+    "rule_2": {
+      "name": "Automatic System Isolation",
+      "condition": "threat_type == RANSOMWARE AND severity >= CRITICAL",
+      "action": "Isolate affected systems from network"
+    },
+    "rule_3": {
+      "name": "Automatic Credential Reset",
+      "condition": "threat_type == PHISHING AND recipients_count > 0",
+      "action": "Reset credentials for affected users"
+    },
+    "rule_4": {
+      "name": "Automatic Patch Deployment",
+      "condition": "threat_type == VULNERABILITY AND severity >= CRITICAL",
+      "action": "Create patch task with business context prioritization"
+    },
+    "rule_5": {
+      "name": "Automatic Government Escalation",
+      "condition": "threat_type == APT AND affected_sector == GOVERNMENT",
+      "action": "Escalate to government reporting channels"
+    }
+  },
+  "business_context_integration": {
+    "priority_matrix": {
+      "customer_facing_critical": 1,
+      "revenue_generating_critical": 2,
+      "internal_critical": 3,
+      "customer_facing_high": 4,
+      "revenue_generating_high": 5,
+      "internal_high": 6
+    },
+    "business_impact_calculation": {
+      "formula": "affected_systems_count * system_criticality * revenue_impact * customer_impact",
+      "factors": [
+        "Number of affected systems",
+        "System criticality (customer-facing, revenue-generating, internal)",
+        "Revenue impact (estimated financial loss)",
+        "Customer impact (number of customers affected)"
+      ]
+    },
+    "notification_escalation": {
+      "low_impact": ["Security team"],
+      "medium_impact": ["Security team", "Engineering leads"],
+      "high_impact": ["Security team", "Engineering leads", "Business unit heads"],
+      "critical_impact": ["Security team", "Engineering leads", "Business unit heads", "CISO", "CEO"]
+    }
+  }
+}

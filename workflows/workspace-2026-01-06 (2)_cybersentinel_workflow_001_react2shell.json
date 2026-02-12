@@ -1,0 +1,253 @@
+{
+  "name": "CyberSentinel - React2Shell Response Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "post",
+        "path": "cybersentinel/react2shell-alert",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "WebhookTrigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const alertData = items[0].json;\nconst output = {\n  cve: 'CVE-2025-55182',\n  severity: 'CRITICAL',\n  timestamp: new Date().toISOString(),\n  source_ip: alertData.source_ip || 'unknown',\n  target_path: alertData.target_path || 'unknown',\n  user_agent: alertData.user_agent || 'unknown',\n  payload_detected: alertData.payload_signature || false,\n  method: alertData.http_method || 'unknown'\n};\nreturn [{json: output}];"
+      },
+      "id": "parse-alert",
+      "name": "ParseAlert",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.severity }}",
+              "operation": "equal",
+              "value2": "CRITICAL"
+            }
+          ]
+        }
+      },
+      "id": "check-severity",
+      "name": "CheckSeverity",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const ip = items[0].json.source_ip;\n// WAF API integration - Cloudflare example\nconst output = {\n  action: 'waf_block',\n  ip: ip,\n  rule_id: 'CYBERSENTINEL-REACT2SHELL-001',\n  description: 'Block IP due to CVE-2025-55182 exploitation attempt',\n  timestamp: new Date().toISOString(),\n  automated: true\n};\nreturn [{json: output}];"
+      },
+      "id": "block-ip-waf",
+      "name": "BlockIP-WAF",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const data = items[0].json;\nconst ticket = {\n  title: `[CRITICAL] React2Shell Vulnerability Exploitation Attempt`,\n  description: `Potential CVE-2025-55182 exploitation detected.\\n\\nSource IP: ${data.source_ip}\\nTarget Path: ${data.target_path}\\nHTTP Method: ${data.method}\\nUser Agent: ${data.user_agent}\\nTime: ${data.timestamp}\\nPayload Detected: ${data.payload_detected}`,\n  severity: 'P1',\n  category: 'Vulnerability Exploitation',\n  subcategory: 'Remote Code Execution',\n  assigned_team: 'Security Operations',\n  sla_minutes: 15,\n  affected_systems: [data.target_path],\n  cve: 'CVE-2025-55182',\n  cvss_score: 10.0\n};\nreturn [{json: ticket}];"
+      },
+      "id": "generate-incident-ticket",
+      "name": "GenerateIncidentTicket",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "projectKey": "SEC",
+        "issueType": "Incident",
+        "fields": {
+          "summary": "={{ $json.title }}",
+          "description": "={{ $json.description }}",
+          "priority": {
+            "name": "Highest"
+          },
+          "labels": [
+            "cybersentinel",
+            "react2shell",
+            "cve-2025-55182",
+            "critical"
+          ]
+        }
+      },
+      "id": "create-jira-ticket",
+      "name": "CreateJiraTicket",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "channel": "#security-alerts",
+        "text": "=🚨 *CRITICAL SECURITY ALERT* 🚨\\n\\n*React2Shell Vulnerability Exploitation*\\n\\n📍 Source IP: \\`{{ $json.source_ip }}\\n🎯 Target: \\`{{ $json.target_path }}\\n⏰ Time: {{ $json.timestamp }}\\n\\n✅ WAF Rule Applied\\n✅ Incident Ticket Created\\n\\n_Immediate investigation required._",
+        "options": {}
+      },
+      "id": "send-slack-alert",
+      "name": "SendSlackAlert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const ip = items[0].json.source_ip;\n// Firewall API integration - Palo Alto Networks example\nconst output = {\n  action: 'firewall_block',\n  ip: ip,\n  rule_name: 'BLOCK-REACT2SHELL-EXPLOIT',\n  rule_type: 'deny',\n  direction: 'ingress',\n  source_zone: 'untrusted',\n  destination_zone: 'trusted',\n  timestamp: new Date().toISOString(),\n  automated: true\n};\nreturn [{json: output}];"
+      },
+      "id": "block-at-firewall",
+      "name": "BlockAtFirewall",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const data = items[0].json;\nconst event = {\n  event_type: 'vulnerability_exploitation',\n  event_category: 'security',\n  severity: 'critical',\n  source: 'cybersentinel',\n  cve: 'CVE-2025-55182',\n  vulnerability_name: 'React2Shell',\n  source_ip: data.source_ip,\n  target_path: data.target_path,\n  detection_method: 'network_signature',\n  automated_response: true,\n  timestamp: data.timestamp,\n  raw_event: data\n};\nreturn [{json: event}];"
+      },
+      "id": "log-to-siem",
+      "name": "LogToSIEM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        900,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const data = items[0].json;\nconst output = {\n  action: 'email_notification',\n  recipient: 'security-team@company.com',\n  subject: '[CRITICAL] React2Shell Exploitation Attempt Detected',\n  body: `A CVE-2025-55182 exploitation attempt has been detected.\\n\\nDetails:\\n- Source IP: ${data.source_ip}\\n- Target: ${data.target_path}\\n- Time: ${data.timestamp}\\n\\nAutomated responses have been triggered.\\nPlease review the incident ticket.`,\n  timestamp: new Date().toISOString()\n};\nreturn [{json: output}];"
+      },
+      "id": "send-email-notification",
+      "name": "SendEmailNotification",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        100
+      ]
+    }
+  ],
+  "connections": {
+    "WebhookTrigger": {
+      "main": [
+        [
+          {
+            "node": "ParseAlert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ParseAlert": {
+      "main": [
+        [
+          {
+            "node": "CheckSeverity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CheckSeverity": {
+      "main": [
+        [
+          {
+            "node": "BlockIP-WAF",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GenerateIncidentTicket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BlockIP-WAF": {
+      "main": [
+        [
+          {
+            "node": "LogToSIEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GenerateIncidentTicket": {
+      "main": [
+        [
+          {
+            "node": "CreateJiraTicket",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "SendSlackAlert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "BlockAtFirewall": {
+      "main": [
+        [
+          {
+            "node": "LogToSIEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "workflow_id": "CS-WF-001",
+    "agent_id": "a401e896-d617-4e97-8bbf-29f47e133c21",
+    "trigger_id": "a1a6b29f-1834-4666-82d7-1163ce25f64c",
+    "version": "1.0",
+    "created": "2025-12-31T12:00:00Z",
+    "threat_type": "VULNERABILITY",
+    "threat_name": "React2Shell (CVE-2025-55182)"
+  }
+}

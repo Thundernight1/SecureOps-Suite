@@ -1,0 +1,327 @@
+{
+  "name": "CyberSentinel - React2Shell Vulnerability Response (CVE-2025-55182)",
+  "meta": {
+    "cveId": "CVE-2025-55182",
+    "threatType": "VULNERABILITY",
+    "severity": "CRITICAL",
+    "cvssScore": 10,
+    "affectedSystems": [
+      "React 19.x Server Components",
+      "Next.js 15.x/16.x with App Router",
+      "Node.js applications with React Server Components"
+    ],
+    "affectedIndustries": [
+      "Technology",
+      "Software Development",
+      "Web Applications",
+      "SaaS Providers"
+    ],
+    "activeExploitation": true,
+    "n8nWorkflowId": "cve-2025-55182-react2shell-response"
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "pollTime": "*/5 * * * *"
+      },
+      "name": "Scheduled Trigger",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "id": "trigger-001"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.cveId }}",
+              "operation": "equal",
+              "value2": "CVE-2025-55182"
+            }
+          ]
+        }
+      },
+      "name": "CVE Filter",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ],
+      "id": "filter-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/scan_react_versions.py --output json"
+      },
+      "name": "Scan React Dependencies",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        500,
+        100
+      ],
+      "id": "scan-react-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/scan_nextjs_versions.py --output json"
+      },
+      "name": "Scan Next.js Dependencies",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ],
+      "id": "scan-nextjs-001"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.vulnerableCount }}",
+              "operation": "greaterEqual",
+              "value2": 1
+            }
+          ]
+        }
+      },
+      "name": "Check for Vulnerable Systems",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ],
+      "id": "check-vuln-001"
+    },
+    {
+      "parameters": {
+        "channel": "#security-critical",
+        "text": "🚨 **CRITICAL VULNERABILITY ALERT** 🚨\n\n**CVE:** CVE-2025-55182 (React2Shell)\n**CVSS:** 10.0 (CRITICAL)\n**Status:** ACTIVE EXPLOITATION DETECTED\n\n**Affected Systems:**\n- React 19.x with Server Components\n- Next.js 15.x/16.x with App Router\n\n**Immediate Actions Required:**\n1. Block public-facing Next.js/React endpoints\n2. Apply emergency patches:\n   - React: Upgrade to v19.2+ with security patch\n   - Next.js: Upgrade to 15.1.2+ or 16.0.1+\n3. Enable WAF rules for RCE protection\n4. Review access logs for suspicious requests\n\n**Scan Results:**\n{{ $json.vulnerableCount }} vulnerable system(s) detected\n{{ $json.vulnerableSystems }}"
+      },
+      "name": "Critical Slack Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        900,
+        100
+      ],
+      "id": "slack-critical-001"
+    },
+    {
+      "parameters": {
+        "from": "cybersentinel@company.com",
+        "to": "ciso@company.com,security-ops@company.com,devops@company.com",
+        "subject": "🚨 CRITICAL: CVE-2025-55182 React2Shell Active Exploitation - Immediate Action Required",
+        "text": "CyberSentinel has detected systems vulnerable to CVE-2025-55182 (React2Shell), a critical RCE vulnerability in React Server Components with active exploitation.\n\n**Vulnerability Details:**\n- CVE ID: CVE-2025-55182\n- CVSS Score: 10.0 (CRITICAL)\n- Impact: Unauthenticated Remote Code Execution\n- Status: ACTIVE EXPLOITATION IN THE WILD\n\n**Affected Systems:**\n{{ $json.vulnerableSystems }}\n\n**Immediate Containment Actions:**\n1. ISOLATE affected systems from network\n2. BLOCK all external access to React/Next.js applications\n3. DEPLOY emergency WAF rules\n4. INITIATE emergency patching window\n\n**Recommended Patches:**\n- React: Upgrade to 19.2+ (security patched version)\n- Next.js: Upgrade to 15.1.2+ or 16.0.1+\n\n**Investigation Required:**\n- Review web server logs for suspicious requests\n- Check for unauthorized code execution\n- Monitor for lateral movement indicators\n\nPlease acknowledge receipt and begin immediate response."
+      },
+      "name": "Critical Email Alert",
+      "type": "n8n-nodes-base.email",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ],
+      "id": "email-critical-001"
+    },
+    {
+      "parameters": {
+        "channel": "#security-oncall",
+        "text": "📋 **INCIDENT TICKET REQUIRED** 📋\n\n**CVE-2025-55182 Vulnerability Response**\n- Severity: CRITICAL\n- Affected Systems: {{ $json.vulnerableCount }} detected\n- Immediate isolation required\n\nPlease create incident ticket and assign to security team."
+      },
+      "name": "Create Incident Ticket",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ],
+      "id": "ticket-alert-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/deploy_waf_rules.py --cve CVE-2025-55182 --mode block"
+      },
+      "name": "Deploy WAF Emergency Rules",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        900,
+        400
+      ],
+      "id": "waf-deploy-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/block_react_endpoints.py --notify"
+      },
+      "name": "Block Public Endpoints",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        900,
+        500
+      ],
+      "id": "block-endpoints-001"
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "vulnerability_incidents",
+        "columns": "cve_id, severity, affected_systems, scan_results, response_actions, created_at, status",
+        "values": "'CVE-2025-55182', 'CRITICAL', '{{ $json.vulnerableSystems }}', '{{ JSON.stringify($json) }}', 'WAF rules deployed, endpoints blocked, alerts sent', NOW(), 'in_progress'"
+      },
+      "name": "Log Vulnerability Incident",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ],
+      "id": "db-log-001"
+    },
+    {
+      "parameters": {
+        "command": "python3 /opt/cybersentinel/verify_patches.py --cve CVE-2025-55182"
+      },
+      "name": "Verify Patches Applied",
+      "type": "n8n-nodes-base.execCommand",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        400
+      ],
+      "id": "verify-patches-001"
+    },
+    {
+      "parameters": {
+        "channel": "#security-critical",
+        "text": "✅ **VULNERABILITY RESPONSE COMPLETE** ✅\n\n**CVE-2025-55182 React2Shell**\n- WAF Rules: DEPLOYED\n- Endpoints: BLOCKED\n- Patches Verified: {{ $json.patchesApplied }}\n- Status: CONTAINED\n\nAwaiting final remediation confirmation from DevOps."
+      },
+      "name": "Response Complete Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        200
+      ],
+      "id": "complete-notify-001"
+    }
+  ],
+  "connections": {
+    "Scheduled Trigger": {
+      "main": [
+        [
+          {
+            "node": "CVE Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CVE Filter": {
+      "main": [
+        [
+          {
+            "node": "Scan React Dependencies",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Scan Next.js Dependencies",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scan React Dependencies": {
+      "main": [
+        [
+          {
+            "node": "Check for Vulnerable Systems",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scan Next.js Dependencies": {
+      "main": [
+        [
+          {
+            "node": "Check for Vulnerable Systems",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check for Vulnerable Systems": {
+      "main": [
+        [
+          {
+            "node": "Critical Slack Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Critical Email Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Incident Ticket",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Deploy WAF Emergency Rules",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Block Public Endpoints",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Vulnerability Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deploy WAF Emergency Rules": {
+      "main": [
+        [
+          {
+            "node": "Verify Patches Applied",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Patches Applied": {
+      "main": [
+        [
+          {
+            "node": "Response Complete Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

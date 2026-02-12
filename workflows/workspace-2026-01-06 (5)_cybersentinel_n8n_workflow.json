@@ -1,0 +1,502 @@
+{
+  "name": "CyberSentinel Automated Threat Response",
+  "nodes": [
+    {
+      "name": "Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "parameters": {}
+    },
+    {
+      "name": "Threat Intelligence Collector",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        300,
+        200
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.cisa.gov/vulnerabilities/search?status=active&severity=critical",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "Threat Analyzer",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const threats = items[0].json;\n\nconst analyzedThreats = [];\n\n// Analyze React2Shell vulnerability\nif (threats.vulnerabilities && threats.vulnerabilities.includes('CVE-2025-55182')) {\n  analyzedThreats.push({\n    threatId: 'THREAT-001',\n    name: 'React2Shell',\n    type: 'VULNERABILITY',\n    severity: 'CRITICAL',\n    cvss: 10.0,\n    affectedSystems: ['React 19.x', 'Next.js 15.x/16.x'],\n    requiresImmediateAction: true,\n    recommendedResponse: ['patch', 'waf_rule', 'monitoring']\n  });\n}\n\n// Analyze Gogs Zero-Day\nif (threats.vulnerabilities && threats.vulnerabilities.includes('CVE-2025-8110')) {\n  analyzedThreats.push({\n    threatId: 'THREAT-002',\n    name: 'Gogs Zero-Day RCE',\n    type: 'VULNERABILITY',\n    severity: 'CRITICAL',\n    cvss: 9.8,\n    affectedSystems: ['Gogs self-hosted Git'],\n    requiresImmediateAction: true,\n    recommendedResponse: ['network_isolation', 'access_control']\n  });\n}\n\n// Analyze Ransomware threats\nconst ransomwareGroups = ['Gentlemen', 'Qilin', 'Rhysida', 'Akira', 'INC Ransom'];\nransomwareGroups.forEach(group => {\n  if (threats.ransomware && threats.ransomware.includes(group)) {\n    analyzedThreats.push({\n      threatId: `RANSOMWARE-${group}`,\n      name: `${group} Ransomware`,\n      type: 'RANSOMWARE',\n      severity: 'HIGH',\n      affectedSystems: ['Windows', 'Linux', 'Network Shares'],\n      requiresImmediateAction: true,\n      recommendedResponse: ['backup_check', 'network_segmentation', 'alert']\n    });\n  }\n});\n\n// Analyze APT threats\nconst aptGroups = ['Infy', 'Mustang Panda', 'MuddyWater', 'BlindEagle'];\naptGroups.forEach(group => {\n  if (threats.apt && threats.apt.includes(group)) {\n    analyzedThreats.push({\n      threatId: `APT-${group}`,\n      name: `${group} APT`,\n      type: 'APT',\n      severity: 'CRITICAL',\n      affectedSystems: ['Enterprise Network', 'Endpoints', 'Servers'],\n      requiresImmediateAction: true,\n      recommendedResponse: ['ioc_hunting', 'network_blocking', 'forensics']\n    });\n  }\n});\n\nreturn analyzedThreats.map(threat => ({ json: threat }));"
+      }
+    },
+    {
+      "name": "Severity Assessor",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const threats = items.map(item => item.json);\n\nconst assessedThreats = threats.map(threat => {\n  let severity = threat.severity;\n  let businessImpact = 'MEDIUM';\n  let falsePositiveLikelihood = 'LOW';\n  \n  // Assess based on CVSS score\n  if (threat.cvss >= 9.0) {\n    severity = 'CRITICAL';\n    businessImpact = 'CRITICAL';\n  } else if (threat.cvss >= 7.0) {\n    severity = 'HIGH';\n    businessImpact = 'HIGH';\n  } else if (threat.cvss >= 4.0) {\n    severity = 'MEDIUM';\n    businessImpact = 'MEDIUM';\n  }\n  \n  // Adjust for threat type\n  if (threat.type === 'APT' || threat.type === 'RANSOMWARE') {\n    businessImpact = 'CRITICAL';\n    falsePositiveLikelihood = 'MEDIUM';\n  }\n  \n  // Adjust for exploitation status\n  if (threat.requiresImmediateAction) {\n    businessImpact = 'CRITICAL';\n  }\n  \n  return {\n    ...threat,\n    assessedSeverity: severity,\n    businessImpact,\n    falsePositiveLikelihood,\n    assessmentTimestamp: new Date().toISOString(),\n    confidenceScore: 1 - (falsePositiveLikelihood === 'HIGH' ? 0.3 : falsePositiveLikelihood === 'MEDIUM' ? 0.15 : 0.05)\n  };\n});\n\nreturn assessedThreats.map(threat => ({ json: threat }));"
+      }
+    },
+    {
+      "name": "Response Router",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ],
+      "parameters": {
+        "rules": {
+          "rules": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "dateFormat": "ISO8601"
+                },
+                "conditions": [
+                  {
+                    "property": "assessedSeverity",
+                    "operation": "equal",
+                    "value": "CRITICAL"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "output": "critical"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "dateFormat": "ISO8601"
+                },
+                "conditions": [
+                  {
+                    "property": "assessedSeverity",
+                    "operation": "equal",
+                    "value": "HIGH"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "output": "high"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "dateFormat": "ISO8601"
+                },
+                "conditions": [
+                  {
+                    "property": "assessedSeverity",
+                    "operation": "equal",
+                    "value": "MEDIUM"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "output": "medium"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "dateFormat": "ISO8601"
+                },
+                "conditions": [
+                  {
+                    "property": "assessedSeverity",
+                    "operation": "equal",
+                    "value": "LOW"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "output": "low"
+            }
+          ],
+          "logic": "any"
+        },
+        "fallbackOutput": "default"
+      }
+    },
+    {
+      "name": "Critical Response Actions",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        100
+      ],
+      "parameters": {
+        "functionCode": "const threat = items[0].json;\nconst responses = [];\n\n// Generate automated response actions based on threat type\nswitch (threat.type) {\n  case 'VULNERABILITY':\n    // Patch deployment\n    responses.push({\n      action: 'PATCH_DEPLOYMENT',\n      priority: 'P0',\n      target: threat.affectedSystems,\n      automation: 'automatic',\n      rollbackPlan: 'available',\n      estimatedDowntime: '15-30 minutes'\n    });\n    \n    // WAF rule deployment\n    responses.push({\n      action: 'WAF_RULE_DEPLOYMENT',\n      priority: 'P0',\n      target: 'Edge Security',\n      automation: 'automatic',\n      rules: ['block_rce_patterns', 'sanitize_inputs']\n    });\n    \n    // Network isolation if critical\n    if (threat.cvss >= 9.0) {\n      responses.push({\n        action: 'NETWORK_ISOLATION',\n        priority: 'P0',\n        target: 'Affected Systems',\n        automation: 'semi-automatic',\n        requiresApproval: 'Security Lead'\n      });\n    }\n    break;\n    \n  case 'RANSOMWARE':\n    // Backup verification\n    responses.push({\n      action: 'BACKUP_VERIFICATION',\n      priority: 'P0',\n      target: 'All Critical Systems',\n      automation: 'automatic',\n      checks: ['offline_backups', 'backup_integrity', 'restore_test']\n    });\n    \n    // Network segmentation\n    responses.push({\n      action: 'NETWORK_SEGMENTATION',\n      priority: 'P0',\n      target: 'Affected Segments',\n      automation: 'semi-automatic',\n      requiresApproval: 'Network Team'\n    });\n    \n    // Threat hunting\n    responses.push({\n      action: 'THREAT_HUNTING',\n      priority: 'P1',\n      target: 'Enterprise Network',\n      automation: 'automatic',\n      indicators: threat.recommendedResponse\n    });\n    \n    // Alert escalation\n    responses.push({\n      action: 'ALERT_ESCALATION',\n      priority: 'P0',\n      target: 'SOC, IR Team, Leadership',\n      automation: 'automatic',\n      communication: ['email', 'slack', 'phone']\n    });\n    break;\n    \n  case 'APT':\n    // IOC blocking\n    responses.push({\n      action: 'IOC_BLOCKING',\n      priority: 'P0',\n      target: ['Firewall', 'EDR', 'SIEM'],\n      automation: 'automatic',\n      scope: 'Enterprise Wide'\n    });\n    \n    // Forensic collection\n    responses.push({\n      action: 'FORENSIC_COLLECTION',\n      priority: 'P1',\n      target: 'Affected Systems',\n      automation: 'semi-automatic',\n      artifacts: ['memory_dump', 'disk_image', 'network_logs']\n    });\n    \n    // Account isolation\n    responses.push({\n      action: 'ACCOUNT_ISOLATION',\n      priority: 'P0',\n      target: 'Compromised Accounts',\n      automation: 'semi-automatic',\n      requiresApproval: 'Identity Team'\n    });\n    \n    // Intelligence sharing\n    responses.push({\n      action: 'INTELLIGENCE_SHARING',\n      priority: 'P2',\n      target: ['ISACs', 'Government Agencies'],\n      automation: 'manual',\n      format: 'STIX/TAXII'\n    });\n    break;\n    \n  case 'PHISHING':\n    // Email filtering\n    responses.push({\n      action: 'EMAIL_FILTERING',\n      priority: 'P0',\n      target: 'Email Gateway',\n      automation: 'automatic',\n      rules: ['block_sender', 'quarantine_attachments', 'url_sandboxing']\n    });\n    \n    // User notification\n    responses.push({\n      action: 'USER_NOTIFICATION',\n      priority: 'P1',\n      target: 'Affected Users',\n      automation: 'automatic',\n      channel: ['email', 'sms', 'portal']\n    });\n    \n    // Credential reset\n    responses.push({\n      action: 'CREDENTIAL_RESET',\n      priority: 'P1',\n      target: 'Potentially Compromised Accounts',\n      automation: 'semi-automatic',\n      requiresVerification: true\n    });\n    break;\n}\n\n// Generate incident report\nresponses.push({\n  action: 'INCIDENT_REPORT_GENERATION',\n  priority: 'P1',\n  target: 'Documentation',\n  automation: 'automatic',\n  sections: ['executive_summary', 'technical_details', 'impact_assessment', 'response_actions', 'recommendations']\n});\n\nreturn responses.map(response => ({\n  json: {\n    threatId: threat.threatId,\n    threatName: threat.name,\n    severity: threat.assessedSeverity,\n    ...response,\n    generatedAt: new Date().toISOString(),\n    workflowId: 'cybersentinel-automated-response-v1'\n  }\n}));"
+      }
+    },
+    {
+      "name": "High Response Actions",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const threat = items[0].json;\nconst responses = [];\n\n// Generate response actions for HIGH severity threats\nresponses.push({\n  action: 'ALERT_GENERATION',\n  priority: 'P1',\n  target: 'Security Operations',\n  automation: 'automatic',\n  channels: ['email', 'slack']\n});\n\nresponses.push({\n  action: 'LOG_ENRICHMENT',\n  priority: 'P2',\n  target: 'SIEM',\n  automation: 'automatic',\n  enrichmentFields: ['threat_context', 'ioc_list', 'recommended_actions']\n});\n\nresponses.push({\n  action: 'MONITORING_ENHANCEMENT',\n  priority: 'P2',\n  target: 'EDR',\n  automation: 'automatic',\n  rules: ['increased_logging', 'behavioral_monitoring']\n});\n\nif (threat.type === 'PHISHING') {\n  responses.push({\n    action: 'EMAIL_BLOCK',\n    priority: 'P1',\n    target: 'Email Gateway',\n    automation: 'automatic',\n    scope: 'Domain Level'\n  });\n}\n\nreturn responses.map(response => ({\n  json: {\n    threatId: threat.threatId,\n    threatName: threat.name,\n    severity: threat.assessedSeverity,\n    ...response,\n    generatedAt: new Date().toISOString(),\n    workflowId: 'cybersentinel-automated-response-v1'\n  }\n}));"
+      }
+    },
+    {
+      "name": "Medium Response Actions",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        300
+      ],
+      "parameters": {
+        "functionCode": "const threat = items[0].json;\nconst responses = [];\n\n// Generate response actions for MEDIUM severity threats\nresponses.push({\n  action: 'LOG_ANNOTATION',\n  priority: 'P2',\n  target: 'SIEM',\n  automation: 'automatic',\n  annotation: `Threat ${threat.threatId} detected - ${threat.name}`\n});\n\nresponses.push({\n  action: 'DOCUMENTATION',\n  priority: 'P3',\n  target: 'Threat Intel Database',\n  automation: 'automatic',\n  fields: ['threat_details', 'iocs', 'resolution_status']\n});\n\nresponses.push({\n  action: 'SCHEDULED_REVIEW',\n  priority: 'P3',\n  target: 'Security Team',\n  automation: 'semi-automatic',\n  schedule: 'Next Business Day'\n});\n\nreturn responses.map(response => ({\n  json: {\n    threatId: threat.threatId,\n    threatName: threat.name,\n    severity: threat.assessedSeverity,\n    ...response,\n    generatedAt: new Date().toISOString(),\n    workflowId: 'cybersentinel-automated-response-v1'\n  }\n}));"
+      }
+    },
+    {
+      "name": "Low Response Actions",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        400
+      ],
+      "parameters": {
+        "functionCode": "const threat = items[0].json;\n\n// Log for tracking - no immediate action needed for LOW severity\nreturn [{\n  json: {\n    threatId: threat.threatId,\n    threatName: threat.name,\n    severity: threat.assessedSeverity,\n    action: 'LOG_ONLY',\n    priority: 'P4',\n    note: 'Low severity threat - logged for trend analysis',\n    generatedAt: new Date().toISOString(),\n    workflowId: 'cybersentinel-automated-response-v1'\n  }\n}];"
+      }
+    },
+    {
+      "name": "Patch Deployment",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        100
+      ],
+      "parameters": {
+        "functionCode": "const response = items[0].json;\n\n// Simulate patch deployment workflow\nreturn [{\n  json: {\n    ...response,\n    actionStatus: 'PATCH_DEPLOYMENT_INITIATED',\n    details: {\n      phases: [\n        { phase: 'Pre-flight Check', status: 'completed' },\n        { phase: 'Backup Verification', status: 'completed' },\n        { phase: 'Patch Download', status: 'in_progress' },\n        { phase: 'Staging Deployment', status: 'pending' },\n        { phase: 'Production Deployment', status: 'pending' },\n        { phase: 'Verification', status: 'pending' },\n        { phase: 'Monitoring', status: 'pending' }\n      ],\n      estimatedCompletion: new Date(Date.now() + 3600000).toISOString(),\n      rollbackWindow: '2 hours',\n      affectedSystemsCount: response.target ? response.target.length : 1\n    }\n  }\n}];"
+      }
+    },
+    {
+      "name": "Network Blocking",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        100
+      ],
+      "parameters": {
+        "functionCode": "const response = items[0].json;\n\n// Simulate network blocking for IOCs\nreturn [{\n  json: {\n    ...response,\n    actionStatus: 'NETWORK_BLOCKING_INITIATED',\n    details: {\n      devices: ['Firewall', 'Proxy', 'DNS Resolver', 'EDR'],\n      blockTypes: ['IP Address', 'Domain', 'URL Pattern', 'File Hash'],\n      scope: response.target || 'Enterprise Wide',\n      duration: 'Until Threat Cleared',\n      falsePositiveMitigation: {\n        enabled: true,\n        reviewWindow: '24 hours',\n        autoExpire: '7 days'\n      }\n    }\n  }\n}];"
+      }
+    },
+    {
+      "name": "Alert Notification",
+      "type": "n8n-nodes-base.email",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        100
+      ],
+      "parameters": {
+        "to": "security-team@example.com",
+        "subject": "={{ 'CRITICAL: ' + items[0].json.threatName + ' Detected - Immediate Action Required' }}",
+        "options": {
+          "html": true
+        },
+        "html": "={{ '<h2>CyberSentinel Alert</h2><p><strong>Threat:</strong> ' + items[0].json.threatName + '</p><p><strong>Severity:</strong> ' + items[0].json.assessedSeverity + '</p><p><strong>Type:</strong> ' + items[0].json.type + '</p><p><strong>Recommended Action:</strong> ' + JSON.stringify(items[0].json.recommendedResponse) + '</p><p><strong>Generated:</strong> ' + items[0].json.generatedAt + '</p>' }}"
+      }
+    },
+    {
+      "name": "Slack Notification",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        100
+      ],
+      "parameters": {
+        "channel": "#security-alerts",
+        "text": "={{ '🚨 *' + items[0].json.assessedSeverity + ' SECURITY ALERT* 🚨\\n\\n*Threat:* ' + items[0].json.name + '\\n*Type:* ' + items[0].json.type + '\\n*Severity:* ' + items[0].json.assessedSeverity + '\\n\\nPlease review the incident dashboard immediately.' }}",
+        "options": {}
+      }
+    },
+    {
+      "name": "Incident Dashboard Update",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://incident-dashboard.example.com/api/threats",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth"
+      }
+    },
+    {
+      "name": "Report Generator",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        100
+      ],
+      "parameters": {
+        "functionCode": "const allResponses = items;\n\n// Generate comprehensive incident report\nconst report = {\n  reportId: 'INC-' + Date.now(),\n  generatedAt: new Date().toISOString(),\n  executiveSummary: {\n    totalThreats: allResponses.length,\n    criticalThreats: allResponses.filter(r => r.json.assessedSeverity === 'CRITICAL').length,\n    highThreats: allResponses.filter(r => r.json.assessedSeverity === 'HIGH').length,\n    mediumThreats: allResponses.filter(r => r.json.assessedSeverity === 'MEDIUM').length,\n    lowThreats: allResponses.filter(r => r.json.assessedSeverity === 'LOW').length\n  },\n  threats: allResponses.map(r => ({\n    threatId: r.json.threatId,\n    threatName: r.json.threatName,\n    severity: r.json.assessedSeverity,\n    type: r.json.type,\n    actionTaken: r.json.action,\n    status: r.json.actionStatus || 'INITIATED'\n  })),\n  recommendations: [\n    'Review and approve pending patch deployments',\n    'Verify backup integrity for affected systems',\n    'Conduct threat hunting for related IOCs',\n    'Update security monitoring rules',\n    'Schedule post-incident review'\n  ],\n  nextSteps: [\n    'Monitor threat evolution over next 24 hours',\n    'Review false positive reports',\n    'Update threat intelligence feeds',\n    'Conduct lessons learned session'\n  ],\n  workflowMetrics: {\n    totalResponses: allResponses.length,\n    automatedActions: allResponses.filter(r => r.json.automation === 'automatic').length,\n    semiAutomatedActions: allResponses.filter(r => r.json.automation === 'semi-automatic').length,\n    manualActions: allResponses.filter(r => r.json.automation === 'manual').length\n  }\n};\n\nreturn [{ json: report }];"
+      }
+    },
+    {
+      "name": "Metrics Collector",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        2100,
+        100
+      ],
+      "parameters": {
+        "functionCode": "const report = items[0].json;\n\n// Collect metrics for analytics\nconst metrics = {\n  collectionTimestamp: new Date().toISOString(),\n  workflowId: 'cybersentinel-automated-response-v1',\n  runMetrics: {\n    executionTime: new Date().toISOString(),\n    threatsProcessed: report.executiveSummary.totalThreats,\n    criticalCount: report.executiveSummary.criticalThreats,\n    highCount: report.executiveSummary.highThreats,\n    responseActionsGenerated: report.workflowMetrics.totalResponses,\n    automationRate: report.workflowMetrics.automatedActions / report.workflowMetrics.totalResponses\n  },\n  threatTypeDistribution: {\n    vulnerability: report.threats.filter(t => t.type === 'VULNERABILITY').length,\n    ransomware: report.threats.filter(t => t.type === 'RANSOMWARE').length,\n    apt: report.threats.filter(t => t.type === 'APT').length,\n    phishing: report.threats.filter(t => t.type === 'PHISHING').length,\n    malware: report.threats.filter(t => t.type === 'MALWARE').length\n  },\n  severityDistribution: {\n    critical: report.executiveSummary.criticalThreats,\n    high: report.executiveSummary.highThreats,\n    medium: report.executiveSummary.mediumThreats,\n    low: report.executiveSummary.lowThreats\n  }\n};\n\nreturn [{ json: metrics }];"
+      }
+    }
+  ],
+  "connections": {
+    "Trigger": {
+      "main": [
+        [
+          {
+            "node": "Threat Intelligence Collector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Threat Intelligence Collector": {
+      "main": [
+        [
+          {
+            "node": "Threat Analyzer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Threat Analyzer": {
+      "main": [
+        [
+          {
+            "node": "Severity Assessor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Severity Assessor": {
+      "main": [
+        [
+          {
+            "node": "Response Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Response Router": {
+      "main": [
+        [
+          {
+            "node": "Critical Response Actions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "High Response Actions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Medium Response Actions",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Low Response Actions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Critical Response Actions": {
+      "main": [
+        [
+          {
+            "node": "Patch Deployment",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Network Blocking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High Response Actions": {
+      "main": [
+        [
+          {
+            "node": "Alert Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Slack Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Medium Response Actions": {
+      "main": [
+        [
+          {
+            "node": "Incident Dashboard Update",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Low Response Actions": {
+      "main": [
+        [
+          {
+            "node": "Report Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Patch Deployment": {
+      "main": [
+        [
+          {
+            "node": "Alert Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Network Blocking": {
+      "main": [
+        [
+          {
+            "node": "Alert Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Notification": {
+      "main": [
+        [
+          {
+            "node": "Report Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Notification": {
+      "main": [
+        [
+          {
+            "node": "Report Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Incident Dashboard Update": {
+      "main": [
+        [
+          {
+            "node": "Report Generator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Report Generator": {
+      "main": [
+        [
+          {
+            "node": "Metrics Collector",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    "cybersecurity",
+    "threat-response",
+    "automated",
+    "soc",
+    "incident-response"
+  ]
+}

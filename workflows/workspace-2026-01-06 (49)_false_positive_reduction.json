@@ -1,0 +1,1449 @@
+{
+  "name": "False Positive Reduction and Business Context Integration",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "value": 5
+            }
+          ]
+        }
+      },
+      "id": "fp-scheduler",
+      "name": "FP Reduction Monitor",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.THRAT_FEED_URL }}",
+        "options": {}
+      },
+      "id": "threat-feed",
+      "name": "Threat Intelligence Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.threat_type }}",
+              "operation": "isNotEmpty"
+            }
+          ]
+        }
+      },
+      "id": "valid-threat",
+      "name": "Valid Threat Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value": "={{ $json.cisa_confirmed }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "cisa-confirmed",
+      "name": "CISA Confirmed Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value": "={{ $json.vendor_confirmed }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "vendor-confirmed",
+      "name": "Vendor Confirmed Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value": "={{ $json.epss_score }}",
+              "operation": "gte",
+              "value2": 0.1
+            }
+          ]
+        }
+      },
+      "id": "epss-check",
+      "name": "EPSS Score Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        650
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value": "={{ $json.active_exploitation }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "exploitation-check",
+      "name": "Active Exploitation Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value": "={{ $json.cvss_score }}",
+              "operation": "gte",
+              "value2": 7
+            }
+          ]
+        }
+      },
+      "id": "cvss-check",
+      "name": "CVSS Score Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.asset_criticality }}",
+              "operation": "equal",
+              "value2": "critical"
+            }
+          ]
+        }
+      },
+      "id": "critical-asset",
+      "name": "Critical Asset Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.asset_criticality }}",
+              "operation": "equal",
+              "value2": "high"
+            }
+          ]
+        }
+      },
+      "id": "high-asset",
+      "name": "High Value Asset Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.asset_criticality }}",
+              "operation": "equal",
+              "value2": "medium"
+            }
+          ]
+        }
+      },
+      "id": "medium-asset",
+      "name": "Medium Asset Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        650
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.asset_criticality }}",
+              "operation": "equal",
+              "value2": "low"
+            }
+          ]
+        }
+      },
+      "id": "low-asset",
+      "name": "Low Asset Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.business_impact }}",
+              "operation": "equal",
+              "value2": "severe"
+            }
+          ]
+        }
+      },
+      "id": "severe-impact",
+      "name": "Severe Business Impact",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.business_impact }}",
+              "operation": "equal",
+              "value2": "significant"
+            }
+          ]
+        }
+      },
+      "id": "significant-impact",
+      "name": "Significant Business Impact",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        900,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.business_impact }}",
+              "operation": "equal",
+              "value2": "moderate"
+            }
+          ]
+        }
+      },
+      "id": "moderate-impact",
+      "name": "Moderate Business Impact",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        900,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.business_impact }}",
+              "operation": "equal",
+              "value2": "minimal"
+            }
+          ]
+        }
+      },
+      "id": "minimal-impact",
+      "name": "Minimal Business Impact",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        900,
+        650
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.industry_sector }}",
+              "operation": "equal",
+              "value2": "healthcare"
+            }
+          ]
+        }
+      },
+      "id": "healthcare-industry",
+      "name": "Healthcare Industry",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.industry_sector }}",
+              "operation": "equal",
+              "value2": "finance"
+            }
+          ]
+        }
+      },
+      "id": "finance-industry",
+      "name": "Finance Industry",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.industry_sector }}",
+              "operation": "equal",
+              "value2": "critical_infrastructure"
+            }
+          ]
+        }
+      },
+      "id": "critical-infra",
+      "name": "Critical Infrastructure",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.industry_sector }}",
+              "operation": "equal",
+              "value2": "government"
+            }
+          ]
+        }
+      },
+      "id": "gov-industry",
+      "name": "Government",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        650
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.industry_sector }}",
+              "operation": "equal",
+              "value2": "retail"
+            }
+          ]
+        }
+      },
+      "id": "retail-industry",
+      "name": "Retail Industry",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.industry_sector }}",
+              "operation": "equal",
+              "value2": "technology"
+            }
+          ]
+        }
+      },
+      "id": "tech-industry",
+      "name": "Technology Industry",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        950
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.regulatory_impact }}",
+              "operation": "contains",
+              "value2": "HIPAA"
+            }
+          ]
+        }
+      },
+      "id": "hipaa-impact",
+      "name": "HIPAA Impact",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.regulatory_impact }}",
+              "operation": "contains",
+              "value2": "PCI-DSS"
+            }
+          ]
+        }
+      },
+      "id": "pcidss-impact",
+      "name": "PCI-DSS Impact",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.regulatory_impact }}",
+              "operation": "contains",
+              "value2": "SOC2"
+            }
+          ]
+        }
+      },
+      "id": "soc2-impact",
+      "name": "SOC2 Impact",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.regulatory_impact }}",
+              "operation": "contains",
+              "value2": "GDPR"
+            }
+          ]
+        }
+      },
+      "id": "gdpr-impact",
+      "name": "GDPR Impact",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        650
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "={{ $json.regulatory_impact }}",
+              "operation": "contains",
+              "value2": "SOX"
+            }
+          ]
+        }
+      },
+      "id": "sox-impact",
+      "name": "SOX Impact",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1300,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ \"python3 /opt/scripts/false_positive_analysis.py --threat '\" + $json.threat_id + \"' --context '\" + JSON.stringify($json.context) + \"' --output json\" }}"
+      },
+      "id": "fp-analysis",
+      "name": "FP Analysis Script",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ \"python3 /opt/scripts/business_context.py --asset '\" + $json.asset_id + \"' --threat '\" + $json.threat_id + \"' --output json\" }}"
+      },
+      "id": "business-context",
+      "name": "Business Context Script",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ \"python3 /opt/scripts/risk_score.py --cvss \" + $json.cvss_score + \" --epss \" + $json.epss_score + \" --asset_criticality '\" + $json.asset_criticality + \"' --business_impact '\" + $json.business_impact + \"' --output json\" }}"
+      },
+      "id": "risk-score",
+      "name": "Risk Score Calculator",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ \"python3 /opt/scripts/priority_score.py --risk_score \" + $json.risk_score + \" --regulatory_impact '\" + JSON.stringify($json.regulatory_impact) + \"' --threat_timeline '\" + $json.threat_timeline + \"' --output json\" }}"
+      },
+      "id": "priority-score",
+      "name": "Priority Score Calculator",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        650
+      ]
+    },
+    {
+      "parameters": {
+        "method": "post",
+        "url": "={{ $env.SLACK_WEBHOOK_URL }}",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ JSON.stringify({ text: \"✅ VALIDATED THREAT: \" + $json.threat_id + \"\\nRisk Score: \" + $json.risk_score + \"/100\\nPriority: \" + $json.priority_score + \"/100\\nAsset Criticality: \" + $json.asset_criticality + \"\\nBusiness Impact: \" + $json.business_impact }) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "slack-validated",
+      "name": "Validated Threat Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1700,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "to": "={{ $env.SECURITY_TEAM_EMAIL }}",
+        "subject": "={{ \"✅ Validated Threat: \" + $json.threat_id + \" - Risk: \" + $json.risk_score + \"/100\" }}",
+        "body": "={{ \"THREAT VALIDATION REPORT\\n\\nThreat ID: \" + $json.threat_id + \"\\nType: \" + $json.threat_type + \"\\n\\nFalse Positive Analysis:\\nCISA Confirmed: \" + $json.cisa_confirmed + \"\\nVendor Confirmed: \" + $json.vendor_confirmed + \"\\nEPSS Score: \" + $json.epss_score + \"\\nActive Exploitation: \" + $json.active_exploitation + \"\\n\\nBusiness Context:\\nAsset Criticality: \" + $json.asset_criticality + \"\\nBusiness Impact: \" + $json.business_impact + \"\\nIndustry Sector: \" + $json.industry_sector + \"\\n\\nRegulatory Impact:\\n\" + JSON.stringify($json.regulatory_impact, null, 2) + \"\\n\\nRisk Assessment:\\nRisk Score: \" + $json.risk_score + \"/100\\nPriority Score: \" + $json.priority_score + \"/100\\n\\nRecommended Actions:\\n\" + JSON.stringify($json.recommended_actions, null, 2) }}",
+        "options": {}
+      },
+      "id": "email-validated",
+      "name": "Validated Threat Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        1700,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "method": "post",
+        "url": "={{ $env.SPLUNK_HEC_URL }}",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ \"Splunk \" + $env.SPLUNK_TOKEN }}"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "event",
+              "value": "={{ JSON.stringify({ threat_type: $json.threat_type, threat_id: $json.threat_id, false_positive_analysis: { cisa_confirmed: $json.cisa_confirmed, vendor_confirmed: $json.vendor_confirmed, epss_score: $json.epss_score, active_exploitation: $json.active_exploitation }, business_context: { asset_criticality: $json.asset_criticality, business_impact: $json.business_impact, industry_sector: $json.industry_sector, regulatory_impact: $json.regulatory_impact }, risk_score: $json.risk_score, priority_score: $json.priority_score }) }}"
+            },
+            {
+              "name": "sourcetype",
+              "value": "cyber:validated_threat"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "splunk-validated",
+      "name": "Ingest to SIEM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1700,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "method": "post",
+        "url": "={{ $env.SERVICENOW_API_URL }}/api/now/table/incident",
+        "sendHeaders": true,
+        "sendBody": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ \"Basic \" + $env.SERVICENOW_AUTH }}"
+            }
+          ]
+        },
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "short_description",
+              "value": "={{ \"Validated Threat: \" + $json.threat_id + \" (Risk: \" + $json.risk_score + \")\" }}"
+            },
+            {
+              "name": "description",
+              "value": "={{ \"VALIDATED THREAT WITH BUSINESS CONTEXT\\n\\nThreat: \" + $json.threat_id + \"\\nType: \" + $json.threat_type + \"\\n\\nFalse Positive Analysis:\\n- CISA Confirmed: \" + $json.cisa_confirmed + \"\\n- Vendor Confirmed: \" + $json.vendor_confirmed + \"\\n- EPSS Score: \" + $json.epss_score + \"\\n- Active Exploitation: \" + $json.active_exploitation + \"\\n\\nBusiness Impact Assessment:\\n- Asset Criticality: \" + $json.asset_criticality + \"\\n- Business Impact: \" + $json.business_impact + \"\\n- Industry Sector: \" + $json.industry_sector + \"\\n- Regulatory Impact: \" + JSON.stringify($json.regulatory_impact) + \"\\n\\nRisk Score: \" + $json.risk_score + \"/100\\nPriority Score: \" + $json.priority_score + \"/100\" }}"
+            },
+            {
+              "name": "urgency",
+              "value": "={{ $json.risk_score >= 80 ? \"1\" : $json.risk_score >= 60 ? \"2\" : \"3\" }}"
+            },
+            {
+              "name": "impact",
+              "value": "={{ $json.business_impact === \"severe\" ? \"1\" : $json.business_impact === \"significant\" ? \"2\" : \"3\" }}"
+            },
+            {
+              "name": "priority",
+              "value": "={{ $json.priority_score >= 80 ? \"1\" : $json.priority_score >= 60 ? \"2\" : \"3\" }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "servicenow-validated",
+      "name": "Create Incident Ticket",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1700,
+        650
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value": "={{ $json.risk_score }}",
+              "operation": "gte",
+              "value2": 70
+            }
+          ]
+        }
+      },
+      "id": "high-priority",
+      "name": "High Priority Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value": "={{ $json.risk_score }}",
+              "operation": "lte",
+              "value2": 30
+            }
+          ]
+        }
+      },
+      "id": "low-priority",
+      "name": "Low Priority Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        350
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "threatType",
+              "value": "={{ $json.threat_type }}"
+            },
+            {
+              "name": "severity",
+              "value": "={{ $json.risk_score >= 80 ? \"CRITICAL\" : $json.risk_score >= 60 ? \"HIGH\" : $json.risk_score >= 40 ? \"MEDIUM\" : \"LOW\" }}"
+            },
+            {
+              "name": "affectedSystems",
+              "value": "={{ $json.asset_criticality + \" assets in \" + $json.industry_sector + \" sector\" }}"
+            },
+            {
+              "name": "indicatorsOfCompromise",
+              "value": "={{ JSON.stringify($json.indicators_of_compromise) }}"
+            },
+            {
+              "name": "falsePositiveReduction",
+              "value": "={{ JSON.stringify({ cisa_confirmed: $json.cisa_confirmed, vendor_confirmed: $json.vendor_confirmed, epss_score: $json.epss_score, active_exploitation: $json.active_exploitation, confidence_score: $json.confidence_score }) }}"
+            },
+            {
+              "name": "businessContext",
+              "value": "={{ JSON.stringify({ asset_criticality: $json.asset_criticality, business_impact: $json.business_impact, industry_sector: $json.industry_sector, regulatory_impact: $json.regulatory_impact }) }}"
+            },
+            {
+              "name": "riskScore",
+              "value": "={{ $json.risk_score }}"
+            },
+            {
+              "name": "recommendedActions",
+              "value": "={{ JSON.stringify($json.recommended_actions) }}"
+            },
+            {
+              "name": "n8nWorkflowId",
+              "value": "fp-reduction-workflow-2025-12-27"
+            }
+          ]
+        }
+      },
+      "id": "validated-output",
+      "name": "Validated Intel Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        2100,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value": "={{ $json.likely_false_positive }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "fp-suppress",
+      "name": "False Positive Suppression",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        2100,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "threatType",
+              "value": "={{ $json.threat_type }}"
+            },
+            {
+              "name": "severity",
+              "value": "SUPPRESSED"
+            },
+            {
+              "name": "affectedSystems",
+              "value": "={{ \"False positive - \" + $json.suppression_reason }}"
+            },
+            {
+              "name": "indicatorsOfCompromise",
+              "value": "={{ JSON.stringify($json.indicators_of_compromise) }}"
+            },
+            {
+              "name": "falsePositiveReduction",
+              "value": "={{ JSON.stringify({ suppressed: true, reason: $json.suppression_reason, confidence: $json.fp_confidence }) }}"
+            },
+            {
+              "name": "businessContext",
+              "value": "={{ JSON.stringify({ asset_criticality: $json.asset_criticality, business_impact: $json.business_impact, industry_sector: $json.industry_sector }) }}"
+            },
+            {
+              "name": "riskScore",
+              "value": "={{ $json.risk_score }}"
+            },
+            {
+              "name": "recommendedActions",
+              "value": "={{ JSON.stringify([\"Suppress alert - false positive confirmed\", \"Log for analytics\", \"Continue monitoring\"]) }}"
+            },
+            {
+              "name": "n8nWorkflowId",
+              "value": "fp-reduction-workflow-2025-12-27"
+            }
+          ]
+        }
+      },
+      "id": "suppressed-output",
+      "name": "Suppressed Intel Output",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        2300,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "FP Reduction Monitor": {
+      "main": [
+        [
+          {
+            "node": "Threat Intelligence Feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Threat Intelligence Feed": {
+      "main": [
+        [
+          {
+            "node": "Valid Threat Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid Threat Check": {
+      "main": [
+        [
+          {
+            "node": "CISA Confirmed Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CISA Confirmed Check": {
+      "main": [
+        [
+          {
+            "node": "Vendor Confirmed Check",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "EPSS Score Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vendor Confirmed Check": {
+      "main": [
+        [
+          {
+            "node": "EPSS Score Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "EPSS Score Check": {
+      "main": [
+        [
+          {
+            "node": "Active Exploitation Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Active Exploitation Check": {
+      "main": [
+        [
+          {
+            "node": "CVSS Score Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CVSS Score Check": {
+      "main": [
+        [
+          {
+            "node": "Critical Asset Check",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "High Value Asset Check",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Medium Asset Check",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Low Asset Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Critical Asset Check": {
+      "main": [
+        [
+          {
+            "node": "Severe Business Impact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High Value Asset Check": {
+      "main": [
+        [
+          {
+            "node": "Significant Business Impact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Medium Asset Check": {
+      "main": [
+        [
+          {
+            "node": "Moderate Business Impact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Low Asset Check": {
+      "main": [
+        [
+          {
+            "node": "Minimal Business Impact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Severe Business Impact": {
+      "main": [
+        [
+          {
+            "node": "Healthcare Industry",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Finance Industry",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Critical Infrastructure",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Government",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Significant Business Impact": {
+      "main": [
+        [
+          {
+            "node": "Retail Industry",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Technology Industry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Moderate Business Impact": {
+      "main": [
+        [
+          {
+            "node": "Retail Industry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Minimal Business Impact": {
+      "main": [
+        [
+          {
+            "node": "Technology Industry",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Healthcare Industry": {
+      "main": [
+        [
+          {
+            "node": "HIPAA Impact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finance Industry": {
+      "main": [
+        [
+          {
+            "node": "PCI-DSS Impact",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "SOX Impact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Critical Infrastructure": {
+      "main": [
+        [
+          {
+            "node": "HIPAA Impact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Government": {
+      "main": [
+        [
+          {
+            "node": "SOC2 Impact",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "GDPR Impact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retail Industry": {
+      "main": [
+        [
+          {
+            "node": "PCI-DSS Impact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Technology Industry": {
+      "main": [
+        [
+          {
+            "node": "SOC2 Impact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HIPAA Impact": {
+      "main": [
+        [
+          {
+            "node": "FP Analysis Script",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Business Context Script",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Risk Score Calculator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PCI-DSS Impact": {
+      "main": [
+        [
+          {
+            "node": "FP Analysis Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SOC2 Impact": {
+      "main": [
+        [
+          {
+            "node": "FP Analysis Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GDPR Impact": {
+      "main": [
+        [
+          {
+            "node": "FP Analysis Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SOX Impact": {
+      "main": [
+        [
+          {
+            "node": "FP Analysis Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FP Analysis Script": {
+      "main": [
+        [
+          {
+            "node": "Business Context Script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Business Context Script": {
+      "main": [
+        [
+          {
+            "node": "Risk Score Calculator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Risk Score Calculator": {
+      "main": [
+        [
+          {
+            "node": "Priority Score Calculator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Priority Score Calculator": {
+      "main": [
+        [
+          {
+            "node": "Validated Threat Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Validated Threat Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Ingest to SIEM",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Incident Ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validated Threat Alert": {
+      "main": [
+        [
+          {
+            "node": "Validated Threat Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Ingest to SIEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validated Threat Email": {
+      "main": [
+        [
+          {
+            "node": "Ingest to SIEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ingest to SIEM": {
+      "main": [
+        [
+          {
+            "node": "Create Incident Ticket",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "High Priority Check",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Low Priority Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Incident Ticket": {
+      "main": [
+        [
+          {
+            "node": "High Priority Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High Priority Check": {
+      "main": [
+        [
+          {
+            "node": "Validated Intel Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Low Priority Check": {
+      "main": [
+        [
+          {
+            "node": "False Positive Suppression",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validated Intel Output": {
+      "main": [
+        []
+      ]
+    },
+    "False Positive Suppression": {
+      "main": [
+        [
+          {
+            "node": "Suppressed Intel Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Suppressed Intel Output": {
+      "main": [
+        []
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": true,
+  "id": "fp-reduction-workflow-2025-12-27",
+  "meta": {
+    "instanceId": "cybersentinel-005"
+  }
+}

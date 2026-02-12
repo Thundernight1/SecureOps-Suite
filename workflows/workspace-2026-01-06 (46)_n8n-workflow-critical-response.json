@@ -1,0 +1,259 @@
+{
+  "meta": {
+    "name": "CyberSentinel Threat Response Workflow",
+    "version": "1.0.0",
+    "trigger_id": "a1a6b29f-1834-4666-82d7-1163ce25f64c",
+    "agent_id": "a401e896-d617-4e97-8bbf-29f47e133c21",
+    "created_at": "2025-12-27T14:20:11.968570+00:00",
+    "threat_severity": "CRITICAL"
+  },
+  "nodes": [
+    {
+      "id": "trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        100,
+        200
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cybersentinel-threat-alert",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "parse-threat",
+      "name": "Parse Threat Data",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        300,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const threatData = items[0].json;\n\n// Extract threat classification\nconst threatTypeMap = {\n  'CVE-2025-55182': 'VULNERABILITY',\n  'CVE-2025-14847': 'VULNERABILITY',\n  'CVE-2025-8110': 'VULNERABILITY',\n  'CVE-2025-62554': 'VULNERABILITY',\n  'CVE-2025-62557': 'VULNERABILITY',\n  'BRICKSTORM': 'APT',\n  'Evasive Panda': 'APT',\n  'Prince of Persia': 'APT',\n  'Rhysida': 'RANSOMWARE',\n  'Qilin': 'RANSOMWARE'\n};\n\nconst severityMap = {\n  'CVE-2025-55182': 'CRITICAL',\n  'CVE-2025-14847': 'CRITICAL',\n  'CVE-2025-8110': 'CRITICAL',\n  'CVE-2025-62554': 'HIGH',\n  'CVE-2025-62557': 'HIGH',\n  'BRICKSTORM': 'CRITICAL',\n  'Evasive Panda': 'HIGH',\n  'Prince of Persia': 'HIGH',\n  'Rhysida': 'HIGH',\n  'Qilin': 'HIGH'\n};\n\nreturn [{\n  json: {\n    ...threatData,\n    threatType: threatTypeMap[threatData.cveId || threatData.threatName] || 'IOC',\n    severity: severityMap[threatData.cveId || threatData.threatName] || 'MEDIUM',\n    processedAt: new Date().toISOString(),\n    workflowId: 'n8n-' + (threatData.cveId || threatData.threatName).toLowerCase().replace(/[^a-z0-9]/g, '-')\n  }\n}];"
+      }
+    },
+    {
+      "id": "check-severity",
+      "name": "Check Severity",
+      "type": "n8n-nodes-base.switch",
+      "position": [
+        500,
+        200
+      ],
+      "parameters": {
+        "mode": "expression",
+        "output": "={{ $json.severity }}",
+        "cases": {
+          "CRITICAL": [
+            {
+              "id": "critical-response",
+              "name": "Critical Response"
+            }
+          ],
+          "HIGH": [
+            {
+              "id": "high-response",
+              "name": "High Response"
+            }
+          ],
+          "MEDIUM": [
+            {
+              "id": "medium-response",
+              "name": "Medium Response"
+            }
+          ],
+          "LOW": [
+            {
+              "id": "low-response",
+              "name": "Low Response"
+            }
+          ]
+        },
+        "fallbackOutput": "output"
+      }
+    },
+    {
+      "id": "critical-response",
+      "name": "Critical Response Chain",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        700,
+        100
+      ],
+      "parameters": {
+        "functionCode": "const threat = items[0].json;\nconst actions = [];\n\n// Critical response: Immediate actions\nif (threat.cveId === 'CVE-2025-55182') {\n  // React2Shell - Immediate patch required\n  actions.push({\n    action: 'PATCH_REQUIRED',\n    priority: 'CRITICAL',\n    description: 'URGENT: Apply React/Next.js patches immediately',\n    affectedSystems: ['React Server Components', 'Next.js 15.x/16.x'],\n    iocs: ['Flight protocol payloads', 'Deserialized objects']\n  });\n  \n  actions.push({\n    action: 'BLOCK_EXTERNAL',\n    priority: 'CRITICAL', \n    description: 'Temporarily block external access to RSC endpoints',\n    affectedSystems: ['Web servers running RSC']\n  });\n}\n\nif (threat.threatName === 'BRICKSTORM') {\n  // BRICKSTORM APT - Check for VMware/Windows compromise\n  actions.push({\n    action: 'HUNT_VMWARE',\n    priority: 'CRITICAL',\n    description: 'Search for BRICKSTORM artifacts in VMware vSphere environments',\n    affectedSystems: ['VMware vSphere', 'Windows servers']\n  });\n  \n  actions.push({\n    action: 'RESET_CREDENTIALS',\n    priority: 'CRITICAL',\n    description: 'Reset credentials for all privileged accounts',\n    affectedSystems: ['Active Directory', 'VMware vCenter']\n  });\n}\n\nreturn [{\n  json: {\n    threatId: threat.threatId || threat.cveId || threat.threatName,\n    responseLevel: 'CRITICAL',\n    actions: actions,\n    escalationRequired: true,\n    notifyStakeholders: ['CISO', 'SOC Manager', 'IT Director'],\n    estimatedMitigationTime: '4-24 hours'\n  }\n}];"
+      }
+    },
+    {
+      "id": "high-response",
+      "name": "High Response Chain",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        700,
+        200
+      ],
+      "parameters": {
+        "functionCode": "const threat = items[0].json;\nconst actions = [];\n\n// High response: Same-day actions\nactions.push({\n  action: 'INVESTIGATE',\n  priority: 'HIGH',\n  description: 'Investigate potential compromise within 24 hours',\n  affectedSystems: threat.affectedSystems || ['All enterprise systems']\n});\n\nactions.push({\n  action: 'SCAN_IOCS',\n  priority: 'HIGH',\n  description: 'Scan environment for provided IOCs',\n  iocs: threat.indicatorsOfCompromise || []\n});\n\nif (threat.threatType === 'RANSOMWARE') {\n  actions.push({\n    action: 'VERIFY_BACKUPS',\n    priority: 'HIGH',\n    description: 'Verify backup integrity and offline status',\n    affectedSystems: ['Backup infrastructure']\n  });\n  \n  actions.push({\n    action: 'NETWORK_ISOLATE',\n    priority: 'HIGH',\n    description: 'Prepare network isolation procedures',\n    affectedSystems: ['Network segments']\n  });\n}\n\nreturn [{\n  json: {\n    threatId: threat.threatId || threat.cveId || threat.threatName,\n    responseLevel: 'HIGH',\n    actions: actions,\n    escalationRequired: true,\n    notifyStakeholders: ['SOC Manager', 'IT Security Lead'],\n    estimatedMitigationTime: '24-48 hours'\n  }\n}];"
+      }
+    },
+    {
+      "id": "send-alerts",
+      "name": "Send Security Alerts",
+      "type": "n8n-nodes-base.slack",
+      "position": [
+        900,
+        200
+      ],
+      "parameters": {
+        "channel": "#security-alerts",
+        "text": "={{ '🚨 **CYBERSENTINEL ALERT** 🚨\\n\\n**Threat:** ' + $json.threatId + '\\n**Severity:** ' + $json.responseLevel + '\\n**Type:** ' + $json.threatType + '\\n**Actions Required:**\\n' + $json.actions.map(a => '- ' + a.action + ': ' + a.description).join('\\n') }}",
+        "attachments": []
+      }
+    },
+    {
+      "id": "create-jira",
+      "name": "Create Incident Ticket",
+      "type": "n8n-nodes-base.jira",
+      "position": [
+        900,
+        300
+      ],
+      "parameters": {
+        "project": "SECURITY",
+        "issueType": "Task",
+        "summary": "CyberSentinel Alert: {{ $json.threatId }} - {{ $json.responseLevel }}",
+        "description": "## Threat Intelligence Alert\\n\\n**Threat ID:** {{ $json.threatId }}\\n**Severity:** {{ $json.responseLevel }}\\n**Type:** {{ $json.threatType }}\\n\\n## Required Actions\\n{{ $json.actions.map(a => '- [ ] ' + a.action + ': ' + a.description).join('\\n') }}\\n\\n## Stakeholders to Notify\\n{{ $json.notifyStakeholders.join(', ') }}\\n\\n---\n*Generated by CyberSentinel at {{ new Date().toISOString() }}*"
+      }
+    },
+    {
+      "id": "log-intel",
+      "name": "Log to Intel Database",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        900,
+        400
+      ],
+      "parameters": {
+        "operation": "insert",
+        "table": "threat_intel_logs",
+        "columns": {
+          "threat_id": "={{ $json.threatId }}",
+          "threat_type": "={{ $json.threatType }}",
+          "severity": "={{ $json.responseLevel }}",
+          "raw_data": "={{ JSON.stringify($json) }}",
+          "created_at": "={{ new Date().toISOString() }}"
+        }
+      }
+    },
+    {
+      "id": "response-complete",
+      "name": "Response Complete",
+      "type": "n8n-nodes-base.function",
+      "position": [
+        1100,
+        300
+      ],
+      "parameters": {
+        "functionCode": "// Finalize threat response\nconst input = items[0].json;\n\nreturn [{\n  json: {\n    status: 'RESPONDED',\n    threatId: input.threatId,\n    responseComplete: true,\n    timestamp: new Date().toISOString(),\n    alertSent: true,\n    ticketCreated: true,\n    intelLogged: true\n  }\n}];"
+      }
+    }
+  ],
+  "connections": {
+    "trigger": {
+      "main": [
+        [
+          {
+            "node": "parse-threat",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parse-threat": {
+      "main": [
+        [
+          {
+            "node": "check-severity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check-severity": {
+      "main": [
+        [],
+        [],
+        [],
+        [
+          {
+            "node": "send-alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "critical-response": {
+      "main": [
+        [
+          {
+            "node": "send-alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "high-response": {
+      "main": [
+        [
+          {
+            "node": "send-alerts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "send-alerts": {
+      "main": [
+        [
+          {
+            "node": "create-jira",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create-jira": {
+      "main": [
+        [
+          {
+            "node": "log-intel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "log-intel": {
+      "main": [
+        [
+          {
+            "node": "response-complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

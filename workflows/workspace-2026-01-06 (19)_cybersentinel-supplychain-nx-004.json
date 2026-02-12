@@ -1,0 +1,98 @@
+{
+  "n8nWorkflowId": "cybersentinel-supplychain-004",
+  "name": "Supply Chain Attack Response - Nx Package",
+  "nodes": [
+    {
+      "name": "NPMRegistryMonitor",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameters": {
+        "method": "GET",
+        "url": "https://registry.npmjs.org/-/npm/v1/security/audits",
+        "options": {}
+      },
+      "position": [
+        100,
+        200
+      ]
+    },
+    {
+      "name": "AnalyzeSupplyChain",
+      "type": "n8n-nodes-base.function",
+      "parameters": {
+        "functionCode": "return [{\n  json: {\n    threatType: 'SUPPLY_CHAIN',\n    severity: 'CRITICAL',\n    campaign: 's1ngularity',\n    affectedPackages: [\n      'nx',\n      '@nx/angular',\n      '@nx/react',\n      '@nx/vue',\n      '@nx/workspace',\n      '@art-ws/http-server',\n      '@art-ws/package-base',\n      '@art-ws/web-app',\n      '@crowdstrike/commitlint'\n    ],\n    attackVector: 'Malicious code injection in npm packages',\n    propagation: 'CI/CD pipeline compromise',\n    impact: 'Thousands of downstream applications',\n    detection: 'Poisoned updates propagated globally',\n    remediation: 'Rollback to clean versions, scan dependencies'\n  }\n}];"
+      },
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "name": "ScanDependencies",
+      "type": "n8n-nodes-base.httpRequest",
+      "parameter": "POST",
+      "url": "={{$node['Config'].json[\"scaApi\"]}}/scan",
+      "options": {},
+      "bodyParameters": {
+        "parameters": [
+          {
+            "name": "projectPath",
+            "value": "{{$node['Config'].json['projectPath']}}"
+          }
+        ]
+      }
+    },
+    {
+      "name": "NotifyDevSecOps",
+      "type": "n8n-nodes-base.slack",
+      "parameters": {
+        "channel": "#devsecops-alerts",
+        "text": "=🚨 **SUPPLY CHAIN ALERT: s1ngularity Campaign**\n\n**Classification:** SUPPLY_CHAIN | CRITICAL\n\n**Affected Packages:**\n- nx and @nx/* plugins\n- @art-ws/* packages\n- @crowdstrike/commitlint\n\n**Attack Vector:**\nMalicious code injected into popular npm packages\n\n**Organization Actions Required:**\n1. Run `npm audit` immediately\n2. Review package.json for affected packages\n3. Check CI/CD build logs for suspicious activity\n4. Consider temporarily freezing npm updates\n5. Enable package signing verification\n\n**Detection:**\n- Unexpected network calls in build processes\n- Modified files in node_modules/.package-lock.json"
+      },
+      "position": [
+        700,
+        200
+      ]
+    },
+    {
+      "name": "CreateIncident",
+      "type": "n8n-nodes-base.jira",
+      "parameters": {
+        "projectKey": "SEC",
+        "issueType": "Incident",
+        "summary": "CRITICAL: Supply Chain Attack - s1ngularity npm Campaign",
+        "description": "=**Threat Classification:** SUPPLY_CHAIN | CRITICAL\n\n**Campaign:** s1ngularity\n**Attack Vector:** Malicious npm package injection\n\n**Affected Packages:**\n{{$node['AnalyzeSupplyChain'].json['affectedPackages'].join(', ')}}\n\n**Impact:**\nThousands of applications globally affected\n\n**Immediate Actions:**\n1. Audit all npm dependencies\n2. Review recent CI/CD build artifacts\n3. Check for unexpected outbound connections\n4. Verify build pipeline integrity\n5. Consider emergency deployment freeze",
+        "priority": 1
+      },
+      "position": [
+        700,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "NPMRegistryMonitor": {
+      "main": [
+        [
+          "AnalyzeSupplyChain"
+        ]
+      ]
+    },
+    "AnalyzeSupplyChain": {
+      "main": [
+        [
+          "ScanDependencies"
+        ]
+      ]
+    },
+    "ScanDependencies": {
+      "main": [
+        [
+          "NotifyDevSecOps"
+        ],
+        [
+          "CreateIncident"
+        ]
+      ]
+    }
+  }
+}

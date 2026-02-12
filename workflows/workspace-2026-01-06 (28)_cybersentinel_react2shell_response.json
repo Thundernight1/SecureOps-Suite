@@ -1,0 +1,313 @@
+{
+  "name": "CyberSentinel - React2Shell Vulnerability Response",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "disabled": false,
+      "notesInFlow": true,
+      "notes": "CVE-2025-55182 React2Shell Alert Trigger"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.cisa.gov/v2/vulnerabilities/{{ $node[\"Webhook Trigger\"].json[\"cve_id\"] }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"action\": \"cve_lookup\",\n  \"cve_id\": \"CVE-2025-55182\"\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "cisa-api-check",
+      "name": "CISA KEV Lookup",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        300,
+        200
+      ],
+      "disabled": false,
+      "notesInFlow": true,
+      "notes": "Check CISA Known Exploited Vulnerabilities catalog"
+    },
+    {
+      "parameters": {
+        "url": "https://api.nvd.nist.gov/rest/vuln/detail/{{ $node[\"Webhook Trigger\"].json[\"cve_id\"] }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "nvd-lookup",
+      "name": "NVD CVE Lookup",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        500,
+        200
+      ],
+      "disabled": false,
+      "notesInFlow": true,
+      "notes": "Fetch NVD vulnerability details"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $node[\"NVD CVE Lookup\"].json[\"cvssMetricV31\"][0][\"cvssData\"][\"baseScore\"] }}",
+              "operation": "greaterEqual",
+              "value2": "9"
+            }
+          ]
+        }
+      },
+      "id": "severity-check",
+      "name": "Critical Severity Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        700,
+        200
+      ],
+      "disabled": false,
+      "notesInFlow": true,
+      "notes": "Check if CVSS >= 9 (Critical)"
+    },
+    {
+      "parameters": {
+        "channel": "security-alerts",
+        "text": "=🚨 **CRITICAL VULNERABILITY ALERT** 🚨\n\n**CVE:** {{ $node[\"Webhook Trigger\"].json[\"cve_id\"] }}\n**Severity:** CRITICAL (CVSS {{ $node[\"NVD CVE Lookup\"].json[\"cvssMetricV31\"][0][\"cvssData\"][\"baseScore\"] }})\n**Status:** {{ $node[\"CISA KEV Lookup\"].json[\"inKEV\"] ? \"⚠️ KNOWN EXPLOITED\" : \"🔍 Monitoring\" }}\n\n**Description:**\n{{ $node[\"NVD CVE Lookup\"].json[\"descriptions\"][0][\"value\"] }}\n\n**Affected Systems:**\n{{ $node[\"Webhook Trigger\"].json[\"affected_systems\"] }}\n\n**Immediate Actions Required:**\n1. Identify affected assets\n2. Apply emergency patches\n3. Implement WAF rules\n4. Monitor for exploitation attempts\n\n🔗 [CISA Advisory](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)",
+        "attachments": [],
+        "blocks": []
+      },
+      "id": "slack-critical-alert",
+      "name": "Slack Critical Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        900,
+        100
+      ],
+      "disabled": false,
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credential-id",
+          "name": "Slack Security Alerts"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "from": "security@company.com",
+        "to": "security-team@company.com",
+        "subject": "=🚨 CRITICAL: React2Shell Vulnerability CVE-2025-55182 Detected",
+        "body": "=**CRITICAL VULNERABILITY ALERT**\n\n**CVE ID:** CVE-2025-55182 (React2Shell)\n**CVSS Score:** {{ $node[\"NVD CVE Lookup\"].json[\"cvssMetricV31\"][0][\"cvssData\"][\"baseScore\"] }}/10\n**Severity:** CRITICAL\n\n**Vulnerability Description:**\n{{ $node[\"NVD CVE Lookup\"].json[\"descriptions\"][0][\"value\"] }}\n\n**Impact:**\n- Unauthenticated Remote Code Execution\n- Affects React Server Components in React 19.x and Next.js 15.x/16.x\n- Active exploitation confirmed in the wild\n\n**Recommended Actions:**\n1. **IMMEDIATE**: Identify all React/Next.js applications using Server Components\n2. **IMMEDIATE**: Apply vendor patches (Meta React 19.x security update)\n3. **URGENT**: Deploy WAF rules to block malicious requests\n4. **URGENT**: Review access logs for suspicious RCE indicators\n5. Monitor CISA KEV catalog for updates\n\n**References:**\n- CISA KEV: https://www.cisa.gov/known-exploited-vulnerabilities-catalog\n- Meta Security Advisory: https://reactjs.org/blog/2025/12/security-update\n",
+        "options": {}
+      },
+      "id": "email-critical-alert",
+      "name": "Email Critical Alert",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ],
+      "disabled": false,
+      "credentials": {
+        "smtp": {
+          "id": "smtp-credential-id",
+          "name": "Company SMTP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $node[\"Webhook Trigger\"].json[\"cve_id\"] }}",
+              "operation": "contains",
+              "value2": "CVE-2025-55182"
+            }
+          ]
+        }
+      },
+      "id": "react-check",
+      "name": "React2Shell Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        400
+      ],
+      "disabled": false,
+      "notesInFlow": true,
+      "notes": "Specific check for React2Shell vulnerability"
+    },
+    {
+      "parameters": {
+        "url": "https://api.your-siem.com/v2/threats",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $node[\"SIEM Credentials\"].json[\"api_key\"] }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"threat_type\": \"VULNERABILITY\",\n  \"severity\": \"CRITICAL\",\n  \"cve_id\": \"CVE-2025-55182\",\n  \"threat_name\": \"React2Shell\",\n  \"description\": \"React Server Components Remote Code Execution Vulnerability\",\n  \"indicators_of_compromise\": {\n    \"cves\": [\"CVE-2025-55182\"],\n    \"attack_patterns\": [\"T1190 - Exploit Public-Facing Application\", \"T1059 - Command and Scripting Interpreter\"]\n  },\n  \"affected_systems\": [\"React 19.x\", \"Next.js 15.x/16.x (App Router)\"],\n  \"recommended_actions\": [\n    \"Apply Meta security patch immediately\",\n    \"Deploy WAF rules blocking malicious requests\",\n    \"Audit React Server Components usage\",\n    \"Monitor for exploitation indicators\"\n  ],\n  \"workflow_id\": \"cybersentinel-react2shell-001\",\n  \"timestamp\": \"{{ $now }}\"\n}",
+        "options": {}
+      },
+      "id": "siem-ingest",
+      "name": "Ingest to SIEM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1100,
+        200
+      ],
+      "disabled": false,
+      "notesInFlow": true,
+      "notes": "Ingest threat intel to SIEM"
+    },
+    {
+      "parameters": {
+        "command": "=aws wafv2 update-web-acl \\\n    --name \"React2Shell-Block-List\" \\\n    --scope CLOUDFRONT \\\n    --default-action Block \\\n    --rules file://waf-rules.json \\\n    --region us-east-1",
+        "timeout": 120
+      },
+      "id": "waf-deploy",
+      "name": "Deploy WAF Rules",
+      "type": "n8n-nodes-base.awsLambda",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        100
+      ],
+      "disabled": false,
+      "credentials": {
+        "aws": {
+          "id": "aws-credential-id",
+          "name": "AWS Production"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jiraProject": "SEC",
+        "jiraIssueType": "Task",
+        "title": "=CRITICAL: React2Shell Vulnerability CVE-2025-55182 - Patching Required",
+        "body": "=**CVE-2025-55182 (React2Shell) - Critical RCE Vulnerability**\n\n**Severity:** CRITICAL - CVSS 10.0\n**Status:** Active Exploitation Confirmed\n\n**Description:**\nUnauthenticated Remote Code Execution vulnerability in React Server Components affecting React 19.x and Next.js 15.x/16.x with App Router.\n\n**Immediate Actions Required:**\n\n**Priority 1 (0-4 hours):**\n- [ ] Identify all applications using React Server Components\n- [ ] Apply Meta security patch to React 19.x\n- [ ] Update Next.js to patched version\n\n**Priority 2 (4-24 hours):**\n- [ ] Deploy WAF rules to block exploitation attempts\n- [ ] Review access logs for suspicious RCE indicators\n- [ ] Notify affected application owners\n\n**Priority 3 (24-72 hours):**\n- [ ] Complete patching of all affected systems\n- [ ] Validate WAF rules are effective\n- [ ] Document lessons learned\n\n**References:**\n- CISA KEV: https://www.cisa.gov/known-exploited-vulnerabilities-catalog\n- Meta Security Advisory: https://reactjs.org/blog/2025/12/security-update\n\n---\n*Automated ticket created by CyberSentinel*",
+        "labels": [
+          "critical-vulnerability",
+          "react",
+          "patching",
+          "cve-2025-55182"
+        ]
+      },
+      "id": "jira-ticket",
+      "name": "Create Jira Ticket",
+      "type": "n8n-nodes-base.jiraSoftware",
+      "typeVersion": 1,
+      "position": [
+        1100,
+        300
+      ],
+      "disabled": false,
+      "credentials": {
+        "jiraSoftwareApi": {
+          "id": "jira-credential-id",
+          "name": "Jira Security"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "CISA KEV Lookup",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "NVD CVE Lookup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CISA KEV Lookup": {
+      "main": [
+        [
+          {
+            "node": "Critical Severity Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NVD CVE Lookup": {
+      "main": [
+        [
+          {
+            "node": "Critical Severity Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Critical Severity Check": {
+      "main": [
+        [
+          {
+            "node": "Slack Critical Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Email Critical Alert",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Ingest to SIEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "workflow_id": "cybersentinel-react2shell-001",
+    "description": "Automated response workflow for React2Shell (CVE-2025-55182) critical vulnerability",
+    "version": "1.0.0",
+    "created_by": "CyberSentinel",
+    "created_at": "2025-12-30T14:20:11Z"
+  }
+}

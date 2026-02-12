@@ -1,0 +1,200 @@
+{
+  "name": "LockBit 5.0 Ransomware Response",
+  "nodes": [
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.threatintel.io/v1/ransomware/lockbit-5-0",
+        "authentication": "preDefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": {
+          "threatType": "RANSOMWARE",
+          "group": "LockBit",
+          "variant": "5.0",
+          "severity": "CRITICAL",
+          "status": "active",
+          "attackVector": "Multi-platform (Windows, Linux, ESXi)",
+          "tactics": [
+            "Encryption",
+            "Double Extortion",
+            "Data Exfiltration"
+          ],
+          "indicators": [
+            "Randomized 16-char file extensions",
+            "Faster encryption routines",
+            "Enhanced anti-analysis features"
+          ]
+        },
+        "options": {}
+      },
+      "name": "LockBit 5.0 Intel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        280,
+        300
+      ],
+      "id": "ransomware-intel-1"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "channel": "ransomware-alerts",
+        "text": "=🔴 RANSOMWARE ALERT: LockBit 5.0 Detected\n\nThreat: LockBit 5.0 Ransomware-as-a-Service\nSeverity: CRITICAL\nStatus: Active - Affiliate Network Reactivated\n\nATTACK CHARACTERISTICS:\n• Multi-platform: Windows, Linux, ESXi\n• Randomized 16-character file extensions\n• Faster encryption algorithms\n• Enhanced anti-analysis evasion\n• Double extortion model\n\nINDICATORS OF COMPROMISE:\n• Unexpected file encryption with random extensions\n• Suspicious PowerShell commands\n• Lateral movement via SMB/RDP\n• C2 communication on non-standard ports\n\nAFFECTED INDUSTRIES:\n• Technology & Manufacturing\n• Healthcare\n• Financial Services\n• Critical Infrastructure\n\nRECOMMENDED ACTIONS:\n1. DISABLE SMBv1 and restrict RDP\n2. Enable enhanced monitoring on endpoints\n3. Review EDR alerts for process injection\n4. Backup verification - offline copies\n5. ISOLATE affected systems immediately\n\nn8nWorkflowId: wf-lockbit-5-0-ransomware",
+        "options": {}
+      },
+      "name": "Slack Ransomware Alert",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        300
+      ],
+      "id": "slack-ransomware-1"
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "to": "soc@company.com",
+        "subject": "🔴 CRITICAL: LockBit 5.0 Ransomware Campaign Detected",
+        "text": "=RANSOMWARE THREAT INTELLIGENCE\n\nTHREAT: LockBit 5.0 (Ransomware-as-a-Service)\nSEVERITY: CRITICAL\nSTATUS: Active - Resumed Operations After Takedown\n\nEXECUTIVE SUMMARY:\nLockBit has returned with version 5.0, demonstrating full affiliate network reactivation. The group continues to target enterprise environments with advanced encryption and evasion capabilities.\n\nTECHNICAL DETAILS:\n• Targets: Windows, Linux, VMware ESXi systems\n• Encryption: Optimized routines for faster execution\n• Evasion: Enhanced anti-analysis features\n• Extortion: Data encryption + data theft + DDoS\n\nIOCs TO MONITOR:\n• New processes: unknown.exe, svc*.exe\n• Network: Unexpected outbound connections to ports 443, 8443\n• Files: Files with randomized 16-character extensions\n• Registry: New autorun entries\n\nMITIGATIONS:\n1. Patch Windows and third-party software\n2. Disable unnecessary services (RDP, SMBv1)\n3. Implement network segmentation\n4. Enable application whitelisting\n5. Review and test backup restoration\n\nIncident Response: Activate IR playbook immediately if detected.",
+        "options": {}
+      },
+      "name": "SOC Email Alert",
+      "type": "n8n-nodes-base.emailReadWrite",
+      "typeVersion": 2,
+      "position": [
+        720,
+        300
+      ],
+      "id": "soc-email-1"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "ticketType": "ransomware_incident",
+        "title": "=LockBit 5.0 Ransomware Attack - CRITICAL",
+        "description": "=Critical ransomware threat detected. Activate IR playbook immediately.",
+        "options": {}
+      },
+      "name": "Create IR Ticket",
+      "type": "n8n-nodes-base.jiraSoftware",
+      "typeVersion": 3,
+      "position": [
+        940,
+        300
+      ],
+      "id": "ir-ticket-1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value": "CRITICAL",
+              "operation": "equal"
+            }
+          ]
+        }
+      },
+      "name": "Critical Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ],
+      "id": "critical-check-1"
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "projectKey": "IR",
+        "title": "=CRITICAL: LockBit 5.0 Active Campaign",
+        "description": "=Immediate incident response required. Ransomware-as-a-Service group detected.",
+        "options": {}
+      },
+      "name": "Create Incident",
+      "type": "n8n-nodes-base.jiraSoftware",
+      "typeVersion": 3,
+      "position": [
+        1160,
+        300
+      ],
+      "id": "incident-create-1"
+    }
+  ],
+  "connections": {
+    "LockBit 5.0 Intel": {
+      "main": [
+        [
+          {
+            "node": "Slack Ransomware Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Slack Ransomware Alert": {
+      "main": [
+        [
+          {
+            "node": "SOC Email Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SOC Email Alert": {
+      "main": [
+        [
+          {
+            "node": "Create IR Ticket",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Critical Check": {
+      "main": [
+        [
+          {
+            "node": "LockBit 5.0 Intel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateId": "ransomware-response",
+    "cyberSentinel": true,
+    "triggerId": "a1a6b29f-1834-4666-82d7-1163ce25f64c",
+    "agentId": "a401e896-d617-4e97-8bbf-29f47e133c21",
+    "scheduledTime": "2025-12-27T14:20:11.968570+00:00"
+  }
+}

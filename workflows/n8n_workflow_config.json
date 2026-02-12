@@ -1,0 +1,295 @@
+{
+  "name": "CyberSentinel Threat Intelligence Automation",
+  "description": "Automated threat intelligence collection, analysis, and response orchestration with false positive reduction",
+  "version": "1.0",
+  "created": "2025-12-27T14:20:11.968570+00:00",
+  "workflows": [
+    {
+      "id": "wf_threat_collection_001",
+      "name": "Threat Intelligence Collection Pipeline",
+      "description": "Automated collection from OSINT feeds, CVE databases, and threat intelligence sources",
+      "trigger": "Schedule (Every 6 hours)",
+      "nodes": [
+        {
+          "id": "node_1",
+          "type": "trigger",
+          "name": "Schedule Trigger",
+          "config": {
+            "interval": "6h",
+            "timezone": "UTC"
+          }
+        },
+        {
+          "id": "node_2",
+          "type": "http_request",
+          "name": "Fetch CVE Database",
+          "config": {
+            "url": "https://services.nvd.nist.gov/rest/json/cves/2.0",
+            "method": "GET",
+            "params": {
+              "startIndex": 0,
+              "resultsPerPage": 100,
+              "sortBy": "published_date"
+            }
+          }
+        },
+        {
+          "id": "node_3",
+          "type": "http_request",
+          "name": "Fetch CISA KEV Catalog",
+          "config": {
+            "url": "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json",
+            "method": "GET"
+          }
+        },
+        {
+          "id": "node_4",
+          "type": "http_request",
+          "name": "Fetch Threat Intelligence Feeds",
+          "config": {
+            "url": "https://api.abuse.ch/api/v1/urlhaus/urls/",
+            "method": "GET",
+            "params": {
+              "limit": 100,
+              "date": "today"
+            }
+          }
+        },
+        {
+          "id": "node_5",
+          "type": "code",
+          "name": "Aggregate and Normalize Data",
+          "config": {
+            "language": "javascript",
+            "code": "// Aggregate threat data from multiple sources\nconst threats = [];\nconst cveData = $node.node_2.json;\nconst cisaData = $node.node_3.json;\nconst urlhausData = $node.node_4.json;\n\n// Process CVE data\ncveData.vulnerabilities.forEach(vuln => {\n  threats.push({\n    type: 'VULNERABILITY',\n    id: vuln.cve.id,\n    severity: vuln.impact?.baseMetricV3?.cvssV3?.baseSeverity || 'UNKNOWN',\n    source: 'NVD',\n    timestamp: new Date().toISOString()\n  });\n});\n\n// Process CISA KEV data\ncisaData.vulnerabilities.forEach(vuln => {\n  threats.push({\n    type: 'VULNERABILITY',\n    id: vuln.cveID,\n    severity: 'CRITICAL',\n    exploited: true,\n    source: 'CISA_KEV',\n    timestamp: new Date().toISOString()\n  });\n});\n\nreturn { threats, count: threats.length };"
+          }
+        },
+        {
+          "id": "node_6",
+          "type": "database",
+          "name": "Store Threat Data",
+          "config": {
+            "operation": "insert",
+            "table": "threats",
+            "data": "$node.node_5.json.threats"
+          }
+        }
+      ]
+    },
+    {
+      "id": "wf_threat_analysis_002",
+      "name": "Threat Classification and Severity Assessment",
+      "description": "Analyze and classify threats with business context",
+      "trigger": "Webhook (Threat Data Received)",
+      "nodes": [
+        {
+          "id": "node_1",
+          "type": "webhook",
+          "name": "Threat Data Webhook",
+          "config": {
+            "method": "POST",
+            "path": "/threat-analysis"
+          }
+        },
+        {
+          "id": "node_2",
+          "type": "code",
+          "name": "Classify Threat",
+          "config": {
+            "language": "javascript",
+            "code": "// Classify threat based on indicators\nconst threat = $node.node_1.json;\nconst classification = {\n  threatType: 'UNKNOWN',\n  severity: 'LOW',\n  confidence: 0,\n  businessContext: {}\n};\n\n// Threat type classification\nif (threat.indicators?.includes('ransomware')) {\n  classification.threatType = 'RANSOMWARE';\n} else if (threat.indicators?.includes('phishing')) {\n  classification.threatType = 'PHISHING';\n} else if (threat.indicators?.includes('malware')) {\n  classification.threatType = 'MALWARE';\n} else if (threat.indicators?.includes('apt')) {\n  classification.threatType = 'APT';\n} else if (threat.indicators?.includes('vulnerability')) {\n  classification.threatType = 'VULNERABILITY';\n}\n\n// Severity assessment\nif (threat.cvss >= 9.0 || threat.exploited) {\n  classification.severity = 'CRITICAL';\n  classification.confidence = 0.95;\n} else if (threat.cvss >= 7.0) {\n  classification.severity = 'HIGH';\n  classification.confidence = 0.85;\n} else if (threat.cvss >= 4.0) {\n  classification.severity = 'MEDIUM';\n  classification.confidence = 0.75;\n} else {\n  classification.severity = 'LOW';\n  classification.confidence = 0.65;\n}\n\n// Business context\nclassification.businessContext = {\n  affectedIndustries: threat.affectedIndustries || [],\n  affectedSystems: threat.affectedSystems || [],\n  exploitationStatus: threat.exploited ? 'ACTIVELY_EXPLOITED' : 'UNCONFIRMED',\n  realWorldImpact: threat.realWorldImpact || 'Unknown'\n};\n\nreturn classification;"
+          }
+        },
+        {
+          "id": "node_3",
+          "type": "code",
+          "name": "Reduce False Positives",
+          "config": {
+            "language": "javascript",
+            "code": "// Implement false positive reduction logic\nconst threat = $node.node_2.json;\nconst fpReduction = {\n  isFalsePositive: false,\n  fpScore: 0,\n  reasoning: []\n};\n\n// Check for legitimate administrative activities\nif (threat.threatType === 'VULNERABILITY' && threat.severity === 'LOW') {\n  fpReduction.fpScore += 0.3;\n  fpReduction.reasoning.push('Low severity vulnerability with limited real-world impact');\n}\n\n// Check for known false positive patterns\nif (threat.indicators?.includes('legitimate_admin_activity')) {\n  fpReduction.fpScore += 0.4;\n  fpReduction.reasoning.push('Matches known legitimate administrative pattern');\n}\n\n// Check for reputation scoring\nif (threat.sourceReputation > 0.8) {\n  fpReduction.fpScore -= 0.2;\n  fpReduction.reasoning.push('High reputation source increases confidence');\n}\n\n// Determine if false positive\nif (fpReduction.fpScore > 0.6) {\n  fpReduction.isFalsePositive = true;\n}\n\nreturn fpReduction;"
+          }
+        },
+        {
+          "id": "node_4",
+          "type": "conditional",
+          "name": "Check False Positive",
+          "config": {
+            "condition": "$node.node_3.json.isFalsePositive === false"
+          }
+        },
+        {
+          "id": "node_5",
+          "type": "database",
+          "name": "Store Classified Threat",
+          "config": {
+            "operation": "insert",
+            "table": "classified_threats",
+            "data": {\n              "threat": "$node.node_1.json",\n              "classification": "$node.node_2.json",\n              "fpReduction": "$node.node_3.json",\n              "timestamp": "new Date().toISOString()"\n            }\n          }\n        }
+      ]
+    },
+    {
+      "id": "wf_threat_response_003",
+      "name": "Automated Threat Response Orchestration",
+      "description": "Orchestrate automated response based on threat severity and type",
+      "trigger": "Webhook (Threat Classification Complete)",
+      "nodes": [
+        {
+          "id": "node_1",
+          "type": "webhook",
+          "name": "Threat Response Webhook",
+          "config": {
+            "method": "POST",
+            "path": "/threat-response"
+          }
+        },
+        {
+          "id": "node_2",
+          "type": "conditional",
+          "name": "Severity Check",
+          "config": {
+            "branches": [
+              {
+                "condition": "$node.node_1.json.severity === 'CRITICAL'",
+                "nextNode": "node_3_critical"
+              },
+              {
+                "condition": "$node.node_1.json.severity === 'HIGH'",
+                "nextNode": "node_3_high"
+              },
+              {
+                "condition": "$node.node_1.json.severity === 'MEDIUM'",
+                "nextNode": "node_3_medium"
+              }
+            ]
+          }
+        },
+        {
+          "id": "node_3_critical",
+          "type": "parallel",
+          "name": "Critical Response Actions",
+          "config": {
+            "actions": [
+              {
+                "type": "notification",
+                "target": "slack",
+                "channel": "#security-critical",
+                "message": "🚨 CRITICAL THREAT DETECTED: {{threatType}} - {{threatName}}"
+              },
+              {
+                "type": "notification",
+                "target": "email",
+                "recipients": ["ciso@company.com", "security-team@company.com"],
+                "subject": "CRITICAL THREAT ALERT: {{threatName}}"
+              },
+              {
+                "type": "incident_creation",
+                "system": "ServiceNow",
+                "priority": "P1",
+                "title": "CRITICAL: {{threatName}}",
+                "description": "{{businessContext}}"
+              },
+              {
+                "type": "workflow_trigger",
+                "workflow": "wf_incident_response_critical"
+              }
+            ]
+          }
+        },
+        {
+          "id": "node_3_high",
+          "type": "parallel",
+          "name": "High Response Actions",
+          "config": {
+            "actions": [
+              {
+                "type": "notification",
+                "target": "slack",
+                "channel": "#security-alerts",
+                "message": "⚠️ HIGH THREAT DETECTED: {{threatType}} - {{threatName}}"
+              },
+              {
+                "type": "incident_creation",
+                "system": "ServiceNow",
+                "priority": "P2",
+                "title": "HIGH: {{threatName}}"
+              }
+            ]
+          }
+        },
+        {
+          "id": "node_3_medium",
+          "type": "parallel",
+          "name": "Medium Response Actions",
+          "config": {
+            "actions": [
+              {
+                "type": "notification",
+                "target": "slack",
+                "channel": "#security-info",
+                "message": "ℹ️ MEDIUM THREAT DETECTED: {{threatType}} - {{threatName}}"
+              },
+              {
+                "type": "logging",
+                "system": "SIEM",
+                "level": "WARNING"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "wf_incident_response_critical",
+      "name": "Critical Incident Response Workflow",
+      "description": "Automated response for critical threats",
+      "trigger": "Workflow Trigger",
+      "nodes": [
+        {
+          "id": "node_1",
+          "type": "trigger",
+          "name": "Incident Response Trigger",
+          "config": {
+            "type": "workflow_trigger"
+          }
+        },
+        {
+          "id": "node_2",
+          "type": "code",
+          "name": "Generate Response Playbook",
+          "config": {
+            "language": "javascript",
+            "code": "// Generate response playbook based on threat type\nconst threat = $node.node_1.json;\nconst playbook = {\n  threatType: threat.threatType,\n  steps: [],\n  timeline: []\n};\n\nswitch(threat.threatType) {\n  case 'VULNERABILITY':\n    playbook.steps = [\n      'Alert security team',\n      'Identify affected systems',\n      'Prepare patch deployment',\n      'Deploy patches',\n      'Verify remediation'\n    ];\n    break;\n  case 'RANSOMWARE':\n    playbook.steps = [\n      'Isolate affected systems',\n      'Alert leadership',\n      'Preserve forensic evidence',\n      'Activate backup recovery',\n      'Conduct threat hunting',\n      'Report to law enforcement'\n    ];\n    break;\n  case 'PHISHING':\n    playbook.steps = [\n      'Quarantine emails',\n      'Alert users',\n      'Analyze URLs',\n      'Check credentials',\n      'Enforce MFA',\n      'Generate report'\n    ];\n    break;\n  case 'APT':\n    playbook.steps = [\n      'Escalate to leadership',\n      'Activate incident response',\n      'Conduct forensic investigation',\n      'Threat hunting',\n      'Reset credentials',\n      'Report to law enforcement'\n    ];\n    break;\n}\n\nreturn playbook;"
+          }
+        },
+        {
+          "id": "node_3",
+          "type": "loop",
+          "name": "Execute Response Steps",
+          "config": {
+            "items": "$node.node_2.json.steps",
+            "actions": [\n              {\n                "type": "execute_step",\n                "step": "{{item}}"\n              },\n              {\n                "type": "log_progress",\n                "message": "Executing: {{item}}"\n              }\n            ]\n          }\n        },
+        {
+          "id": "node_4",
+          "type": "notification",
+          "name": "Send Completion Report",
+          "config": {\n            "target": "email",\n            "recipients": ["ciso@company.com"],\n            "subject": "Incident Response Complete: {{threatName}}",\n            "template": "incident_response_report"\n          }\n        }
+      ]
+    },
+    {
+      "id": "wf_threat_reporting_004",
+      "name": "Threat Intelligence Reporting",
+      "description": "Generate structured threat intelligence reports with business context",
+      "trigger": "Schedule (Daily)",
+      "nodes": [
+        {
+          "id": "node_1",
+          "type": "trigger",
+          "name": "Daily Report Trigger",
+          "config": {
+            "interval": "24h",
+            "time": "09:00 UTC"
+          }\n        },\n        {\n          "id": "node_2",\n          "type": "database",\n          "name": "Query Threats (Last 24h)",\n          "config": {\n            "operation": "select",\n            "table": "classified_threats",\n            "where": "timestamp > NOW() - INTERVAL 24 HOUR"\n          }\n        },\n        {\n          "id": "node_3",\n          "type": "code",\n          "name": "Generate Report",\n          "config": {\n            "language": "javascript",\n            "code": "// Generate comprehensive threat intelligence report\nconst threats = $node.node_2.json;\nconst report = {\n  generated: new Date().toISOString(),\n  period: 'Last 24 hours',\n  summary: {\n    totalThreats: threats.length,\n    critical: threats.filter(t => t.severity === 'CRITICAL').length,\n    high: threats.filter(t => t.severity === 'HIGH').length,\n    medium: threats.filter(t => t.severity === 'MEDIUM').length,\n    low: threats.filter(t => t.severity === 'LOW').length\n  },\n  threats: threats,\n  recommendations: []\n};\n\n// Generate recommendations\nif (report.summary.critical > 0) {\n  report.recommendations.push('IMMEDIATE: Address critical threats');\n}\nif (report.summary.high > 0) {\n  report.recommendations.push('URGENT: Mitigate high-severity threats');\n}\n\nreturn report;"
+          }
+        },
+        {
+          "id": "node_4",\n          "type": "file_write",\n          "name": "Save Report to File",\n          "config": {\n            "filename": "threat_report_{{date}}.json",\n            "content": "$node.node_3.json"\n          }\n        },\n        {\n          "id": "node_5",\n          "type": "notification",\n          "name": "Send Report",\n          "config": {\n            "target": "email",\n            "recipients": ["security-team@company.com"],\n            "subject": "Daily Threat Intelligence Report\",\n            "template": "threat_report_template\",\n            "attachment": \"threat_report_{{date}}.json\"\n          }\n        }\n      ]\n    }\n  ],\n  "global_config": {\n    "error_handling": {\n      "retry_attempts": 3,\n      "retry_delay": \"5s\",\n      "on_error": \"send_alert\"\n    },\n    "logging": {\n      "level": \"INFO\",\n      "destination\": \"SIEM\"\n    },\n    "notifications": {\n      "slack_webhook\": \"https://hooks.slack.com/services/YOUR/WEBHOOK/URL\",\n      \"email_smtp\": \"smtp.company.com\",\n      \"incident_system\": \"ServiceNow\"\n    }\n  }\n}\n

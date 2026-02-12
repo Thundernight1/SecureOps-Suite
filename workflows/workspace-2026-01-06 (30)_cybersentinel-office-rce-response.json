@@ -1,0 +1,210 @@
+{
+  "name": "CyberSentinel - Microsoft Office RCE Response",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        200
+      ],
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "url": "https://services.n8n.io/n8n-services/patch-tuesday-monitor",
+        "options": {}
+      },
+      "id": "patch-monitor",
+      "name": "Patch Tuesday Monitor",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        300,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.cve_id }}",
+              "operation": "equal",
+              "value2": "CVE-2025-62554"
+            }
+          ]
+        }
+      },
+      "id": "filter-office-rce",
+      "name": "Filter Office RCE",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "text": "=🚨 CRITICAL: Microsoft Office RCE (CVE-2025-62554/62557)\n\n**Severity:** CRITICAL (CVSS 8.4)\n**Type:** Remote Code Execution\n**Attack Vector:** Malicious email/links\n\n**Affected Systems:**\n- Microsoft Office (all versions)\n- Outlook (CVE-2025-62562)\n\n**Technical Details:**\n- CVE-2025-62554: Type confusion weakness\n- CVE-2025-62557: Use-after-free condition\n- No user interaction required (worst case)\n\n**Recommended Actions:**\n1. Apply Microsoft December 2025 patches immediately\n2. Block external email attachments with suspicious extensions\n3. Enable Safe Attachment policies in Exchange\n4. Implement macro blocking via GPO\n5. Train users on phishing recognition\n\n**Reference:** https://www.crowdstrike.com/en-us/blog/patch-tuesday-analysis-december-2025/",
+        "additionalOptions": {}
+      },
+      "id": "alert-security-team",
+      "name": "Alert Security Team",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [
+        700,
+        100
+      ],
+      "credentials": {
+        "slackApi": {
+          "id": "slack-credential-id",
+          "name": "Slack API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "table": "vulnerability_incidents",
+        "columns": {
+          "cve_id": "={{ $json.cve_id }}",
+          "severity": "CRITICAL",
+          "threat_type": "VULNERABILITY",
+          "description": "={{ $json.description }}",
+          "affected_systems": "Microsoft Office, Outlook",
+          "ioc_data": "Malicious email attachments, crafted HTTP requests",
+          "recommended_actions": "Apply KB5002817-KB5002820 patches",
+          "workflow_id": "cybersentinel-office-rce-2025",
+          "created_at": "={{ $now }}"
+        }
+      },
+      "id": "log-incident",
+      "name": "Log Incident",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-credential-id",
+          "name": "PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "policyName": "office-mitigation-policy",
+        "policyDescription": "Email security policies for Office RCE mitigation",
+        "rules": [
+          {
+            "action": "quarantine",
+            "conditions": [
+              {
+                "type": "attachment",
+                "extension": [
+                  "exe",
+                  "scr",
+                  "bat",
+                  "vbs"
+                ]
+              }
+            ]
+          },
+          {
+            "action": "strip",
+            "conditions": [
+              {
+                "type": "macro",
+                "value": "true"
+              }
+            ]
+          }
+        ]
+      },
+      "id": "update-email-security",
+      "name": "Update Email Security",
+      "type": "n8n-nodes-base.microsoftExchange",
+      "typeVersion": 1,
+      "position": [
+        700,
+        500
+      ],
+      "credentials": {
+        "microsoftExchangeOAuth2": {
+          "id": "exchange-credential-id",
+          "name": "Exchange OAuth2"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Patch Tuesday Monitor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Patch Tuesday Monitor": {
+      "main": [
+        [
+          {
+            "node": "Filter Office RCE",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Office RCE": {
+      "main": [
+        [
+          {
+            "node": "Alert Security Team",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Security Team": {
+      "main": [
+        [
+          {
+            "node": "Log Incident",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Incident": {
+      "main": [
+        [
+          {
+            "node": "Update Email Security",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
