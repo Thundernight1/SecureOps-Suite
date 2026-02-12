@@ -8,20 +8,23 @@ NO FAKE DATA - Uses real CVE-2025-55182 and December 2025 threat intel
 
 import json
 import re
+import argparse
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Any
 
-# REAL paths - update to your actual Automation folder location
-AUTOMATION_BASE = Path.home() / "path/to/Automation"  # UPDATE THIS
-THREAT_INTEL_DIR = AUTOMATION_BASE / "Resources" / "Threat-Intelligence"
-OUTPUT_DIR = Path.home() / "Purple_Team_Operations" / "data" / "threat_intel"
+# REAL paths
+SCRIPT_DIR = Path(__file__).parent
+PROJECT_ROOT = SCRIPT_DIR.parent
+DEFAULT_THREAT_INTEL_DIR = PROJECT_ROOT / "Resources" / "Threat-Intelligence"
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "Purple_Team_Operations" / "data" / "threat_intel"
 
 class ThreatIntelProcessor:
     """Process REAL threat intelligence from your existing files"""
 
-    def __init__(self):
-        self.output_dir = OUTPUT_DIR
+    def __init__(self, threat_intel_dir=None, output_dir=None):
+        self.threat_intel_dir = Path(threat_intel_dir) if threat_intel_dir else DEFAULT_THREAT_INTEL_DIR
+        self.output_dir = Path(output_dir) if output_dir else DEFAULT_OUTPUT_DIR
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def extract_cves_from_summary(self, summary_file: Path) -> List[Dict[str, Any]]:
@@ -170,8 +173,8 @@ class ThreatIntelProcessor:
     def generate_weekly_briefing_data(self) -> Dict[str, Any]:
         """Generate REAL data for $12,500 weekly threat briefing"""
 
-        summary_file = THREAT_INTEL_DIR / "THREAT_INTELLIGENCE_SUMMARY.md"
-        ioc_file = THREAT_INTEL_DIR / "indicators_of_compromise.json"
+        summary_file = self.threat_intel_dir / "THREAT_INTELLIGENCE_SUMMARY.md"
+        ioc_file = self.threat_intel_dir / "indicators_of_compromise.json"
 
         # Extract real data from your files
         cves = self.extract_cves_from_summary(summary_file)
@@ -267,18 +270,26 @@ class ThreatIntelProcessor:
 
 
 def main():
+    parser = argparse.ArgumentParser(description='Threat Intelligence Ingestion')
+    parser.add_argument('--threat-intel-dir', help=f'Threat intel directory (default: {DEFAULT_THREAT_INTEL_DIR})')
+    parser.add_argument('--output-dir', help=f'Output directory (default: {DEFAULT_OUTPUT_DIR})')
+    args = parser.parse_args()
+
+    threat_intel_dir = Path(args.threat_intel_dir) if args.threat_intel_dir else DEFAULT_THREAT_INTEL_DIR
+    output_dir = Path(args.output_dir) if args.output_dir else DEFAULT_OUTPUT_DIR
+
     print("=== Threat Intelligence Ingestion ===")
-    print(f"Source: {THREAT_INTEL_DIR}")
-    print(f"Output: {OUTPUT_DIR}")
+    print(f"Source: {threat_intel_dir}")
+    print(f"Output: {output_dir}")
     print()
 
     # Check if threat intel directory exists
-    if not THREAT_INTEL_DIR.exists():
-        print(f"ERROR: Threat intelligence directory not found: {THREAT_INTEL_DIR}")
-        print(f"Please update AUTOMATION_BASE in this script to point to your Automation folder")
+    if not threat_intel_dir.exists():
+        print(f"ERROR: Threat intelligence directory not found: {threat_intel_dir}")
+        print(f"Please ensure you are running from project root or provide --threat-intel-dir")
         return 1
 
-    processor = ThreatIntelProcessor()
+    processor = ThreatIntelProcessor(threat_intel_dir=threat_intel_dir, output_dir=output_dir)
 
     try:
         # Generate weekly briefing data from REAL threat intel

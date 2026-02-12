@@ -9,13 +9,17 @@ NO PLACEHOLDERS - This processes actual tool output
 import json
 import csv
 import re
+import argparse
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 import subprocess
 
-OUTPUT_DIR = Path.home() / "Purple_Team_Operations" / "data" / "scan_results"
-TOOLS_DIR = Path.home() / "Purple_Team_Operations" / "tools"
+# REAL paths
+SCRIPT_DIR = Path(__file__).parent
+PROJECT_ROOT = SCRIPT_DIR.parent
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "Purple_Team_Operations" / "data" / "scan_results"
+DEFAULT_TOOLS_DIR = PROJECT_ROOT / "Purple_Team_Operations" / "tools"
 
 
 class FlipperZeroParser:
@@ -341,20 +345,22 @@ class SharkTapParser:
 class PhysicalToolIntegrator:
     """Integrate all physical tool results into unified report"""
 
-    def __init__(self):
-        self.flipper = FlipperZeroParser(TOOLS_DIR)
-        self.pineapple = WiFiPineappleParser(TOOLS_DIR)
-        self.sharktap = SharkTapParser(TOOLS_DIR)
-        self.output_dir = OUTPUT_DIR
+    def __init__(self, tools_dir=None, output_dir=None):
+        self.tools_dir = Path(tools_dir) if tools_dir else DEFAULT_TOOLS_DIR
+        self.output_dir = Path(output_dir) if output_dir else DEFAULT_OUTPUT_DIR
+
+        self.flipper = FlipperZeroParser(self.tools_dir)
+        self.pineapple = WiFiPineappleParser(self.tools_dir)
+        self.sharktap = SharkTapParser(self.tools_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
     def aggregate_findings(self) -> Dict[str, Any]:
         """Aggregate findings from all physical tools"""
 
         # Look for latest scan files
-        flipper_scans = list((TOOLS_DIR / "flipper").glob("*.sub"))
-        pineapple_scans = list((TOOLS_DIR / "pineapple").glob("recon_*.json"))
-        sharktap_pcaps = list((TOOLS_DIR / "sharktap").glob("*.pcap"))
+        flipper_scans = list((self.tools_dir / "flipper").glob("*.sub"))
+        pineapple_scans = list((self.tools_dir / "pineapple").glob("recon_*.json"))
+        sharktap_pcaps = list((self.tools_dir / "sharktap").glob("*.pcap"))
 
         aggregated = {
             "metadata": {
@@ -502,17 +508,25 @@ HIGH PRIORITY ({high_count}):
 
 
 def main():
+    parser = argparse.ArgumentParser(description='Physical Tool Integration')
+    parser.add_argument('--tools-dir', help=f'Tools directory (default: {DEFAULT_TOOLS_DIR})')
+    parser.add_argument('--output-dir', help=f'Output directory (default: {DEFAULT_OUTPUT_DIR})')
+    args = parser.parse_args()
+
+    tools_dir = Path(args.tools_dir) if args.tools_dir else DEFAULT_TOOLS_DIR
+    output_dir = Path(args.output_dir) if args.output_dir else DEFAULT_OUTPUT_DIR
+
     print("=== Physical Tool Integration ===")
-    print(f"Tools directory: {TOOLS_DIR}")
-    print(f"Output directory: {OUTPUT_DIR}")
+    print(f"Tools directory: {tools_dir}")
+    print(f"Output directory: {output_dir}")
     print()
 
-    integrator = PhysicalToolIntegrator()
+    integrator = PhysicalToolIntegrator(tools_dir=tools_dir, output_dir=output_dir)
 
     # Check for tool data
-    flipper_files = list((TOOLS_DIR / "flipper").glob("*"))
-    pineapple_files = list((TOOLS_DIR / "pineapple").glob("*"))
-    sharktap_files = list((TOOLS_DIR / "sharktap").glob("*"))
+    flipper_files = list((tools_dir / "flipper").glob("*"))
+    pineapple_files = list((tools_dir / "pineapple").glob("*"))
+    sharktap_files = list((tools_dir / "sharktap").glob("*"))
 
     print(f"Flipper Zero files: {len(flipper_files)}")
     print(f"Wi-Fi Pineapple files: {len(pineapple_files)}")
@@ -522,7 +536,7 @@ def main():
     if not any([flipper_files, pineapple_files, sharktap_files]):
         print("No tool data found. Please:")
         print("1. Run your physical security tests")
-        print("2. Copy results to ~/Purple_Team_Operations/tools/")
+        print(f"2. Copy results to {tools_dir}")
         print("3. Re-run this script")
         return 1
 

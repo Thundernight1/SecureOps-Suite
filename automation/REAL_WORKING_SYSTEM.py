@@ -17,14 +17,17 @@ import argparse
 
 # GERÇEK dosya yolları - Automation klasörü nerede?
 SCRIPT_DIR = Path(__file__).parent
-THREAT_INTEL_FILE = SCRIPT_DIR / "Resources/Threat-Intelligence/indicators_of_compromise.json"
-OUTPUT_BASE = Path.home() / "Desktop" / "PurpleTeam_Output"
+PROJECT_ROOT = SCRIPT_DIR.parent
+DEFAULT_THREAT_INTEL_FILE = PROJECT_ROOT / "Resources/Threat-Intelligence/indicators_of_compromise.json"
+DEFAULT_OUTPUT_BASE = PROJECT_ROOT / "PurpleTeam_Output"
 
 class RealPurpleTeamSystem:
-    def __init__(self, client_name):
+    def __init__(self, client_name, output_base=None, threat_intel_file=None):
         self.client_name = client_name
+        self.output_base = Path(output_base) if output_base else DEFAULT_OUTPUT_BASE
+        self.threat_intel_file = Path(threat_intel_file) if threat_intel_file else DEFAULT_THREAT_INTEL_FILE
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.output_dir = OUTPUT_BASE / client_name.replace(" ", "_") / self.timestamp
+        self.output_dir = self.output_base / client_name.replace(" ", "_") / self.timestamp
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         print(f"🎯 Purple Team System - {client_name}")
@@ -35,13 +38,13 @@ class RealPurpleTeamSystem:
         """GERÇEK IOC'leri yükle - senin dosyandan"""
         print("[1/5] Loading REAL threat intelligence...")
 
-        if not THREAT_INTEL_FILE.exists():
+        if not self.threat_intel_file.exists():
             print(f"❌ ERROR: Threat intel file not found!")
-            print(f"   Expected: {THREAT_INTEL_FILE}")
-            print(f"   Fix: Make sure you're running this from Automation folder")
+            print(f"   Expected: {self.threat_intel_file}")
+            print(f"   Fix: Make sure you're running this from project root or provide --threat-intel")
             sys.exit(1)
 
-        with open(THREAT_INTEL_FILE) as f:
+        with open(self.threat_intel_file) as f:
             data = json.load(f)
 
         # GERÇEK IP'leri çıkar
@@ -428,10 +431,22 @@ def main():
         required=True,
         help='Client company name (e.g., "Acme Corporation")'
     )
+    parser.add_argument(
+        '--output-dir',
+        help=f'Output base directory (default: {DEFAULT_OUTPUT_BASE})'
+    )
+    parser.add_argument(
+        '--threat-intel',
+        help=f'Path to indicators_of_compromise.json (default: {DEFAULT_THREAT_INTEL_FILE})'
+    )
 
     args = parser.parse_args()
 
-    system = RealPurpleTeamSystem(args.client)
+    system = RealPurpleTeamSystem(
+        args.client,
+        output_base=args.output_dir,
+        threat_intel_file=args.threat_intel
+    )
     system.run_full_workflow()
 
 
